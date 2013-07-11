@@ -1,0 +1,9 @@
+%% @doc enable active anti-entropy subsystem
+%% @datatype enum on, off
+%% @mapping riak_kv.anti_entropy{1}
+{ "anti_entropy", on}.
+
+%% @doc Default ring creation size.  Make sure it is a power of 2,
+%% @datatype integer
+%% @mapping riak_core.ring_creation_size
+{ "ring_size", 64}.
