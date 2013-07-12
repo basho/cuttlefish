@@ -29,8 +29,11 @@ file_test() ->
     Conf = file("../test/riak.conf"),
     ?assertEqual(
     	[
-    		{"anti_entropy", "on"},
-			{"ring_size", "32"}
+            {"ring_size","32"},
+            {"anti_entropy","debug"},
+            {"log.error.file","/var/log/error.log"},
+            {"log.console.file","/var/log/console.log"},
+            {"log.syslog","on"}
     	],
     	Conf),
     ok.
