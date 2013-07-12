@@ -29,17 +29,33 @@
 -compile(export_all).
 -endif.
 
-map({Schema, Conf}, Defaults) ->
-    lists:foldl(
+map({Translations, Schema, Conf}, Defaults) ->
+    
+    DirectMappings = lists:foldl(
         fun({Key, _Default, Attributes}, Acc) ->
-            {DT, _} = proplists:get_value(datatype, Attributes),
             Mapping = proplists:get_value(mapping, Attributes),
-            Tokens = string:tokens(Mapping, "."),
-            NewValue = caster(proplists:get_value(Key, Conf),  DT),
-            tyktorp(Tokens, Acc, NewValue)
+            case {proplists:is_defined(datatype, Attributes), proplists:is_defined(Mapping, Translations)} of
+                {true, false} -> 
+                    {DT, _} = proplists:get_value(datatype, Attributes),
+                    Tokens = string:tokens(Mapping, "."),
+                    NewValue = caster(proplists:get_value(Key, Conf),  DT),
+                    tyktorp(Tokens, Acc, NewValue);
+                _ -> Acc
+            end
         end, 
         Defaults, 
-        Schema).
+        Schema),
+
+    lists:foldl(
+        fun({Mapping, Xlat, _}, Acc) ->
+            Tokens = string:tokens(Mapping, "."),
+            NewValue = Xlat(Conf),
+            tyktorp(Tokens, Acc, NewValue)
+        end, 
+        DirectMappings, 
+        Translations). 
+
+    %
 
 tyktorp([LastToken], Acc, NewValue) ->
     {Type, Token, X} = token_type(LastToken),
@@ -181,10 +197,10 @@ data_typer(DT) ->
 
 -ifdef(TEST).
 map_test() ->
-    Schema = file("../test/riak.schema"),
+    {Translations, Schema} = file("../test/riak.schema"),
     Conf = bjorn_conf_file:file("../test/riak.conf"),
     {ok, [Defaults]} = file:consult("../test/default.config"), 
-    NewConfig = map({Schema, Conf}, Defaults),
+    NewConfig = map({Translations, Schema, Conf}, Defaults),
 
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
