@@ -1,9 +1,59 @@
-%% @doc enable active anti-entropy subsystem
-%% @datatype enum on, off
-%% @mapping riak_kv.anti_entropy{1}
-{ "anti_entropy", on}.
-
+%% example of super basic mapping
 %% @doc Default ring creation size.  Make sure it is a power of 2,
 %% @datatype integer
 %% @mapping riak_core.ring_creation_size
-{ "ring_size", 64}.
+{ "ring_size", 64 }.
+ 
+%% Slightly more complex mapping with translation layer
+%% @doc enable active anti-entropy subsystem
+%% @datatype enum on, off
+%% @mapping riak_kv.anti_entropy
+{ "anti_entropy", on }.
+ 
+%% @translation
+{ "riak_kv.anti_entropy",
+  fun(Conf) ->
+  	Setting = proplists:get_value("anti_entropy", Conf), 
+  	case Setting of
+  		on -> {on, []};
+  		debug -> {on, [debug]};
+  		off -> {off, []};
+  		_Default -> {on, []}
+  	end
+  end
+}.
+ 
+%% complex lager example
+%% @doc location of the console log
+%% @mapping lager.handlers
+{ "log.console.file", "./log/console.log"}.
+ 
+%% *gasp* notice the same @mapping!
+%% @doc location of the error log
+%% @mapping lager.handlers
+{ "log.error.file", "./log/error.log"}.
+ 
+%% *gasp* notice the same @mapping!
+%% @doc turn on syslog
+%% @datatype enum on, off
+%% @mapping lager.handlers
+{ "log.syslog", off}.
+ 
+%% @translation
+{ "lager.handlers",
+	fun(Conf) ->
+		SyslogHandler = case proplists:get_value("log.syslog", Conf) of
+			on ->  {lager_syslog_backend, ["riak", daemon, info]};
+			_ -> undefined
+		end,
+		ErrorHandler = case proplists:get_value("log.error.file", Conf) of
+			undefined -> undefined;
+			ErrorFilename -> {lager_file_backend, [{file, ErrorFilename}, {level, error}]}
+		end,
+        ConsoleHandler = case proplists:get_value("log.console.file", Conf) of
+        	undefined -> undefined;
+        	ConsoleFilename -> {lager_file_backend, [{file, ConsoleFilename}, {level, info}]}
+        end,
+        lists:filter(fun(X) -> X =/= undefined end, [SyslogHandler, ErrorHandler, ConsoleHandler]) 
+	end
+}.
