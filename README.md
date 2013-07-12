@@ -4,6 +4,19 @@ Knows all about your options
 ## Motivation
 Born of a desire to make configuraion of Riak easier on the masses, this project strives to help developers merge the idea of a user facing configuration file with that of an erlang app.config.
 
+## Filename glossary
+
+* *riak.conf* new easy to use sysctl style configuration file
+* *app.config* usually refering to <= 1.4 configuration file, in erlang application:env syntax
+* *advanced.config* a sibling file to *riak.conf* still in erlang format for advanced settings not exposed in *riak.conf*
+* *default.config* the default configuration, hidden somewhere in riak, not for editing
+* *generated.config* a product of *riak.conf*, *advanced.config*, and *default.config*. This is what riak starts with.
+
+Note: ".config" always means "in the erlang application:env syntax"
+
+*riak.conf* should be the only file touched by users
+*advanced.config* is for hidden knobs that might be turned by CSEs and Eng
+
 ## What's it look like to users
 
 Riak uses the semantic of $conf_dir/app.config for configuration. We're going to expand on that.
@@ -145,13 +158,11 @@ Well, there's a couple. The default app.config currently shipped with Riak will 
 
 But right now we only map two values, and some might be too complexly nested to hit in the first phase of this. This is why we are planning on adding the ability to place an `app.config` next to the `riak.conf` file, which will allow you to override the default app.config that ships with Riak, but just the places you need to. I think that multibackend configuration is going to be the poster child for this advanced configuration file.
 
-To avoid confusion, we'll call the file that ships inside Riak as `default.config` and the file that sits next to `riak.conf` `advanced.config`. Anything with the `.config` extention means a standard erlang app.config syntax.
-
 So, these three files are essentially merged into a generated app.config by a little vm before Riak starts. Then the Riak erlang vm will start up using the generated app.config
 
 We'll also eventually be able to source `vm.args` from the `riak.conf` also, but baby steps.
 
-
-
 ### P.S. Names are placeholders. 
 I don't intend to ship bjorn_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
+
+fullbokat.
