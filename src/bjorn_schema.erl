@@ -30,40 +30,38 @@
 -endif.
 
 map({Schema, Conf}, Defaults) ->
-	lists:foldl(
-		fun({Key, _Default, Attributes}, Acc) ->
-			{DT, _} = proplists:get_value(datatype, Attributes),
-			Mapping = proplists:get_value(mapping, Attributes),
-			Tokens = string:tokens(Mapping, "."),
-			NewValue = caster(proplists:get_value(Key, Conf),  DT),
-			tyktorp(Tokens, Acc, NewValue)
-		end, 
-		Defaults, 
-		Schema).
+    lists:foldl(
+        fun({Key, _Default, Attributes}, Acc) ->
+            {DT, _} = proplists:get_value(datatype, Attributes),
+            Mapping = proplists:get_value(mapping, Attributes),
+            Tokens = string:tokens(Mapping, "."),
+            NewValue = caster(proplists:get_value(Key, Conf),  DT),
+            tyktorp(Tokens, Acc, NewValue)
+        end, 
+        Defaults, 
+        Schema).
 
-
-	
 tyktorp([LastToken], Acc, NewValue) ->
-	{Type, Token, X} = token_type(LastToken),
-	OldValue = proplists:get_value(Token, Acc), 
-	New = case Type of
-		tuple -> bjorn_util:replace_tuple_element(X, NewValue, OldValue); 
-		_ -> NewValue
-	end,
-	bjorn_util:replace_proplist_value(Token, New, Acc); 
+    {Type, Token, X} = token_type(LastToken),
+    OldValue = proplists:get_value(Token, Acc), 
+    New = case Type of
+        tuple -> bjorn_util:replace_tuple_element(X, NewValue, OldValue); 
+        _ -> NewValue
+    end,
+    bjorn_util:replace_proplist_value(Token, New, Acc); 
 tyktorp([HeadToken|MoreTokens], PList, NewValue) ->
-	{Type, Token, X} = token_type(HeadToken),
-	OldValue = proplists:get_value(Token, PList),
-	bjorn_util:replace_proplist_value(
-		Token,
-		tyktorp(MoreTokens, OldValue, NewValue),
-		PList).
+    {Type, Token, X} = token_type(HeadToken),
+    OldValue = proplists:get_value(Token, PList),
+    bjorn_util:replace_proplist_value(
+        Token,
+        tyktorp(MoreTokens, OldValue, NewValue),
+        PList).
 
 token_type(Token) ->
-	case string:tokens(Token, "{}") of
-		[X, N] -> { tuple, list_to_atom(X), list_to_integer(N) } ;
-		[X] -> { normal, list_to_atom(X), none}
-	end.
+    case string:tokens(Token, "{}") of
+        [X, N] -> { tuple, list_to_atom(X), list_to_integer(N) } ;
+        [X] -> { normal, list_to_atom(X), none}
+    end.
 %for each token, is it special?
 %
 %if yes, special processing
@@ -72,89 +70,14 @@ token_type(Token) ->
 %
 %unless the tail of tokens is []
 
-
-%%map(Schema, Conf) ->
-%%	lists:foldl(
-%%		fun({Key, _Default, Attributes}, Acc) -> 
-%%			{DT, _} = proplists:get_value(datatype, Attributes),
-%%			Mapping = proplists:get_value(mapping, Attributes),
-%%			Tokens = lists:reverse(string:tokens(Mapping, ".")),
-%%			
-%%
-%%
-%%			PList = lists:foldl(
-%%				fun(X, InnerAcc) -> 
-%%					[{list_to_atom(X), InnerAcc}]
-%%				end, 
-%%				caster(proplists:get_value(Key, Conf),  DT), Tokens),
-%%
-%%			merge(PList, Acc)
-%%		end,
-%%		[],
-%%		Schema).
-
-%% map(Schema, Conf) ->
-%% 	[ begin
-%% 	
-%% 		fun(Proplist) ->
-%% 			{DT, _} = proplists:get_value(datatype, Attributes),
-%% 			Mapping = proplists:get_value(mapping, Attributes),
-%% 			Tokens = string:tokens(Mapping, "."),
-%% 
-%% 
-%% 			[ begin
-%% 				case string:tokens(Token, "{}") of
-%% 					
-%% 					[X, N] -> ok
-%% 				end,
-%% 
-%% 
-%% 
-%% 			end || Token <- Tokens]
-%% 
-%% 
-%% 
-%% 
-%% 			lists:foldl(
-%% 				fun(X, Acc) -> 
-%% 				end, 
-%% 				caster(proplists:get_value(Key, Conf),  DT), Tokens), 
-%% 				Tokens), 	
-%% 			%%%%%%%
-%% 
-%% 			%% key is syntax X{N} means replace element(N, X) with V
-%% 			case string:tokens(Token, "{}") of
-%% 				[X, N] -> ok;
-%% 				[X] -> ok
-%% 			end 
-%% 
-%% 		end
-%% 	
-%% 
-%% 	%%lists:foldl(
-%% 	%%	fun(, Acc) -> 
-%% 	%%		
-%% 	%%		PList = lists:foldl(
-%% 	%%			fun(X, InnerAcc) -> 
-%% 	%%				[{list_to_atom(X), InnerAcc}]
-%% 	%%			end, 
-%% 	%%			caster(proplists:get_value(Key, Conf),  DT), Tokens),
-%% 	%%		merge(PList, Acc)
-%% 	%%	end,
-%% 
-%% 
-%% 	end || {Key, _Default, Attributes} <- Schema].
-
-
-
 %% Priority is a nested set of proplists, but each list has only one item
 %% for easy merge
 merge([{K,V}]=Priority, Proplist) ->
-	case proplists:get_value(K, Proplist) of
-		undefined -> Proplist ++ Priority;
-		Existing ->
-			proplists:delete(K, Proplist) ++ merge(V, Existing) 
-	end; 
+    case proplists:get_value(K, Proplist) of
+        undefined -> Proplist ++ Priority;
+        Existing ->
+            proplists:delete(K, Proplist) ++ merge(V, Existing) 
+    end; 
 merge([], Proplist) -> Proplist;
 merge(Priority, []) -> Priority.
 
@@ -169,10 +92,10 @@ file(Filename) ->
     S = unicode:characters_to_list(B, utf8),
     string(S).
 
--spec string(string()) -> [{string(), any(), list()}].
+-spec string(string()) -> {[{string(), fun(), list()}], [{string(), any(), list()}]}.
 string(S) -> 
     Lines = string:tokens(S, [$\n]),
-
+    %% TODO: LineNos skew when file contains blank newlines
     {ok, Tokens, _} = erl_scan:string(S),
     Dots = [ LineNo || {dot, LineNo} <- Tokens],
 
@@ -181,26 +104,22 @@ string(S) ->
             {Dot + 1, [Chunk|Acc]}
         end, {1, []} , Dots), 
     Chunks = lists:reverse(BlowsChunks), 
-
+    
     KeyDefinitions = [ string:join(X, "\n") || X <- Chunks],
-    [ begin
+    Schemas = [ begin
+        %%io:format("KeyDef: ~p~n", [KeyD]),
         { Key, Default } = parse(KeyD),
-        [{_, _, _, Comments}] = erl_comment_scan:string(KeyD),
-        Attributes = comment_parser(Comments),
-        %% Maybe?
-        ValidationModule = proplists:get_value(validate, Attributes),
-        Valid = case ValidationModule of
-            undefined -> whatev;
-            _ -> ValidationModule:validate(Key, Default)
+        
+        Attributes = case erl_comment_scan:string(KeyD) of
+            [] -> [];
+            [{_, _, _, Comments}] ->
+                comment_parser(Comments)
         end,
-        case Valid of
-            false ->
-                io:format("~s's default (~p) is not valid~n", [Key, Default]),
-                throw({error, "default not valid"});
-            _ -> meh
-        end,
+        
         {Key, Default, Attributes}
-      end || KeyD <- KeyDefinitions]. 
+      end || KeyD <- KeyDefinitions],
+
+      lists:partition(fun({_, _, Attributes}) -> proplists:is_defined(translation, Attributes) end, Schemas). 
 
 -spec parse(string()) -> {string(), any()}.
 parse(S) ->
@@ -218,11 +137,12 @@ comment_parser(Comments) ->
 
     AttrList = lists:foldl(
         fun(Line, Acc) ->
-                case Line of
-                    [ $@ | T] ->
+                case {Line, Acc} of
+                    {[ $@ | T], _} ->
                         Annotation = hd(string:tokens(T, [$\s])),
                         [{list_to_atom(Annotation), [percent_stripper(T -- Annotation)] }|Acc];
-                    String ->
+                    { _, []} -> [];
+                    {String, _} ->
                         [{Annotation, Strings}|T] = Acc,
                         [{Annotation, [String|Strings]}|T]
                 end
@@ -231,6 +151,8 @@ comment_parser(Comments) ->
     CorrectedList = attribute_formatter(SortedList),
     CorrectedList.
 
+attribute_formatter([{translation, _}| T]) ->
+    [{translation, true}| attribute_formatter(T)];
 attribute_formatter([{datatype, DT}| T]) ->
     [{datatype, data_typer(DT)}| attribute_formatter(T)];
 attribute_formatter([{mapping, Mapping}| T]) ->
@@ -259,7 +181,7 @@ data_typer(DT) ->
 
 -ifdef(TEST).
 map_test() ->
-	Schema = file("../test/riak.schema"),
+    Schema = file("../test/riak.schema"),
     Conf = bjorn_conf_file:file("../test/riak.conf"),
     {ok, [Defaults]} = file:consult("../test/default.config"), 
     NewConfig = map({Schema, Conf}, Defaults),
@@ -274,19 +196,54 @@ map_test() ->
     ok.
 
 file_test() ->
-    Schema = file("../test/riak.schema"),
+    {_, Schema} = file("../test/riak.schema"),
+
+
     ?assertEqual(
-    	[
-    		{"anti_entropy",on,
-    			[
-    			 {datatype,{enum,["on","off"]}},
-    			 {mapping,"riak_kv.anti_entropy{1}"}]},
-    		{"ring_size", 64, 
-    			[
-    			 {datatype,{integer,[]}},
-    			 {mapping, "riak_core.ring_creation_size"}]}
-    	],
-    	Schema),
+        {"ring_size", 64, 
+                [
+                 {datatype,{integer,[]}},
+                 {mapping, "riak_core.ring_creation_size"}]},
+        lists:nth(1, Schema) 
+        ),
+    ?assertEqual(
+        {"anti_entropy",on,
+                [
+                 {datatype,{enum,["on","off"]}},
+                 {mapping,"riak_kv.anti_entropy"}]},
+        lists:nth(2, Schema) 
+        ),
+    ?assertEqual(
+        { "log.console.file", "./log/console.log",
+                [
+                 {mapping, "lager.handlers"}
+                ]},
+        lists:nth(3, Schema) 
+        ),
+    ?assertEqual(
+        { "log.error.file", "./log/error.log",
+                [
+                 {mapping, "lager.handlers"}
+                ]},
+        lists:nth(4, Schema) 
+        ),
+    ?assertEqual(
+        { "log.syslog", off,
+                [
+                 {datatype,{enum,["on","off"]}},
+                 {mapping, "lager.handlers"}
+                ]},
+        lists:nth(5, Schema) 
+        ),
+
+    ok.
+
+fun_file_test() ->
+    {[{"fun", Fun, _}], _ } = Schema = file("../test/fun.schema"),
+    
+    ?assertEqual("bjorn!",
+        Fun()
+        ),
     ok.
 
 
@@ -322,6 +279,6 @@ comment_parser_test() ->
     ok.
 
 %mapper_test() ->
-%	mapper("riak_kv.anti_entropy{0}")
+%   mapper("riak_kv.anti_entropy{0}")
 
 -endif.
