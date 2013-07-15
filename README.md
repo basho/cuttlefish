@@ -36,7 +36,9 @@ log.syslog = on
 * one setting per line for easy scripting
 
 ## What's it look like to developers? 
-How does Riak know what to do with those values? As a Riak developer, you defined them in the config schema like this:
+How does Riak know what to do with those values? As a Riak developer, you define them in a configuration schema. The configuration schema will exist in the riak project, and be consumed by this project as it's way of understanding how to process `.conf` files. A schema is basically a project's set of rules for defining it's configuration file.
+
+Here's an example of what that looks like:
 
 ```erlang
 %% example of super basic mapping
