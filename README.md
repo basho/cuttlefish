@@ -163,9 +163,9 @@ I think multibackend config is the only thing left that is more challenging than
 
 ## So where's app.config?
 
-Well, there's a couple. The default app.config currently shipped with Riak will be hidden away somewhere Riak knows about. It will contain the default settings. The `riak.conf` file is currently parsed and overlaid on top of this config file.
+Well, there's a couple. The default `app.config` currently shipped with Riak will be hidden away somewhere Riak knows about. It will contain the default settings. The `riak.conf` file is currently parsed and overlaid on top of this config file.
 
-But right now we only map two values, and some might be too complexly nested to hit in the first phase of this. This is why we are planning on adding the ability to place an `advanced.config` next to the `riak.conf` file in $platform_dependent_config_dir, which will allow you to override the default `default.config` that ships with Riak, but just the places you need to. I think that multibackend configuration is going to be the poster child for this advanced configuration file.
+But right now we only map a few values, and some might be too complexly nested to hit in the first phase of this. This is why we are planning on adding the ability to place an `advanced.config` next to the `riak.conf` file in $platform_dependent_config_dir, which will allow you to override the default `default.config` that ships with Riak, but just the places you need to. I think that multibackend configuration is going to be the poster child for this advanced configuration file, but the introdcution of `@translations` might be able to handle this.
 
 So, these three files are essentially merged into a `generated.config` by a little vm before Riak starts. Then the Riak erlang vm will start up using the generated app.config
 
