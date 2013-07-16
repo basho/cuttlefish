@@ -116,40 +116,44 @@ file(Filename) ->
 
 -spec string(string()) -> {[{string(), fun(), list()}], [{string(), any(), list()}]}.
 string(S) -> 
-    Lines = string:tokens(S, [$\n]),
-    %% TODO: LineNos skew when file contains blank newlines
     {ok, Tokens, _} = erl_scan:string(S),
-    Dots = [ LineNo || {dot, LineNo} <- Tokens],
+    CommentTokens = erl_comment_scan:string(S),
+    Schemas = parse_schema(Tokens, CommentTokens),
+    lists:partition(fun({_, _, Attributes}) -> proplists:is_defined(translation, Attributes) end, Schemas). 
 
-    {_, BlowsChunks} = lists:foldl(fun(Dot, {I, Acc}) ->
-            Chunk = lists:sublist(Lines, I, Dot - I + 1),  
-            {Dot + 1, [Chunk|Acc]}
-        end, {1, []} , Dots), 
-    Chunks = lists:reverse(BlowsChunks), 
-    
-    KeyDefinitions = [ string:join(X, "\n") || X <- Chunks],
-    Schemas = [ begin
-        %%io:format("KeyDef: ~p~n", [KeyD]),
-        { Key, Default } = parse(KeyD),
-        
-        Attributes = case erl_comment_scan:string(KeyD) of
-            [] -> [];
-            [{_, _, _, Comments}] ->
-                comment_parser(Comments)
-        end,
-        
-        {Key, Default, Attributes}
-      end || KeyD <- KeyDefinitions],
+parse_schema(Tokens, Comments) ->
+    parse_schema(Tokens, Comments, []).
 
-      lists:partition(fun({_, _, Attributes}) -> proplists:is_defined(translation, Attributes) end, Schemas). 
+parse_schema([], _, Acc) ->
+    lists:reverse(Acc);
+parse_schema(ScannedTokens, CommentTokens, Acc) ->
+    {LineNo, Tokens, TailTokens } = parse_schema_tokens(ScannedTokens),
+    {Comments, TailComments} = lists:foldr(
+        fun(X={CommentLineNo, _, _, Comment}, {C, TC}) -> 
+            case CommentLineNo < LineNo of
+                true -> {Comment ++ C, TC};
+                _ -> {C, [X|TC]}
+            end
+        end, 
+        {[], []}, 
+        CommentTokens),
+    { Key, Default } = parse(Tokens),
+    Attributes = comment_parser(Comments),
+    parse_schema(TailTokens, TailComments, [{Key, Default, Attributes}| Acc]).
 
--spec parse(string()) -> {string(), any()}.
-parse(S) ->
-    {ok,Scanned,_} = erl_scan:string(S),
+parse_schema_tokens(Scanned) -> 
+    parse_schema_tokens(Scanned, []).
+
+parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
+    {LineNo, lists:reverse(Acc), Scanned};
+parse_schema_tokens([H|Scanned], Acc) ->
+    parse_schema_tokens(Scanned, [H|Acc]).
+
+-spec parse(list()) -> {string(), any()}.
+parse(Scanned) ->
     {ok,Parsed} = erl_parse:parse_exprs(Scanned),
     {value, X, _} = erl_eval:exprs(Parsed,[]),
     X.
-
 
 comment_parser(Comments) ->
     StrippedComments = 

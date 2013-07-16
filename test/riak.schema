@@ -3,13 +3,13 @@
 %% @datatype integer
 %% @mapping riak_core.ring_creation_size
 { "ring_size", 64 }.
- 
+
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
 %% @datatype enum on, off
 %% @mapping riak_kv.anti_entropy
 { "anti_entropy", on }.
- 
+
 %% @translation
 { "riak_kv.anti_entropy",
   fun(Conf) ->
@@ -22,23 +22,23 @@
   	end
   end
 }.
- 
+
 %% complex lager example
 %% @doc location of the console log
 %% @mapping lager.handlers
 { "log.console.file", "./log/console.log"}.
- 
+
 %% *gasp* notice the same @mapping!
 %% @doc location of the error log
 %% @mapping lager.handlers
 { "log.error.file", "./log/error.log"}.
- 
+
 %% *gasp* notice the same @mapping!
 %% @doc turn on syslog
 %% @datatype enum on, off
 %% @mapping lager.handlers
 { "log.syslog", off}.
- 
+
 %% @translation
 { "lager.handlers",
 	fun(Conf) ->
