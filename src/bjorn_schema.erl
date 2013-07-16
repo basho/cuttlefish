@@ -29,6 +29,12 @@
 -compile(export_all).
 -endif.
 
+
+%% TODO: Make map/2 work without Defaults
+%% Defaults right now exists to provide structure for the app.config. It is a relic
+%% of the time before translations. A Mapping in the schema used to describe a value's location
+%% say in a tuple, but if you didn't have a mapping to element(2), we'd never know it was a 2-tuple
+%% Now that we can translate, we can define what an element of the app config looks like at any level.
 map({Translations, Schema, Conf}, Defaults) ->
     
     DirectMappings = lists:foldl(
