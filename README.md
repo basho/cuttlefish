@@ -6,11 +6,10 @@ B(j)orn of a desire to make configuraion of Riak easier on the masses, this proj
 
 ## Filename glossary
 
-* **riak.conf** new easy to use sysctl style configuration file
 * **app.config** usually refering to <= 1.4 configuration file, in erlang application:env syntax
+* **riak.conf** new easy to use sysctl style configuration file
 * **advanced.config** a sibling file to **riak.conf** still in erlang format for advanced settings not exposed in **riak.conf**
-* **default.config** the default configuration, hidden somewhere in riak, not for editing
-* **generated.config** a product of **riak.conf**, **advanced.config**, and **default.config**. This is what riak starts with.
+* **generated.config** a product of **riak.conf** and **advanced.config**. This is what the erlang vm that runs riak starts with.
 
 Note: ".config" always means "in the erlang application:env syntax"
 
@@ -163,13 +162,17 @@ I think multibackend config is the only thing left that is more challenging than
 
 ## So where's app.config?
 
-Well, there's a couple. The default `app.config` currently shipped with Riak will be hidden away somewhere Riak knows about. It will contain the default settings. The `riak.conf` file is currently parsed and overlaid on top of this config file.
+The `riak.conf` file should replace the default `app.config` that currently ships with Riak, and will essentially parse into the .config syntax.
 
-But right now we only map a few values, and some might be too complexly nested to hit in the first phase of this. This is why we are planning on adding the ability to place an `advanced.config` next to the `riak.conf` file in $platform_dependent_config_dir, which will allow you to override the default `default.config` that ships with Riak, but just the places you need to. I think that multibackend configuration is going to be the poster child for this advanced configuration file, but the introdcution of `@translations` might be able to handle this.
+Currently, we only map a few values, and some might be too complexly nested to hit in the first phase of this project. This is why we are planning on adding the ability to place an `advanced.config` next to the `riak.conf` file in $platform_dependent_config_dir, which will allow you to turn more advanced knobs without writing an entire `app.config`. I think that multibackend configuration is going to be the poster child for this advanced configuration file, but the introdcution of `@translations` might be able to handle this.
 
-So, these three files are essentially merged into a `generated.config` by a little vm before Riak starts. Then the Riak erlang vm will start up using the generated app.config
+These files are essentially merged into a `generated.config` by a little vm before Riak starts. Then the Riak erlang vm will start up using the generated app.config
 
 We'll also eventually be able to source `vm.args` from the `riak.conf` also, but baby steps.
+
+### Next Steps
+* I have removed mention of **default.config** from this readme. Hopefully, you're asking right now "What's that?". I need to remove that from the implementation.
+* Model the entire riak 1.4 standard app.config in `riak.conf`
 
 ### P.S. Names are placeholders. 
 I don't intend to ship bjorn_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
