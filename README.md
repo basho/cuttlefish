@@ -13,9 +13,9 @@ B(j)orn of a desire to make configuraion of Riak easier on the masses, this proj
 
 Note: ".config" always means "in the erlang application:env syntax"
 
-**riak.conf** should be the only file touched by users
-**advanced.config** is for hidden knobs that might be turned by CSEs and Eng
-**riak.conf** and **advanced.config** are the only files that should ever be modified by humans.
+* **riak.conf** should be the only file touched by users
+* **advanced.config** is for hidden knobs that might be turned by CSEs and Eng
+* **riak.conf** and **advanced.config** are the only files that should ever be modified by humans.
 
 ## What's it look like to users
 
