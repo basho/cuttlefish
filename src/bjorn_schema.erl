@@ -22,21 +22,15 @@
 
 -module(bjorn_schema).
 
--export([file/1, map/2]).
+-export([file/1, map/3]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 -endif.
 
-
-%% TODO: Make map/2 work without Defaults
-%% Defaults right now exists to provide structure for the app.config. It is a relic
-%% of the time before translations. A Mapping in the schema used to describe a value's location
-%% say in a tuple, but if you didn't have a mapping to element(2), we'd never know it was a 2-tuple
-%% Now that we can translate, we can define what an element of the app config looks like at any level.
-map({Translations, Schema, Conf}, Defaults) ->
-    
+map(Translations, Schema, Conf) ->
+    io:format("first, direct mappings~n"),
     DirectMappings = lists:foldl(
         fun({Key, _Default, Attributes}, Acc) ->
             Mapping = proplists:get_value(mapping, Attributes),
@@ -49,9 +43,9 @@ map({Translations, Schema, Conf}, Defaults) ->
                 _ -> Acc
             end
         end, 
-        Defaults, 
+        [], 
         Schema),
-
+    
     lists:foldl(
         fun({Mapping, Xlat, _}, Acc) ->
             Tokens = string:tokens(Mapping, "."),
@@ -60,8 +54,6 @@ map({Translations, Schema, Conf}, Defaults) ->
         end, 
         DirectMappings, 
         Translations). 
-
-    %
 
 tyktorp([LastToken], Acc, NewValue) ->
     {Type, Token, X} = token_type(LastToken),
@@ -73,7 +65,7 @@ tyktorp([LastToken], Acc, NewValue) ->
     bjorn_util:replace_proplist_value(Token, New, Acc); 
 tyktorp([HeadToken|MoreTokens], PList, NewValue) ->
     {Type, Token, X} = token_type(HeadToken),
-    OldValue = proplists:get_value(Token, PList),
+    OldValue = proplists:get_value(Token, PList, []),
     bjorn_util:replace_proplist_value(
         Token,
         tyktorp(MoreTokens, OldValue, NewValue),
@@ -209,8 +201,7 @@ data_typer(DT) ->
 map_test() ->
     {Translations, Schema} = file("../test/riak.schema"),
     Conf = bjorn_conf_file:file("../test/riak.conf"),
-    {ok, [Defaults]} = file:consult("../test/default.config"), 
-    NewConfig = map({Translations, Schema, Conf}, Defaults),
+    NewConfig = map(Translations, Schema, Conf),
 
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
@@ -264,15 +255,6 @@ file_test() ->
 
     ok.
 
-fun_file_test() ->
-    {[{"fun", Fun, _}], _ } = Schema = file("../test/fun.schema"),
-    
-    ?assertEqual("bjorn!",
-        Fun()
-        ),
-    ok.
-
-
 percent_stripper_test() ->
     ?assertEqual("hi!", percent_stripper("%%% hi!")),
     ?assertEqual("hi!", percent_stripper("%% hi!")),
@@ -303,8 +285,5 @@ comment_parser_test() ->
         ], ParsedComments
         ),
     ok.
-
-%mapper_test() ->
-%   mapper("riak_kv.anti_entropy{0}")
 
 -endif.
