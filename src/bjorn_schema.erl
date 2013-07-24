@@ -327,7 +327,7 @@ map_test() ->
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(13, length(Schema)),
+    ?assertEqual(16, length(Schema)),
     ?assertEqual(
         {"ring_size", "64", 
                 [
@@ -431,6 +431,29 @@ file_test() ->
                  {commented,"./etc/key.pem"}
                 ]},
         lists:nth(13, Schema) 
+        ),
+    ?assertEqual(
+        { "handoff.port", "8099",
+                [
+                 {datatype, {integer, []}},
+                 {mapping, "riak_core.handoff_port"}
+                ]},
+        lists:nth(14, Schema) 
+        ),
+    ?assertEqual(
+        { "handoff.ssl.certfile", undefined,
+                [
+                 {mapping, "riak_core.handoff_ssl_options.certfile"},
+                 {commented,"/tmp/erlserver.pem"}
+                ]},
+        lists:nth(15, Schema) 
+        ),
+    ?assertEqual(
+        { "handoff.ssl.keyfile", undefined,
+                [
+                 {mapping, "riak_core.handoff_ssl_options.keyfile"}
+                ]},
+        lists:nth(16, Schema) 
         ),
     ok.
 
