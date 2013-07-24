@@ -327,7 +327,7 @@ map_test() ->
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(29, length(Schema)),
+    ?assertEqual(36, length(Schema)),
     ?assertEqual(
         {"ring_size", "64", 
                 [
@@ -550,6 +550,60 @@ file_test() ->
                  {mapping, "merge_index.max_compact_segments"}
                 ]},
         lists:nth(29, Schema) 
+        ),
+    ?assertEqual(
+        {"log.crash.file", "./log/crash.log",
+                [
+                 {mapping, "lager.crash_log"}
+                ]},
+        lists:nth(30, Schema)
+        ),
+    ?assertEqual(
+        {"log.crash.msg_size", "65536", 
+                [
+                 {datatype, {integer, []}},
+                 {mapping, "lager.crash_log_msg_size"}
+                ]},
+        lists:nth(31, Schema)
+        ),
+    ?assertEqual(
+        {"log.crash.size", "10485760", 
+                [
+                 {datatype, {integer, []}},
+                 {mapping, "lager.crash_log_size"}
+                ]},
+        lists:nth(32, Schema)
+        ),
+    ?assertEqual(
+        {"log.crash.date", "$D0", 
+                [
+                 {mapping, "lager.crash_log_date"}
+                ]},
+        lists:nth(33, Schema)
+        ),
+    ?assertEqual(
+        {"log.crash.count", "5", 
+                [
+                 {datatype, {integer, []}},
+                 {mapping, "lager.crash_log_count"}
+                ]},
+        lists:nth(34, Schema)
+        ),
+    ?assertEqual(
+        {"log.error.redirect", "on", 
+                [
+                 {datatype, {enum, ["on", "off"]}},
+                 {mapping, "lager.error_logger_redirect"}
+                ]},
+        lists:nth(35, Schema)
+        ),
+    ?assertEqual(
+        {"log.error.messages_per_second", "100", 
+                [
+                 {datatype, {integer, []}},
+                 {mapping, "lager.error_logger_hwm"}
+                ]},
+        lists:nth(36, Schema)
         ),
     ok.
 
