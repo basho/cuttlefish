@@ -2,3 +2,5 @@
 generated.config
 ebin/*
 .eunit
+src/conf_parse.erl
+deps

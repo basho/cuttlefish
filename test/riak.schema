@@ -57,3 +57,33 @@
         lists:filter(fun(X) -> X =/= undefined end, [SyslogHandler, ErrorHandler, ConsoleHandler]) 
 	end
 }.
+
+%% SASL 
+%% We should never care about this
+%% @datatype enum on, off
+%% @mapping sasl.sasl_error_logger
+%% @advanced
+{"sasl", off}.
+
+%% @translation
+{"sasl.sasl_error_logger",
+  fun(Conf) ->
+    case proplists:get_value("sasl", Conf) of %%how to pull default?
+        on -> true;
+        _ -> false
+    end
+  end
+}.
+
+%% HTTP Listeners
+%% @datatype ip
+%% @mapping riak_core.http
+{"listener.http.$name", "127.0.0.1:8098"}.
+
+%% @translation
+{"riak_core.http",
+    fun(Conf) ->
+        HTTP = bjorn_util:key_starts_with("listener.http.", Conf),
+        [ IP || {_, IP} <- HTTP]
+    end
+}.

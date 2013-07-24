@@ -30,7 +30,7 @@
 -endif.
 
 map(Translations, Schema, Conf) ->
-    io:format("first, direct mappings~n"),
+    
     DirectMappings = lists:foldl(
         fun({Key, _Default, Attributes}, Acc) ->
             Mapping = proplists:get_value(mapping, Attributes),
@@ -64,17 +64,18 @@ tyktorp([LastToken], Acc, NewValue) ->
     end,
     bjorn_util:replace_proplist_value(Token, New, Acc); 
 tyktorp([HeadToken|MoreTokens], PList, NewValue) ->
-    {Type, Token, X} = token_type(HeadToken),
+    {_Type, Token, _X} = token_type(HeadToken),
     OldValue = proplists:get_value(Token, PList, []),
     bjorn_util:replace_proplist_value(
         Token,
         tyktorp(MoreTokens, OldValue, NewValue),
         PList).
 
+%% Keeping this around to deal with possible $ prefixed tokens
 token_type(Token) ->
-    case string:tokens(Token, "{}") of
-        [X, N] -> { tuple, list_to_atom(X), list_to_integer(N) } ;
-        [X] -> { normal, list_to_atom(X), none}
+    case string:tokens(Token, "$") of
+        [Token] -> { normal, list_to_atom(Token), none};
+        [X] -> {named, list_to_atom(X), none}
     end.
 %for each token, is it special?
 %
@@ -86,17 +87,22 @@ token_type(Token) ->
 
 %% Priority is a nested set of proplists, but each list has only one item
 %% for easy merge
-merge([{K,V}]=Priority, Proplist) ->
-    case proplists:get_value(K, Proplist) of
-        undefined -> Proplist ++ Priority;
-        Existing ->
-            proplists:delete(K, Proplist) ++ merge(V, Existing) 
-    end; 
-merge([], Proplist) -> Proplist;
-merge(Priority, []) -> Priority.
+%% merge([{K,V}]=Priority, Proplist) ->
+%%     case proplists:get_value(K, Proplist) of
+%%         undefined -> Proplist ++ Priority;
+%%         Existing ->
+%%             proplists:delete(K, Proplist) ++ merge(V, Existing) 
+%%     end; 
+%% merge([], Proplist) -> Proplist;
+%% merge(Priority, []) -> Priority.
 
 caster(X, enum) -> list_to_atom(X);
 caster(X, integer) -> list_to_integer(X);
+caster(X, ip) ->
+    Parts = string:tokens(X, ":"),
+    [Port|BackwardsIP] = lists:reverse(Parts),
+
+    {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
 caster(X, _) -> X.
 
 -spec file(string()) -> [{string(), any(), list()}].
@@ -200,7 +206,7 @@ data_typer(DT) ->
 -ifdef(TEST).
 map_test() ->
     {Translations, Schema} = file("../test/riak.schema"),
-    Conf = bjorn_conf_file:file("../test/riak.conf"),
+    Conf = conf_parse:file("../test/riak.conf"),
     NewConfig = map(Translations, Schema, Conf),
 
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
@@ -209,13 +215,18 @@ map_test() ->
     NewAAE = proplists:get_value(anti_entropy, proplists:get_value(riak_kv, NewConfig)), 
     ?assertEqual({on,[]}, NewAAE),
 
+    NewSASL = proplists:get_value(sasl_error_logger, proplists:get_value(sasl, NewConfig)), 
+    ?assertEqual(false, NewSASL),
+
+    NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)), 
+    ?assertEqual([{"127.0.0.1", 8098}], NewHTTP),
+
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-
-
+    ?assertEqual(7, length(Schema)),
     ?assertEqual(
         {"ring_size", 64, 
                 [
@@ -252,7 +263,22 @@ file_test() ->
                 ]},
         lists:nth(5, Schema) 
         ),
-
+    ?assertEqual(
+        { "sasl", off,
+                [
+                 {datatype,{enum,["on","off"]}},
+                 {mapping, "sasl.sasl_error_logger"}
+                ]},
+        lists:nth(6, Schema) 
+        ),
+    ?assertEqual(
+        { "listener.http.$name", "127.0.0.1:8098",
+                [
+                 {datatype,{ip,[]}},
+                 {mapping, "riak_core.http"}
+                ]},
+        lists:nth(7, Schema) 
+        ),
     ok.
 
 percent_stripper_test() ->
@@ -275,15 +301,20 @@ comment_parser_test() ->
         "%% @datatype enum on, off",
         "%% @advanced",
         "%% @optional",
-        "%% @mapping riak_kv.anti_entropy{1}"
+        "%% @mapping riak_kv.anti_entropy"
     ],
     ParsedComments = comment_parser(Comments),
     ?assertEqual(
         [
           {datatype,{enum,["on","off"]}},
-          {mapping, "riak_kv.anti_entropy{1}"}
+          {mapping, "riak_kv.anti_entropy"}
         ], ParsedComments
         ),
+    ok.
+
+caster_ip_test() ->
+    ?assertEqual({"127.0.0.1", 8098}, caster("127.0.0.1:8098", ip)),
+    ?assertEqual({"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, caster("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
     ok.
 
 -endif.

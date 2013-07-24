@@ -1,6 +1,5 @@
 -module(bjorn_util).
 
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
@@ -8,7 +7,8 @@
 
 -export([
 	replace_proplist_value/3,
-	replace_tuple_element/3]).
+	replace_tuple_element/3,
+	key_starts_with/2]).
 
 replace_proplist_value(Key, Value, Proplist) ->
 	proplists:delete(Key, Proplist) ++ [{Key, Value}].
@@ -20,6 +20,13 @@ replace_tuple_element(Index, Value, Tuple) ->
 			_ -> element(N, Tuple)
 		end
 		|| N <- lists:seq(1, length(tuple_to_list(Tuple))) ]).
+
+key_starts_with(Prefix, Proplist) ->
+	lists:filter(
+		fun({Key, _Value}) -> 
+			string:str(Key, Prefix) =:= 1
+		end, 
+		Proplist).
 
 -ifdef(TEST).
 
@@ -40,6 +47,25 @@ replace_proplist_value_test() ->
 		8,
 		proplists:get_value("test2", NewProplist) 
 		),
+	ok.
+
+key_starts_with_test() ->
+	Proplist = [
+		{"regular.key", 1},
+		{"other.normal.key", 2},
+		{"prefixed.key1", 3},
+		{"prefixed.key2", 4},
+		{"interleaved.key", 5},
+		{"prefixed.key3", 6}
+	],
+
+	Filtered = key_starts_with("prefixed", Proplist),
+	?assertEqual([
+			{"prefixed.key1", 3},
+			{"prefixed.key2", 4},
+			{"prefixed.key3", 6}
+		],
+		Filtered),
 	ok.
 
 -endif.
