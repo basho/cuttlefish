@@ -168,3 +168,40 @@
 %% @mapping riak_core.handoff_ssl_options.keyfile
 {"handoff.ssl.keyfile", undefined}.
 
+%% @doc DTrace support
+%% Do not enable 'dtrace' unless your Erlang/OTP
+%% runtime is compiled to support DTrace.  DTrace is
+%% available in R15B01 (supported by the Erlang/OTP
+%% official source package) and in R14B04 via a custom
+%% source repository & branch.
+%% @datatype enum on, off
+%% @mapping riak_core.dtrace_support
+{"dtrace", "off"}.
+
+%% @translation
+{ "riak_core.dtrace_support",
+  fun(Conf) ->
+    Setting = proplists:get_value("dtrace", Conf), 
+    case Setting of
+      on -> true;
+      off -> false;
+      _Default -> false
+    end
+  end
+}.
+
+%% Platform-specific installation paths (substituted by rebar)
+%% @mapping riak_core.platform_bin_dir
+{"platform_bin_dir", "./bin"}.
+
+%% @mapping riak_core.platform_data_dir
+{"platform_data_dir", "./data"}.
+
+%% @mapping riak_core.platform_etc_dir
+{"platform_etc_dir", "./etc"}.
+
+%% @mapping riak_core.platform_lib_dir
+{"platform_lib_dir", "./lib"}.
+
+%% @mapping riak_core.platform_log_dir
+{"platform_log_dir", "./log"}.

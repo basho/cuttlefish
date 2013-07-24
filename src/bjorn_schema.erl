@@ -327,7 +327,7 @@ map_test() ->
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(16, length(Schema)),
+    ?assertEqual(22, length(Schema)),
     ?assertEqual(
         {"ring_size", "64", 
                 [
@@ -454,6 +454,49 @@ file_test() ->
                  {mapping, "riak_core.handoff_ssl_options.keyfile"}
                 ]},
         lists:nth(16, Schema) 
+        ),
+    ?assertEqual(
+        { "dtrace", "off",
+                [
+                 {datatype, {enum, ["on", "off"]}},
+                 {mapping, "riak_core.dtrace_support"}
+                ]},
+        lists:nth(17, Schema) 
+        ),
+    ?assertEqual(
+        { "platform_bin_dir", "./bin",
+                [
+                 {mapping, "riak_core.platform_bin_dir"}
+                ]},
+        lists:nth(18, Schema) 
+        ),
+    ?assertEqual(
+        { "platform_data_dir", "./data",
+                [
+                 {mapping, "riak_core.platform_data_dir"}
+                ]},
+        lists:nth(19, Schema) 
+        ),
+    ?assertEqual(
+        { "platform_etc_dir", "./etc",
+                [
+                 {mapping, "riak_core.platform_etc_dir"}
+                ]},
+        lists:nth(20, Schema) 
+        ),
+    ?assertEqual(
+        { "platform_lib_dir", "./lib",
+                [
+                 {mapping, "riak_core.platform_lib_dir"}
+                ]},
+        lists:nth(21, Schema) 
+        ),
+    ?assertEqual(
+        { "platform_log_dir", "./log",
+                [
+                 {mapping, "riak_core.platform_log_dir"}
+                ]},
+        lists:nth(22, Schema) 
         ),
     ok.
 
