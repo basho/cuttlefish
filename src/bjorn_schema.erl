@@ -33,27 +33,37 @@
 -compile(export_all).
 
 map(Translations, Schema, Config) ->
-    
-    Conf = transform_datatypes(Config, Schema),
-    DirectMappings = lists:foldl(
-        fun({Key, _Default, Attributes}, Acc) ->
+    %%io:format("~p~n", [Config]),
+    DConfig = add_defaults(Config, Schema),
+    %%io:format("~p~n", [DConfig]),
+    Conf = transform_datatypes(DConfig, Schema),
+    %%io:format("~p~n", [Conf]),
+    {DirectMappings, TranslationsToDrop} = lists:foldl(
+        fun({Key, Default, Attributes}, {ConfAcc, XlatAcc}) ->
             Mapping = proplists:get_value(mapping, Attributes),
-            case {proplists:is_defined(datatype, Attributes), proplists:is_defined(Mapping, Translations)} of
+            case {Default =/= undefined, proplists:is_defined(Mapping, Translations)} of
                 {true, false} -> 
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Key, Conf),
-                    tyktorp(Tokens, Acc, NewValue);
-                _ -> Acc
+                    {tyktorp(Tokens, ConfAcc, NewValue), XlatAcc};
+                {true, true} -> {ConfAcc, XlatAcc};
+                _ -> {ConfAcc, [Mapping|XlatAcc]}
             end
         end, 
-        [], 
+        {[], []},
         Schema),
-    
+    io:format("~p~n", [TranslationsToDrop]),
+    %% Translations
     lists:foldl(
         fun({Mapping, Xlat, _}, Acc) ->
-            Tokens = string:tokens(Mapping, "."),
-            NewValue = Xlat(Conf),
-            tyktorp(Tokens, Acc, NewValue)
+            case lists:member(Mapping, TranslationsToDrop) of
+                false ->
+                    Tokens = string:tokens(Mapping, "."),
+                    NewValue = Xlat(Conf),
+                    tyktorp(Tokens, Acc, NewValue);
+                _ ->
+                    Acc
+            end
         end, 
         DirectMappings, 
         Translations). 
@@ -98,6 +108,28 @@ token_type(Token) ->
 %% merge([], Proplist) -> Proplist;
 %% merge(Priority, []) -> Priority.
 
+add_defaults(Conf, Schema) ->
+
+    lists:foldl(
+        fun({Key, Default, Attributes}, Acc) ->
+            Match = lists:any(
+                fun({K, _V}) ->
+                    variable_key_match(K, Key)
+                end, 
+                Conf),
+            %% No, then plug in the default
+            FuzzyMatch = lists:member($$, Key),
+            case {Match, FuzzyMatch} of
+                {false, true} -> 
+                    Sub = proplists:get_value(include_default, Attributes),
+                    [{variable_key_replace(Key, Sub), Default}|Acc];
+                {false, false} -> [{Key, Default}|Acc];
+                _ -> Acc
+            end 
+        end, 
+        Conf, 
+        lists:filter(fun({_K, Def, _A}) -> Def =/= undefined end, Schema)).
+
 transform_datatypes(Conf, Schema) ->
     [ begin
         %% Look up mapping from schema
@@ -128,7 +160,7 @@ find_mapping(Key, Schema) ->
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, not_found};
+        {0, 0} -> {error, io_lib:format("~s not_found", [Key])};
         {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Key])}
     end.
 
@@ -146,6 +178,15 @@ variable_key_match(Key, KeyDef) ->
                 Zipped);
         _ -> false
     end.
+
+variable_key_replace(Key, Sub) ->
+    KeyTokens = string:tokens(Key, "."), 
+    string:join([ begin 
+        case hd(Tok) of
+            $$ -> Sub;
+            _ -> Tok
+        end
+    end|| Tok <- KeyTokens], "."). 
 
 caster(X, enum) -> list_to_atom(X);
 caster(X, integer) -> list_to_integer(X);
@@ -231,6 +272,10 @@ attribute_formatter([{datatype, DT}| T]) ->
     [{datatype, data_typer(DT)}| attribute_formatter(T)];
 attribute_formatter([{mapping, Mapping}| T]) ->
     [{mapping, lists:flatten(Mapping)}| attribute_formatter(T)];
+attribute_formatter([{include_default, NameSub}| T]) ->
+    [{include_default, lists:flatten(NameSub)}| attribute_formatter(T)];
+attribute_formatter([{commented, CommentValue}| T]) ->
+    [{commented, lists:flatten(CommentValue)}| attribute_formatter(T)];
 attribute_formatter([_Other | T]) ->
     attribute_formatter(T); %% TODO: don't throw other things away [ Other | attribute_formatter(T)]
 attribute_formatter([]) -> [].
@@ -271,21 +316,27 @@ map_test() ->
     NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual([{"127.0.0.1", 8098}, {"10.0.0.1", 80}], NewHTTP),
 
+    NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)), 
+    ?assertEqual([{"127.0.0.1", 8087}], NewPB),
+
+    NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)), 
+    ?assertEqual(undefined, NewHTTPS),
+
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(7, length(Schema)),
+    ?assertEqual(13, length(Schema)),
     ?assertEqual(
-        {"ring_size", 64, 
+        {"ring_size", "64", 
                 [
                  {datatype,{integer,[]}},
                  {mapping, "riak_core.ring_creation_size"}]},
         lists:nth(1, Schema) 
         ),
     ?assertEqual(
-        {"anti_entropy",on,
+        {"anti_entropy", "on",
                 [
                  {datatype,{enum,["on","off","debug"]}},
                  {mapping,"riak_kv.anti_entropy"}]},
@@ -306,7 +357,7 @@ file_test() ->
         lists:nth(4, Schema) 
         ),
     ?assertEqual(
-        { "log.syslog", off,
+        { "log.syslog", "off",
                 [
                  {datatype,{enum,["on","off"]}},
                  {mapping, "lager.handlers"}
@@ -314,7 +365,7 @@ file_test() ->
         lists:nth(5, Schema) 
         ),
     ?assertEqual(
-        { "sasl", off,
+        { "sasl", "off",
                 [
                  {datatype,{enum,["on","off"]}},
                  {mapping, "sasl.sasl_error_logger"}
@@ -325,9 +376,61 @@ file_test() ->
         { "listener.http.$name", "127.0.0.1:8098",
                 [
                  {datatype,{ip,[]}},
-                 {mapping, "riak_core.http"}
+                 {mapping, "riak_core.http"},
+                 {include_default,"internal"}
                 ]},
         lists:nth(7, Schema) 
+        ),
+    ?assertEqual(
+        { "listener.protobuf.$name", "127.0.0.1:8087",
+                [
+                 {datatype,{ip,[]}},
+                 {mapping, "riak_api.pb"},
+                 {include_default,"internal"}
+                ]},
+        lists:nth(8, Schema) 
+        ),
+    ?assertEqual(
+        { "protobuf.backlog", undefined,
+                [
+                 {mapping, "riak_api.pb_backlog"},
+                 {datatype,{integer,[]}},
+                 {commented, "64"}
+                ]},
+        lists:nth(9, Schema) 
+        ),
+    ?assertEqual(
+        { "ring.state_dir", "./data/ring",
+                [
+                 {mapping, "riak_core.ring_state_dir"}
+                ]},
+        lists:nth(10, Schema) 
+        ),
+    ?assertEqual(
+        { "listener.https.$name", undefined,
+                [
+                 {datatype,{ip,[]}},
+                 {mapping, "riak_core.https"},
+                 {include_default,"internal"},
+                 {commented,"127.0.0.1:8098"}
+                ]},
+        lists:nth(11, Schema) 
+        ),
+    ?assertEqual(
+        { "ssl.certfile", undefined,
+                [
+                 {mapping, "riak_core.ssl.certfile"},
+                 {commented,"./etc/cert.pem"}
+                ]},
+        lists:nth(12, Schema) 
+        ),
+    ?assertEqual(
+        { "ssl.keyfile", undefined,
+                [
+                 {mapping, "riak_core.ssl.keyfile"},
+                 {commented,"./etc/key.pem"}
+                ]},
+        lists:nth(13, Schema) 
         ),
     ok.
 
@@ -351,12 +454,14 @@ comment_parser_test() ->
         "%% @datatype enum on, off",
         "%% @advanced",
         "%% @optional",
+        "%% @include_default name_substitution",
         "%% @mapping riak_kv.anti_entropy"
     ],
     ParsedComments = comment_parser(Comments),
     ?assertEqual(
         [
           {datatype,{enum,["on","off"]}},
+          {include_default, "name_substitution"},
           {mapping, "riak_kv.anti_entropy"}
         ], ParsedComments
         ),

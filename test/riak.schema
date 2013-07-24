@@ -1,14 +1,15 @@
 %% example of super basic mapping
 %% @doc Default ring creation size.  Make sure it is a power of 2,
+%% e.g. 16, 32, 64, 128, 256, 512 etc
 %% @datatype integer
 %% @mapping riak_core.ring_creation_size
-{ "ring_size", 64 }.
+{ "ring_size", "64" }.
 
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
 %% @datatype enum on, off, debug
 %% @mapping riak_kv.anti_entropy
-{ "anti_entropy", on }.
+{ "anti_entropy", "on" }.
 
 %% @translation
 { "riak_kv.anti_entropy",
@@ -37,7 +38,7 @@
 %% @doc turn on syslog
 %% @datatype enum on, off
 %% @mapping lager.handlers
-{ "log.syslog", off}.
+{ "log.syslog", "off"}.
 
 %% @translation
 { "lager.handlers",
@@ -63,7 +64,7 @@
 %% @datatype enum on, off
 %% @mapping sasl.sasl_error_logger
 %% @advanced
-{"sasl", off}.
+{"sasl", "off"}.
 
 %% @translation
 {"sasl.sasl_error_logger",
@@ -76,8 +77,11 @@
 }.
 
 %% HTTP Listeners
+%% @doc listener.http.<name> is an IP address and TCP port that the Riak
+%% HTTP interface will bind.
 %% @datatype ip
 %% @mapping riak_core.http
+%% @include_default internal
 {"listener.http.$name", "127.0.0.1:8098"}.
 
 %% @translation
@@ -87,3 +91,61 @@
         [ IP || {_, IP} <- HTTP]
     end
 }.
+
+%% protobuf Listeners
+%% @doc listener.protobuf.<name> is an IP address and TCP port that the Riak 
+%% Protocol Buffers interface will bind.
+%% @datatype ip
+%% @mapping riak_api.pb
+%% @include_default internal
+{"listener.protobuf.$name", "127.0.0.1:8087"}.
+
+%% @translation
+{"riak_api.pb",
+    fun(Conf) ->
+        PB = bjorn_util:key_starts_with("listener.protobuf.", Conf),
+        [ IP || {_, IP} <- PB]
+    end
+}.
+
+%% @doc pb_backlog is the maximum length to which the queue of pending
+%% connections may grow. If set, it must be an integer >= 0.
+%% By default the value is 5. If you anticipate a huge number of
+%% connections being initialised *simultaneously*, set this number
+%% higher.
+%% @mapping riak_api.pb_backlog
+%% @datatype integer
+%% @commented 64
+{"protobuf.backlog", undefined}.
+
+%% @doc Default location of ringstate
+%% @mapping riak_core.ring_state_dir
+{"ring.state_dir", "./data/ring"}.
+
+%% @doc listener.https.<name> is an IP address and TCP port that the Riak
+%% HTTPS interface will bind.
+%% @datatype ip
+%% @mapping riak_core.https
+%% @include_default internal
+%% @commented 127.0.0.1:8098
+{"listener.https.$name", undefined}.
+
+%% @translation
+{"riak_core.https",
+    fun(Conf) ->
+        HTTPS = bjorn_util:key_starts_with("listener.https.", Conf),
+        [ IP || {_, IP} <- HTTPS]
+    end
+}.
+
+%% @doc Default cert location for https can be overridden
+%% with the ssl config variable, for example:
+%% @mapping riak_core.ssl.certfile
+%% @commented ./etc/cert.pem
+{"ssl.certfile", undefined}.
+
+%% @doc Default key location for https can be overridden
+%% with the ssl config variable, for example:
+%% @mapping riak_core.ssl.keyfile
+%% @commented ./etc/key.pem
+{"ssl.keyfile", undefined}.
