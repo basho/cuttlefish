@@ -129,7 +129,8 @@ file_test() ->
             {"log.error.file","/var/log/error.log"},
             {"log.console.file","/var/log/console.log"},
             {"log.syslog","on"},
-            {"listener.http.internal","127.0.0.1:8098"}
+            {"listener.http.internal","127.0.0.1:8098"},
+            {"listener.http.external","10.0.0.1:80"}
     	],
     	Conf),
     ok.

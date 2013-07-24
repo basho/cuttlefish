@@ -6,7 +6,7 @@
 
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
-%% @datatype enum on, off
+%% @datatype enum on, off, debug
 %% @mapping riak_kv.anti_entropy
 { "anti_entropy", on }.
 

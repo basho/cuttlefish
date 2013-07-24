@@ -29,16 +29,19 @@
 -compile(export_all).
 -endif.
 
-map(Translations, Schema, Conf) ->
+%% TODO: temporary
+-compile(export_all).
+
+map(Translations, Schema, Config) ->
     
+    Conf = transform_datatypes(Config, Schema),
     DirectMappings = lists:foldl(
         fun({Key, _Default, Attributes}, Acc) ->
             Mapping = proplists:get_value(mapping, Attributes),
             case {proplists:is_defined(datatype, Attributes), proplists:is_defined(Mapping, Translations)} of
                 {true, false} -> 
-                    {DT, _} = proplists:get_value(datatype, Attributes),
                     Tokens = string:tokens(Mapping, "."),
-                    NewValue = caster(proplists:get_value(Key, Conf),  DT),
+                    NewValue = proplists:get_value(Key, Conf),
                     tyktorp(Tokens, Acc, NewValue);
                 _ -> Acc
             end
@@ -55,6 +58,12 @@ map(Translations, Schema, Conf) ->
         DirectMappings, 
         Translations). 
 
+%for each token, is it special?
+%
+%if yes, special processing
+%if no, recurse into this with the value from the proplist and tail of tokens
+%
+%unless the tail of tokens is []
 tyktorp([LastToken], Acc, NewValue) ->
     {Type, Token, X} = token_type(LastToken),
     OldValue = proplists:get_value(Token, Acc), 
@@ -77,13 +86,6 @@ token_type(Token) ->
         [Token] -> { normal, list_to_atom(Token), none};
         [X] -> {named, list_to_atom(X), none}
     end.
-%for each token, is it special?
-%
-%if yes, special processing
-%
-%if no, recurse into this with the value from the proplist and tail of tokens
-%
-%unless the tail of tokens is []
 
 %% Priority is a nested set of proplists, but each list has only one item
 %% for easy merge
@@ -96,12 +98,60 @@ token_type(Token) ->
 %% merge([], Proplist) -> Proplist;
 %% merge(Priority, []) -> Priority.
 
+transform_datatypes(Conf, Schema) ->
+    [ begin
+        %% Look up mapping from schema
+        {_Key, _Default, Attributes} = find_mapping(Key, Schema),
+        %%Mapping = proplists:get_value(mapping, Attributes),
+        {DT, _} = proplists:get_value(datatype, Attributes, {undefined, []}),
+        {Key, caster(Value, DT)}
+    end || {Key, Value} <- Conf].
+
+%% Ok, this is tricky
+%% There are three scenarios we have to deal with:
+%% 1. The mapping is there! -> return mapping
+%% 2. The mapping is not there -> error
+%% 3. The mapping is there, but the key in the schema contains a $.
+%%      (fuzzy match)
+find_mapping(Key, Schema) ->
+    {HardMappings, FuzzyMappings} =  lists:foldl(
+        fun(Mapping={K, _D, _A}, {HM, FM}) -> 
+            case {Key =:= K, variable_key_match(Key, K)} of
+                {true, _} -> {[Mapping|HM], FM};
+                {_, true} -> {HM, [Mapping|FM]};
+                _ -> {HM, FM}
+            end
+        end,
+        {[], []},
+        Schema),
+
+    case {length(HardMappings), length(FuzzyMappings)} of
+        {1, _} -> hd(HardMappings);
+        {0, 1} -> hd(FuzzyMappings);
+        {0, 0} -> {error, not_found};
+        {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Key])}
+    end.
+
+variable_key_match(Key, KeyDef) ->
+    KeyTokens = string:tokens(Key, "."),
+    KeyDefTokens = string:tokens(KeyDef, "."),
+
+    case length(KeyTokens) =:= length(KeyDefTokens) of
+        true ->
+            Zipped = lists:zip(KeyTokens, KeyDefTokens),
+            lists:all(
+                fun({X,Y}) ->
+                    X =:= Y orelse hd(Y) =:= $$
+                end,
+                Zipped);
+        _ -> false
+    end.
+
 caster(X, enum) -> list_to_atom(X);
 caster(X, integer) -> list_to_integer(X);
 caster(X, ip) ->
     Parts = string:tokens(X, ":"),
     [Port|BackwardsIP] = lists:reverse(Parts),
-
     {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
 caster(X, _) -> X.
 
@@ -213,13 +263,13 @@ map_test() ->
     ?assertEqual(32, NewRingSize),
 
     NewAAE = proplists:get_value(anti_entropy, proplists:get_value(riak_kv, NewConfig)), 
-    ?assertEqual({on,[]}, NewAAE),
+    ?assertEqual({on,[debug]}, NewAAE),
 
     NewSASL = proplists:get_value(sasl_error_logger, proplists:get_value(sasl, NewConfig)), 
     ?assertEqual(false, NewSASL),
 
     NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)), 
-    ?assertEqual([{"127.0.0.1", 8098}], NewHTTP),
+    ?assertEqual([{"127.0.0.1", 8098}, {"10.0.0.1", 80}], NewHTTP),
 
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
@@ -237,7 +287,7 @@ file_test() ->
     ?assertEqual(
         {"anti_entropy",on,
                 [
-                 {datatype,{enum,["on","off"]}},
+                 {datatype,{enum,["on","off","debug"]}},
                  {mapping,"riak_kv.anti_entropy"}]},
         lists:nth(2, Schema) 
         ),
@@ -317,4 +367,28 @@ caster_ip_test() ->
     ?assertEqual({"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, caster("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
     ok.
 
+find_mapping_test() ->
+    Mappings = [
+        {"key.with.fixed.name", 0, []},
+        {"key.with.$variable.name", 1, []}
+    ],
+    ?assertEqual(
+        {"key.with.fixed.name", 0, []}, 
+        find_mapping("key.with.fixed.name", Mappings)),
+    ?assertEqual(
+        {"key.with.$variable.name", 1, []}, 
+        find_mapping("key.with.A.name", Mappings)),
+    ?assertEqual(
+        {"key.with.$variable.name", 1, []}, 
+        find_mapping("key.with.B.name", Mappings)),
+    ?assertEqual(
+        {"key.with.$variable.name", 1, []}, 
+        find_mapping("key.with.C.name", Mappings)),
+    ?assertEqual(
+        {"key.with.$variable.name", 1, []}, 
+        find_mapping("key.with.D.name", Mappings)),
+    ?assertEqual(
+        {"key.with.$variable.name", 1, []}, 
+        find_mapping("key.with.E.name", Mappings)),
+    ok.
 -endif.

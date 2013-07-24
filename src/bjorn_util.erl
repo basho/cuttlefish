@@ -67,5 +67,4 @@ key_starts_with_test() ->
 		],
 		Filtered),
 	ok.
-
 -endif.
