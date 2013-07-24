@@ -327,7 +327,7 @@ map_test() ->
 
 file_test() ->
     {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(22, length(Schema)),
+    ?assertEqual(29, length(Schema)),
     ?assertEqual(
         {"ring_size", "64", 
                 [
@@ -497,6 +497,59 @@ file_test() ->
                  {mapping, "riak_core.platform_log_dir"}
                 ]},
         lists:nth(22, Schema) 
+        ),
+    ?assertEqual(
+        { "search", "off",
+                [
+                 {datatype, {enum, ["on", "off"]}},
+                 {mapping, "riak_search.enabled"}
+                ]},
+        lists:nth(23, Schema) 
+        ),
+    ?assertEqual(
+        { "bitcask.io_mode", "erlang",
+                [
+                 {datatype, {enum, ["erlang", "nif"]}},
+                 {mapping, "bitcask.io_mode"}
+                ]},
+        lists:nth(24, Schema) 
+        ),
+    ?assertEqual(
+        { "bitcask.data_root", "./data/bitcask",
+                [
+                 {mapping, "bitcask.data_root"}
+                ]},
+        lists:nth(25, Schema) 
+        ),
+    ?assertEqual(
+        { "leveldb.data_root", "./data/leveldb",
+                [
+                 {mapping, "eleveldb.data_root"}
+                ]},
+        lists:nth(26, Schema) 
+        ),
+    ?assertEqual(
+        { "merge_index.data_root", "./data/merge_index",
+                [
+                 {mapping, "merge_index.data_root"}
+                ]},
+        lists:nth(27, Schema) 
+        ),
+    ?assertEqual(
+        { "merge_index.buffer_rollover_size", "1048576",
+                [
+                 {datatype, {integer,[]}},
+                 {mapping, "merge_index.buffer_rollover_size"}
+                ]},
+        lists:nth(28, Schema) 
+        ),
+    ?assertEqual(
+        { "merge_index.max_compact_segments", "20",
+                [
+                 {datatype, {integer,[]}},
+                 {mapping, "merge_index.max_compact_segments"}
+                ]},
+        lists:nth(29, Schema) 
         ),
     ok.
 

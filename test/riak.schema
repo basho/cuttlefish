@@ -178,6 +178,7 @@
 %% @mapping riak_core.dtrace_support
 {"dtrace", "off"}.
 
+%% consistent on/off (in lieu of enabled/disabled, true/false)
 %% @translation
 { "riak_core.dtrace_support",
   fun(Conf) ->
@@ -205,3 +206,49 @@
 
 %% @mapping riak_core.platform_log_dir
 {"platform_log_dir", "./log"}.
+
+%% @doc To enable Search functionality set this 'on'.
+%% @datatype enum on, off
+%% @mapping riak_search.enabled
+{"search", "off"}.
+
+%% @doc Configure how Bitcask writes data to disk.
+%%   erlang: Erlang's built-in file API
+%%      nif: Direct calls to the POSIX C API
+%%
+%% The NIF mode provides higher throughput for certain
+%% workloads, but has the potential to negatively impact
+%% the Erlang VM, leading to higher worst-case latencies
+%% and possible throughput collapse.
+%% @datatype enum erlang, nif
+%% @mapping bitcask.io_mode
+{"bitcask.io_mode", "erlang"}.
+
+%% @doc bitcask data root
+%% @mapping bitcask.data_root
+{"bitcask.data_root", "./data/bitcask"}.
+
+%% @doc leveldb data_root
+%% @mapping eleveldb.data_root
+{ "leveldb.data_root", "./data/leveldb"}.
+
+%% Merge Index Config
+%% @doc The root dir to store search merge_index data
+%% @mapping merge_index.data_root
+{"merge_index.data_root", "./data/merge_index"}.
+
+%% @doc Size, in bytes, of the in-memory buffer.  When this
+%% threshold has been reached the data is transformed
+%% into a segment file which resides on disk.
+%% @datatype integer
+%% @mapping merge_index.buffer_rollover_size
+{"merge_index.buffer_rollover_size", "1048576"}.
+
+%% @doc Overtime the segment files need to be compacted.
+%% This is the maximum number of segments that will be
+%% compacted at once.  A lower value will lead to
+%% quicker but more frequent compactions.
+%% @datatype integer
+%% @mapping merge_index.max_compact_segments
+{"merge_index.max_compact_segments", "20"}.
+
