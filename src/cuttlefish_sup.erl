@@ -1,5 +1,5 @@
 
--module(bjorn_sup).
+-module(cuttlefish_sup).
 
 -behaviour(supervisor).
 

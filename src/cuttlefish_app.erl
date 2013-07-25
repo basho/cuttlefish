@@ -1,4 +1,4 @@
--module(bjorn_app).
+-module(cuttlefish_app).
 
 -behaviour(application).
 
@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    bjorn_sup:start_link().
+    cuttlefish_sup:start_link().
 
 stop(_State) ->
     ok.

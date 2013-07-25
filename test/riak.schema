@@ -88,7 +88,7 @@
 %% @translation
 {"riak_core.http",
     fun(Conf) ->
-        HTTP = bjorn_util:key_starts_with("listener.http.", Conf),
+        HTTP = cuttlefish_util:key_starts_with("listener.http.", Conf),
         [ IP || {_, IP} <- HTTP]
     end
 }.
@@ -104,7 +104,7 @@
 %% @translation
 {"riak_api.pb",
     fun(Conf) ->
-        PB = bjorn_util:key_starts_with("listener.protobuf.", Conf),
+        PB = cuttlefish_util:key_starts_with("listener.protobuf.", Conf),
         [ IP || {_, IP} <- PB]
     end
 }.
@@ -134,7 +134,7 @@
 %% @translation
 {"riak_core.https",
     fun(Conf) ->
-        HTTPS = bjorn_util:key_starts_with("listener.https.", Conf),
+        HTTPS = cuttlefish_util:key_starts_with("listener.https.", Conf),
         [ IP || {_, IP} <- HTTPS]
     end
 }.
@@ -587,7 +587,7 @@ end}.
 fun(Conf) ->
   UserList1 = lists:filter(
     fun({K, _V}) -> 
-      bjorn_schema:variable_key_match(K, "riak_control.user.$username.password")
+      cuttlefish_schema:variable_key_match(K, "riak_control.user.$username.password")
     end,
     Conf),
   UserList = [ begin

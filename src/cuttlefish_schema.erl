@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% bjorn_schema: slurps schema files
+%% cuttlefish_schema: slurps schema files
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
@@ -20,7 +20,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(bjorn_schema).
+-module(cuttlefish_schema).
 
 -export([file/1, map/3]).
 
@@ -80,14 +80,14 @@ tyktorp([LastToken], Acc, NewValue) ->
     {Type, Token, X} = token_type(LastToken),
     OldValue = proplists:get_value(Token, Acc), 
     New = case Type of
-        tuple -> bjorn_util:replace_tuple_element(X, NewValue, OldValue); 
+        tuple -> cuttlefish_util:replace_tuple_element(X, NewValue, OldValue); 
         _ -> NewValue
     end,
-    bjorn_util:replace_proplist_value(Token, New, Acc); 
+    cuttlefish_util:replace_proplist_value(Token, New, Acc); 
 tyktorp([HeadToken|MoreTokens], PList, NewValue) ->
     {_Type, Token, _X} = token_type(HeadToken),
     OldValue = proplists:get_value(Token, PList, []),
-    bjorn_util:replace_proplist_value(
+    cuttlefish_util:replace_proplist_value(
         Token,
         tyktorp(MoreTokens, OldValue, NewValue),
         PList).

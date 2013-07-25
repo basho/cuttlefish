@@ -1,4 +1,4 @@
--module(bjorn_util).
+-module(cuttlefish_util).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

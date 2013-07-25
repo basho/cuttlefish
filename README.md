@@ -1,4 +1,4 @@
-# Bjorn
+# Cuttlefish
 Knows all about your options
 
 ## Motivation
@@ -175,6 +175,6 @@ We'll also eventually be able to source `vm.args` from the `riak.conf` also, but
 * Model the entire riak 1.4 standard app.config in `riak.conf`
 
 ### P.S. Names are placeholders. 
-I don't intend to ship bjorn_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
+I don't intend to ship cuttlefish_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
 
 fullbokat.

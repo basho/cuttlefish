@@ -1,4 +1,4 @@
-{application, bjorn,
+{application, cuttlefish,
  [
   {description, ""},
   {vsn, "1"},
@@ -7,6 +7,6 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, { bjorn_app, []}},
+  {mod, { cuttlefish_app, []}},
   {env, []}
  ]}.
