@@ -605,6 +605,35 @@ file_test() ->
         [
                 {datatype, {enum, ["v0", "v1"]}},
                 {mapping, "riak_kv.object_format"}
+        ]},
+        {"riak_sysmon.process_limit", "30", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_sysmon.process_limit"}
+        ]},
+        {"riak_sysmon.port_limit", "2", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_sysmon.port_limit"}
+        ]},
+        {"riak_sysmon.gc_ms_limit", "0", [
+                {datatype, {integer, []}},
+                {mapping, "riak_sysmon.gc_ms_limit"}
+        ]},
+        {"riak_sysmon.heap_word_limit", "40111000",
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_sysmon.heap_word_limit"}
+        ]},
+        {"riak_sysmon.busy_port", "true", 
+        [
+                {datatype, {enum, ["true", "false"]}},
+                {mapping, "riak_sysmon.busy_port"}
+        ]},
+        {"riak_sysmon.busy_dist_port", "true",
+        [
+                {datatype, {enum, ["true", "false"]}},
+                {mapping, "riak_sysmon.busy_dist_port"}
         ]}
 
     ],
