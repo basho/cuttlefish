@@ -1,9 +1,5 @@
 # Cuttlefish
-Knows all about your options
-
-## Motivation
-B(j)orn of a desire to make configuraion of Riak easier on the masses, this project strives to help developers merge the idea of a user facing configuration file with that of an erlang app.config.
-
+Cuttlefish is a library for erlang applications that wish to walk the fine line between erlang `app.config`s and a sysctl-like syntax.
 ## Filename glossary
 
 * **app.config** usually refering to <= 1.4 configuration file, in erlang application:env syntax
@@ -171,10 +167,6 @@ These files are essentially merged into a `generated.config` by a little vm befo
 We'll also eventually be able to source `vm.args` from the `riak.conf` also, but baby steps.
 
 ### Next Steps
-* I have removed mention of **default.config** from this readme. Hopefully, you're asking right now "What's that?". I need to remove that from the implementation.
-* Model the entire riak 1.4 standard app.config in `riak.conf`
-
-### P.S. Names are placeholders. 
-I don't intend to ship cuttlefish_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
-
-fullbokat.
+[DONE] I have removed mention of **default.config** from this readme. Hopefully, you're asking right now "What's that?". I need to remove that from the implementation.
+[DONE] Model the entire riak 1.4 standard app.config in `riak.conf`
+* Generate the `riak.conf` that would ship with riak from the schema
