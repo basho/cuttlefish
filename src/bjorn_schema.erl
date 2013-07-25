@@ -38,7 +38,10 @@ map(Translations, Schema, Config) ->
     {DirectMappings, TranslationsToDrop} = lists:foldl(
         fun({Key, Default, Attributes}, {ConfAcc, XlatAcc}) ->
             Mapping = proplists:get_value(mapping, Attributes),
-            case {Default =/= undefined, proplists:is_defined(Mapping, Translations)} of
+            case {
+                Default =/= undefined orelse proplists:is_defined(Key, Conf), 
+                proplists:is_defined(Mapping, Translations)
+                } of
                 {true, false} -> 
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Key, Conf),
@@ -55,10 +58,10 @@ map(Translations, Schema, Config) ->
         fun({Mapping, Xlat, _}, Acc) ->
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
-                    io:format("Translation: ~s~n", [Mapping]),
+                    %%io:format("Translation: ~s~n", [Mapping]),
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = Xlat(Conf),
-                    io:format("tyktorp(~s, ~p, ~p)~n", [Mapping, Acc, NewValue]),
+                    %%io:format("tyktorp(~s, ~p, ~p)~n", [Mapping, Acc, NewValue]),
                     tyktorp(Tokens, Acc, NewValue);
                 _ ->
                     Acc
@@ -302,6 +305,7 @@ map_test() ->
     {Translations, Schema} = file("../test/riak.schema"),
     Conf = conf_parse:file("../test/riak.conf"),
     NewConfig = map(Translations, Schema, Conf),
+    io:format("~p~n", [proplists:get_value(riak_core, NewConfig)]),
 
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
@@ -326,10 +330,11 @@ map_test() ->
 
 file_test() ->
     ExpectedSchema = [
-        {"ring_size", "64", 
+        {"ring_size", undefined, 
                 [
                  {datatype,{integer,[]}},
-                 {mapping, "riak_core.ring_creation_size"}]},
+                 {mapping, "riak_core.ring_creation_size"},
+                 {commented, "64"}]},
         {"anti_entropy", "on",
                 [
                  {datatype,{enum,["on","off","debug"]}},
@@ -644,11 +649,11 @@ file_test() ->
             {datatype, {enum,["userlist"]}},
             {mapping, "riak_control.auth"}
         ]},
-        %% @doc If auth is set to 'userlist' then this is the
-        %% list of usernames and passwords for access to the
-        %% admin panel.
-        %% {userlist, [{"user", "pass"}
-        %%            ]},
+        { "riak_control.user.$username.password", "pass",
+        [
+            {mapping, "riak_control.userlist"},
+            {include_default, "user"}
+        ]},
         {"riak_control.admin", "on", 
         [
             {mapping, "riak_control.admin"}
@@ -660,9 +665,6 @@ file_test() ->
     ?assertEqual(length(ExpectedSchema), length(Schema)),
 
     [ ?assertEqual(Expected, Actual) || {Expected, Actual} <- lists:zip(ExpectedSchema, Schema)],
-
-
-
     ok.
 
 percent_stripper_test() ->
@@ -727,4 +729,43 @@ find_mapping_test() ->
         {"key.with.$variable.name", 1, []}, 
         find_mapping("key.with.E.name", Mappings)),
     ok.
+
+all_the_marbles_test() ->
+    %%lager:start(),
+    {Translations, Schema} = file("../test/riak.schema"),
+    Conf = [], %conf_parse:file("../test/riak.conf"),
+    NewConfig = map(Translations, Schema, Conf),
+    ?assert(is_proplist(NewConfig)),
+
+    {ok, [AppConfig]} = file:consult("../test/default.config"),
+    
+    ?assert(is_proplist(AppConfig)),
+
+    proplist_equals(AppConfig, NewConfig),
+    ok.
+
+proplist_equals(Expected, Actual) ->
+    ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
+    ActualKeys = lists:sort(proplists:get_keys(Actual)),
+    ?assertEqual(ExpectedKeys, ActualKeys), 
+    [ begin 
+        ExpectedValue = proplists:get_value(EKey, Expected),
+        ActualValue = proplists:get_value(EKey, Actual, undefined),
+        case {is_proplist(ExpectedValue), is_proplist(ActualValue)} of
+            {true, true} ->
+                proplist_equals(ExpectedValue, ActualValue);
+            {false, false} ->
+                ?assertEqual(ExpectedValue, ActualValue);
+            _ ->
+                ?assert(false)
+        end
+    end || EKey <- ExpectedKeys].
+
+is_proplist(Proplist) when is_list(Proplist) ->
+    lists:all(
+        fun(X) -> 
+            is_tuple(X) andalso tuple_size(X) =:= 2
+        end,
+        Proplist);
+is_proplist(_) -> false.
 -endif.

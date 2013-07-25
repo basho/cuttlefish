@@ -3,7 +3,8 @@
 %% e.g. 16, 32, 64, 128, 256, 512 etc
 %% @datatype integer
 %% @mapping riak_core.ring_creation_size
-{ "ring_size", "64" }.
+%% @commented 64
+{ "ring_size", undefined }.
 
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
@@ -211,6 +212,16 @@
 %% @datatype enum on, off
 %% @mapping riak_search.enabled
 {"search", "off"}.
+
+%% @translation
+{"riak_search.enabled", fun(Conf) -> 
+    Setting = proplists:get_value("search", Conf), 
+    case Setting of
+      on -> true;
+      off -> false;
+      _Default -> false
+    end
+end}.
 
 %% @doc Configure how Bitcask writes data to disk.
 %%   erlang: Erlang's built-in file API
@@ -567,8 +578,24 @@ end}.
 %% @doc If auth is set to 'userlist' then this is the
 %% list of usernames and passwords for access to the
 %% admin panel.
-%% {userlist, [{"user", "pass"}
-%%            ]},
+%% @mapping riak_control.userlist
+%% @include_default user
+{ "riak_control.user.$username.password", "pass"}.
+
+%%@translation
+{"riak_control.userlist",
+fun(Conf) ->
+  UserList1 = lists:filter(
+    fun({K, _V}) -> 
+      bjorn_schema:variable_key_match(K, "riak_control.user.$username.password")
+    end,
+    Conf),
+  UserList = [ begin
+    [_, _, Username, _] = string:tokens(Key, "."),
+    {Username, Password}
+  end || {Key, Password} <- UserList1]
+
+end}.
 
 %% @doc The admin panel is broken up into multiple
 %% components, each of which is enabled or disabled
