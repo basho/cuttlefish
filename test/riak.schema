@@ -541,3 +541,49 @@ end}.
 %% @datatype enum true, false
 %% @mapping riak_sysmon.busy_dist_port
 {"riak_sysmon.busy_dist_port", "true"}.
+
+%% riak_control config
+%% @doc Set to false to disable the admin panel.
+%% @datatype enum on, off
+%% @mapping riak_control.enabled
+{"riak_control", "off"}.
+%% @translation
+{"riak_control.enabled",
+ fun(Conf) ->
+    Setting = proplists:get_value("riak_control", Conf), 
+    case Setting of
+      on -> true;
+      off -> false;
+      _Default -> false
+    end
+ end}.
+
+%% @doc Authentication style used for access to the admin
+%% panel. Valid styles are 'userlist' <TODO>.
+%% @datatype enum userlist
+%% @mapping riak_control.auth
+{"riak_control.auth", "userlist"}.
+
+%% @doc If auth is set to 'userlist' then this is the
+%% list of usernames and passwords for access to the
+%% admin panel.
+%% {userlist, [{"user", "pass"}
+%%            ]},
+
+%% @doc The admin panel is broken up into multiple
+%% components, each of which is enabled or disabled
+%% by one of these settings.
+%% @mapping riak_control.admin
+{"riak_control.admin", "on"}.
+%% @translation
+{"riak_control.admin",
+ fun(Conf) ->
+    Setting = proplists:get_value("riak_control.admin", Conf), 
+    case Setting of
+      on -> true;
+      off -> false;
+      _Default -> true
+    end
+ end}.
+
+

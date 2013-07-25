@@ -33,11 +33,8 @@
 -compile(export_all).
 
 map(Translations, Schema, Config) ->
-    %%io:format("~p~n", [Config]),
     DConfig = add_defaults(Config, Schema),
-    %%io:format("~p~n", [DConfig]),
     Conf = transform_datatypes(DConfig, Schema),
-    %%io:format("~p~n", [Conf]),
     {DirectMappings, TranslationsToDrop} = lists:foldl(
         fun({Key, Default, Attributes}, {ConfAcc, XlatAcc}) ->
             Mapping = proplists:get_value(mapping, Attributes),
@@ -52,14 +49,16 @@ map(Translations, Schema, Config) ->
         end, 
         {[], []},
         Schema),
-    io:format("~p~n", [TranslationsToDrop]),
+    
     %% Translations
     lists:foldl(
         fun({Mapping, Xlat, _}, Acc) ->
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
+                    io:format("Translation: ~s~n", [Mapping]),
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = Xlat(Conf),
+                    io:format("tyktorp(~s, ~p, ~p)~n", [Mapping, Acc, NewValue]),
                     tyktorp(Tokens, Acc, NewValue);
                 _ ->
                     Acc
@@ -634,8 +633,26 @@ file_test() ->
         [
                 {datatype, {enum, ["true", "false"]}},
                 {mapping, "riak_sysmon.busy_dist_port"}
+        ]},
+        {"riak_control", "off", 
+        [
+            {datatype, {enum, ["on", "off"]}},
+            {mapping, "riak_control.enabled"}
+        ]},
+        {"riak_control.auth", "userlist",
+        [
+            {datatype, {enum,["userlist"]}},
+            {mapping, "riak_control.auth"}
+        ]},
+        %% @doc If auth is set to 'userlist' then this is the
+        %% list of usernames and passwords for access to the
+        %% admin panel.
+        %% {userlist, [{"user", "pass"}
+        %%            ]},
+        {"riak_control.admin", "on", 
+        [
+            {mapping, "riak_control.admin"}
         ]}
-
     ],
 
 
