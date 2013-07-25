@@ -326,87 +326,55 @@ map_test() ->
     ok.
 
 file_test() ->
-    {_, Schema} = file("../test/riak.schema"),
-    ?assertEqual(36, length(Schema)),
-    ?assertEqual(
+    ExpectedSchema = [
         {"ring_size", "64", 
                 [
                  {datatype,{integer,[]}},
                  {mapping, "riak_core.ring_creation_size"}]},
-        lists:nth(1, Schema) 
-        ),
-    ?assertEqual(
         {"anti_entropy", "on",
                 [
                  {datatype,{enum,["on","off","debug"]}},
                  {mapping,"riak_kv.anti_entropy"}]},
-        lists:nth(2, Schema) 
-        ),
-    ?assertEqual(
         { "log.console.file", "./log/console.log",
                 [
                  {mapping, "lager.handlers"}
                 ]},
-        lists:nth(3, Schema) 
-        ),
-    ?assertEqual(
         { "log.error.file", "./log/error.log",
                 [
                  {mapping, "lager.handlers"}
                 ]},
-        lists:nth(4, Schema) 
-        ),
-    ?assertEqual(
         { "log.syslog", "off",
                 [
                  {datatype,{enum,["on","off"]}},
                  {mapping, "lager.handlers"}
                 ]},
-        lists:nth(5, Schema) 
-        ),
-    ?assertEqual(
         { "sasl", "off",
                 [
                  {datatype,{enum,["on","off"]}},
                  {mapping, "sasl.sasl_error_logger"}
                 ]},
-        lists:nth(6, Schema) 
-        ),
-    ?assertEqual(
         { "listener.http.$name", "127.0.0.1:8098",
                 [
                  {datatype,{ip,[]}},
                  {mapping, "riak_core.http"},
                  {include_default,"internal"}
                 ]},
-        lists:nth(7, Schema) 
-        ),
-    ?assertEqual(
         { "listener.protobuf.$name", "127.0.0.1:8087",
                 [
                  {datatype,{ip,[]}},
                  {mapping, "riak_api.pb"},
                  {include_default,"internal"}
                 ]},
-        lists:nth(8, Schema) 
-        ),
-    ?assertEqual(
         { "protobuf.backlog", undefined,
                 [
                  {mapping, "riak_api.pb_backlog"},
                  {datatype,{integer,[]}},
                  {commented, "64"}
                 ]},
-        lists:nth(9, Schema) 
-        ),
-    ?assertEqual(
         { "ring.state_dir", "./data/ring",
                 [
                  {mapping, "riak_core.ring_state_dir"}
                 ]},
-        lists:nth(10, Schema) 
-        ),
-    ?assertEqual(
         { "listener.https.$name", undefined,
                 [
                  {datatype,{ip,[]}},
@@ -414,197 +382,241 @@ file_test() ->
                  {include_default,"internal"},
                  {commented,"127.0.0.1:8098"}
                 ]},
-        lists:nth(11, Schema) 
-        ),
-    ?assertEqual(
         { "ssl.certfile", undefined,
                 [
                  {mapping, "riak_core.ssl.certfile"},
                  {commented,"./etc/cert.pem"}
                 ]},
-        lists:nth(12, Schema) 
-        ),
-    ?assertEqual(
         { "ssl.keyfile", undefined,
                 [
                  {mapping, "riak_core.ssl.keyfile"},
                  {commented,"./etc/key.pem"}
                 ]},
-        lists:nth(13, Schema) 
-        ),
-    ?assertEqual(
         { "handoff.port", "8099",
                 [
                  {datatype, {integer, []}},
                  {mapping, "riak_core.handoff_port"}
                 ]},
-        lists:nth(14, Schema) 
-        ),
-    ?assertEqual(
         { "handoff.ssl.certfile", undefined,
                 [
                  {mapping, "riak_core.handoff_ssl_options.certfile"},
                  {commented,"/tmp/erlserver.pem"}
                 ]},
-        lists:nth(15, Schema) 
-        ),
-    ?assertEqual(
         { "handoff.ssl.keyfile", undefined,
                 [
                  {mapping, "riak_core.handoff_ssl_options.keyfile"}
                 ]},
-        lists:nth(16, Schema) 
-        ),
-    ?assertEqual(
         { "dtrace", "off",
                 [
                  {datatype, {enum, ["on", "off"]}},
                  {mapping, "riak_core.dtrace_support"}
                 ]},
-        lists:nth(17, Schema) 
-        ),
-    ?assertEqual(
         { "platform_bin_dir", "./bin",
                 [
                  {mapping, "riak_core.platform_bin_dir"}
                 ]},
-        lists:nth(18, Schema) 
-        ),
-    ?assertEqual(
         { "platform_data_dir", "./data",
                 [
                  {mapping, "riak_core.platform_data_dir"}
                 ]},
-        lists:nth(19, Schema) 
-        ),
-    ?assertEqual(
         { "platform_etc_dir", "./etc",
                 [
                  {mapping, "riak_core.platform_etc_dir"}
                 ]},
-        lists:nth(20, Schema) 
-        ),
-    ?assertEqual(
         { "platform_lib_dir", "./lib",
                 [
                  {mapping, "riak_core.platform_lib_dir"}
                 ]},
-        lists:nth(21, Schema) 
-        ),
-    ?assertEqual(
         { "platform_log_dir", "./log",
                 [
                  {mapping, "riak_core.platform_log_dir"}
                 ]},
-        lists:nth(22, Schema) 
-        ),
-    ?assertEqual(
         { "search", "off",
                 [
                  {datatype, {enum, ["on", "off"]}},
                  {mapping, "riak_search.enabled"}
                 ]},
-        lists:nth(23, Schema) 
-        ),
-    ?assertEqual(
         { "bitcask.io_mode", "erlang",
                 [
                  {datatype, {enum, ["erlang", "nif"]}},
                  {mapping, "bitcask.io_mode"}
                 ]},
-        lists:nth(24, Schema) 
-        ),
-    ?assertEqual(
         { "bitcask.data_root", "./data/bitcask",
                 [
                  {mapping, "bitcask.data_root"}
                 ]},
-        lists:nth(25, Schema) 
-        ),
-    ?assertEqual(
         { "leveldb.data_root", "./data/leveldb",
                 [
                  {mapping, "eleveldb.data_root"}
                 ]},
-        lists:nth(26, Schema) 
-        ),
-    ?assertEqual(
         { "merge_index.data_root", "./data/merge_index",
                 [
                  {mapping, "merge_index.data_root"}
                 ]},
-        lists:nth(27, Schema) 
-        ),
-    ?assertEqual(
         { "merge_index.buffer_rollover_size", "1048576",
                 [
                  {datatype, {integer,[]}},
                  {mapping, "merge_index.buffer_rollover_size"}
                 ]},
-        lists:nth(28, Schema) 
-        ),
-    ?assertEqual(
         { "merge_index.max_compact_segments", "20",
                 [
                  {datatype, {integer,[]}},
                  {mapping, "merge_index.max_compact_segments"}
                 ]},
-        lists:nth(29, Schema) 
-        ),
-    ?assertEqual(
         {"log.crash.file", "./log/crash.log",
                 [
                  {mapping, "lager.crash_log"}
                 ]},
-        lists:nth(30, Schema)
-        ),
-    ?assertEqual(
         {"log.crash.msg_size", "65536", 
                 [
                  {datatype, {integer, []}},
                  {mapping, "lager.crash_log_msg_size"}
                 ]},
-        lists:nth(31, Schema)
-        ),
-    ?assertEqual(
         {"log.crash.size", "10485760", 
                 [
                  {datatype, {integer, []}},
                  {mapping, "lager.crash_log_size"}
                 ]},
-        lists:nth(32, Schema)
-        ),
-    ?assertEqual(
         {"log.crash.date", "$D0", 
                 [
                  {mapping, "lager.crash_log_date"}
                 ]},
-        lists:nth(33, Schema)
-        ),
-    ?assertEqual(
         {"log.crash.count", "5", 
                 [
                  {datatype, {integer, []}},
                  {mapping, "lager.crash_log_count"}
                 ]},
-        lists:nth(34, Schema)
-        ),
-    ?assertEqual(
         {"log.error.redirect", "on", 
                 [
                  {datatype, {enum, ["on", "off"]}},
                  {mapping, "lager.error_logger_redirect"}
                 ]},
-        lists:nth(35, Schema)
-        ),
-    ?assertEqual(
         {"log.error.messages_per_second", "100", 
                 [
                  {datatype, {integer, []}},
                  {mapping, "lager.error_logger_hwm"}
                 ]},
-        lists:nth(36, Schema)
-        ),
+        {"storage_backend", "bitcask",
+                [
+                 {datatype, {enum, ["bitcask", "leveldb", "memory", "multi"]}},
+                 {mapping, "riak_kv.storage_backend"}
+                ]},
+        {"raw_name", undefined, 
+                [
+                 {mapping, "riak_kv.raw_name"},
+                 {commented, "riak"}
+                ]},
+        {"anti_entropy.build_limit.number", "1", [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_build_limit"}
+        ]},
+        {"anti_entropy.build_limit.per_timespan", "3600000", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_build_limit"}
+        ]},
+        {"anti_entropy.expire", "604800000", [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_expire"}
+        ]},
+        {"anti_entropy.concurrency", "2", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_concurrency"}
+        ]},
+        {"anti_entropy.tick", "15000", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_tick"}
+        ]},
+        {"anti_entropy.data_dir", "./data/anti_entropy",
+        [
+                {mapping, "riak_kv.anti_entropy_data_dir"}
+        ]},
+        {"anti_entropy.write_buffer_size", "4194304", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_leveldb_opts.write_buffer_size"}
+        ]},
+        {"anti_entropy.max_open_files", "20", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.anti_entropy_leveldb_opts.max_open_files"}
+        ]},
+        {"mapred_name", "mapred", 
+        [
+                {mapping, "riak_kv.mapred_name"}
+        ]},
+        {"mapred_2i_pipe", "on", 
+        [
+                {datatype, {enum, ["on", "off"]}},
+                {mapping, "riak_kv.mapred_2i_pipe"}
+        ]},
+        {"javascript_vm.map_js_vm_count", "8", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.map_js_vm_count"}
+        ]},
+        {"javascript_vm.reduce_js_vm_count", "6",
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.reduce_js_vm_count"}
+        ]},
+        {"javascript_vm.hook_js_vm_count", "2", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.hook_js_vm_count"}
+        ]},
+        {"javascript_vm.max_vm_mem", "8", 
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.js_max_vm_mem"}
+        ]},
+        {"javascript_vm.thread_stack", "16",
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.js_thread_stack"}
+        ]},
+        {"javascript_vm.source_dir", undefined, 
+        [
+                {mapping, "riak_kv.js_source_dir"},
+                {commented, "/tmp/js_source"}
+        ]},
+        {"http_url_encoding", "on",
+        [
+                {datatype, {enum, ["on", "off"]}},
+                {mapping, "riak_kv.http_url_encoding"}
+        ]},
+        {"vnode_vclocks", "on",
+        [
+                {mapping, "riak_kv.vnode_vclocks"}
+        ]},
+        {"listkeys_backpressure", "on",
+        [
+                {datatype, {enum, ["on", "off"]}},
+                {mapping, "riak_kv.listkeys_backpressure"}
+        ]},
+        {"fsm_limit", "50000",
+        [
+                {datatype, {integer, []}},
+                {mapping, "riak_kv.fsm_limit"}
+        ]},
+        {"object_format", "v1",
+        [
+                {datatype, {enum, ["v0", "v1"]}},
+                {mapping, "riak_kv.object_format"}
+        ]}
+
+    ],
+
+
+    {_, Schema} = file("../test/riak.schema"),
+    ?assertEqual(length(ExpectedSchema), length(Schema)),
+
+    [ ?assertEqual(Expected, Actual) || {Expected, Actual} <- lists:zip(ExpectedSchema, Schema)],
+
+
+
     ok.
 
 percent_stripper_test() ->
