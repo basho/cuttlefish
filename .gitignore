@@ -1,5 +1,6 @@
 .DS_Store
 generated.config
+generated.cong
 ebin/*
 .eunit
 src/conf_parse.erl

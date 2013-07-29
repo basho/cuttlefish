@@ -53,7 +53,8 @@ file_test() ->
         { "sasl", "off",
                 [
                  {datatype,{enum,["on","off"]}},
-                 {mapping, "sasl.sasl_error_logger"}
+                 {mapping, "sasl.sasl_error_logger"},
+                 {advanced,true}
                 ]},
         { "listener.http.$name", "127.0.0.1:8098",
                 [
@@ -361,5 +362,9 @@ file_test() ->
     {_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     ?assertEqual(length(ExpectedSchema), length(Schema)),
 
-    [ ?assertEqual(Expected, Actual) || {Expected, Actual} <- lists:zip(ExpectedSchema, Schema)],
+    %% TODO: I would go insane copying all the comments from the schema into this file. It should be 
+    %% done eventually, but I have promisses to keep, and miles to go before I sleep
+    %% and miles to go before I sleep
+    [ ?assertEqual(Expected, {ActualKey, ActualDefault, proplists:delete(doc, ActualAttributes)}) 
+    || {Expected, {ActualKey, ActualDefault, ActualAttributes}} <- lists:zip(ExpectedSchema, Schema)],
     ok.

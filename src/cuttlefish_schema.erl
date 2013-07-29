@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([file/1, map/3]).
+-export([file/1, map/3, variable_key_replace/2]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -189,7 +189,7 @@ variable_key_replace(Key, Sub) ->
             $$ -> Sub;
             _ -> Tok
         end
-    end|| Tok <- KeyTokens], "."). 
+    end || Tok <- KeyTokens], "."). 
 
 
 %% I used to write java. in java, when you want to change something from
@@ -277,14 +277,16 @@ attribute_formatter([{translation, _}| T]) ->
     [{translation, true}| attribute_formatter(T)];
 attribute_formatter([{datatype, DT}| T]) ->
     [{datatype, data_typer(DT)}| attribute_formatter(T)];
+attribute_formatter([{advanced, _}| T]) ->
+    [{advanced, true}| attribute_formatter(T)];
 attribute_formatter([{mapping, Mapping}| T]) ->
     [{mapping, lists:flatten(Mapping)}| attribute_formatter(T)];
 attribute_formatter([{include_default, NameSub}| T]) ->
     [{include_default, lists:flatten(NameSub)}| attribute_formatter(T)];
 attribute_formatter([{commented, CommentValue}| T]) ->
     [{commented, lists:flatten(CommentValue)}| attribute_formatter(T)];
-attribute_formatter([_Other | T]) ->
-    attribute_formatter(T); %% TODO: don't throw other things away [ Other | attribute_formatter(T)]
+attribute_formatter([Other | T]) ->
+    [ Other | attribute_formatter(T)];
 attribute_formatter([]) -> [].
 
 percent_stripper(Line) ->
@@ -352,16 +354,19 @@ comment_parser_test() ->
         "%% there can be line breaks",
         "%% @datatype enum on, off",
         "%% @advanced",
-        "%% @optional",
         "%% @include_default name_substitution",
         "%% @mapping riak_kv.anti_entropy"
     ],
     ParsedComments = comment_parser(Comments),
     ?assertEqual(
         [
-          {datatype,{enum,["on","off"]}},
-          {include_default, "name_substitution"},
-          {mapping, "riak_kv.anti_entropy"}
+            {doc,["this is a sample doc",
+                  "it spans multiple lines",
+                  "there can be line breaks"]},
+            {datatype,{enum,["on","off"]}},
+            {advanced, true},
+            {include_default, "name_substitution"},
+            {mapping, "riak_kv.anti_entropy"}
         ], ParsedComments
         ),
     ok.
