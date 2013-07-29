@@ -99,19 +99,6 @@ token_type(Token) ->
         [X] -> {named, list_to_atom(X), none}
     end.
 
-%% TODO: keeping around for possible use in the advanced.config usecase. 
-%% Priority is a nested set of proplists, but each list has only one item
-%% for easy merge
-%% merge([{K,V}]=Priority, Proplist) ->
-%%     case proplists:get_value(K, Proplist) of
-%%         undefined -> Proplist ++ Priority;
-%%         Existing ->
-%%             proplists:delete(K, Proplist) ++ merge(V, Existing) 
-%%     end; 
-%% merge([], Proplist) -> Proplist;
-%% merge(Priority, []) -> Priority.
-
-
 add_defaults(Conf, Schema) ->
     lists:foldl(
         fun({Key, Default, Attributes}, Acc) ->
