@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([file/1, map/3, variable_key_replace/2]).
+-export([file/1, map/3]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -125,7 +125,7 @@ add_defaults(Conf, Schema) ->
             case {Match, FuzzyMatch} of
                 {false, true} -> 
                     Sub = proplists:get_value(include_default, Attributes),
-                    [{variable_key_replace(Key, Sub), Default}|Acc];
+                    [{cuttlefish_util:variable_key_replace(Key, Sub), Default}|Acc];
                 {false, false} -> [{Key, Default}|Acc];
                 _ -> Acc
             end 
@@ -181,16 +181,6 @@ variable_key_match(Key, KeyDef) ->
                 Zipped);
         _ -> false
     end.
-
-variable_key_replace(Key, Sub) ->
-    KeyTokens = string:tokens(Key, "."), 
-    string:join([ begin 
-        case hd(Tok) of
-            $$ -> Sub;
-            _ -> Tok
-        end
-    end || Tok <- KeyTokens], "."). 
-
 
 %% I used to write java. in java, when you want to change something from
 %% one datatype to another, you cast. So that's what we do here.

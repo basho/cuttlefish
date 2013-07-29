@@ -19,7 +19,7 @@ generate_element(SchemaElement) ->
 	%%    e.g. @include_default internal
 	%%         listener.http.$name -> listener.http.internal 
 
-	Field = cuttlefish_schema:variable_key_replace(Key, IncDef),
+	Field = cuttlefish_util:variable_key_replace(Key, IncDef),
 
 	case generate_element(Advanced, Default, Commented) of
 		no ->

@@ -8,7 +8,8 @@
 -export([
 	replace_proplist_value/3,
 	replace_tuple_element/3,
-	key_starts_with/2]).
+	key_starts_with/2,
+	variable_key_replace/2]).
 
 replace_proplist_value(Key, Value, Proplist) ->
 	proplists:delete(Key, Proplist) ++ [{Key, Value}].
@@ -27,6 +28,15 @@ key_starts_with(Prefix, Proplist) ->
 			string:str(Key, Prefix) =:= 1
 		end, 
 		Proplist).
+
+variable_key_replace(Key, Sub) ->
+    KeyTokens = string:tokens(Key, "."), 
+    string:join([ begin 
+        case hd(Tok) of
+            $$ -> Sub;
+            _ -> Tok
+        end
+    end || Tok <- KeyTokens], "."). 
 
 -ifdef(TEST).
 
