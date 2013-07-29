@@ -33,8 +33,10 @@ map(Translations, Schema, Config) ->
     DConfig = add_defaults(Config, Schema),
     Conf = transform_datatypes(DConfig, Schema),
     {DirectMappings, TranslationsToDrop} = lists:foldl(
-        fun({Key, Default, Attributes}, {ConfAcc, XlatAcc}) ->
-            Mapping = proplists:get_value(mapping, Attributes),
+        fun(MappingRecord, {ConfAcc, XlatAcc}) ->
+            Mapping = cuttlefish_mapping:mapping(MappingRecord),
+            Default = cuttlefish_mapping:default(MappingRecord),
+            Key = cuttlefish_mapping:key(MappingRecord),
             case {
                 Default =/= undefined orelse proplists:is_defined(Key, Conf), 
                 proplists:is_defined(Mapping, Translations)
@@ -101,7 +103,9 @@ token_type(Token) ->
 
 add_defaults(Conf, Schema) ->
     lists:foldl(
-        fun({Key, Default, Attributes}, Acc) ->
+        fun(MappingRecord, Acc) ->
+            Default = cuttlefish_mapping:default(MappingRecord),
+            Key = cuttlefish_mapping:key(MappingRecord),
             Match = lists:any(
                 fun({K, _V}) ->
                     variable_key_match(K, Key)
@@ -111,21 +115,21 @@ add_defaults(Conf, Schema) ->
             FuzzyMatch = lists:member($$, Key),
             case {Match, FuzzyMatch} of
                 {false, true} -> 
-                    Sub = proplists:get_value(include_default, Attributes),
+                    Sub = cuttlefish_mapping:include_default(MappingRecord),
                     [{cuttlefish_util:variable_key_replace(Key, Sub), Default}|Acc];
                 {false, false} -> [{Key, Default}|Acc];
                 _ -> Acc
             end 
         end, 
         Conf, 
-        lists:filter(fun({_K, Def, _A}) -> Def =/= undefined end, Schema)).
+        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Schema)).
 
 transform_datatypes(Conf, Schema) ->
     [ begin
         %% Look up mapping from schema
-        {_Key, _Default, Attributes} = find_mapping(Key, Schema),
+        MappingRecord = find_mapping(Key, Schema),
         %%Mapping = proplists:get_value(mapping, Attributes),
-        {DT, _} = proplists:get_value(datatype, Attributes, {undefined, []}),
+        DT = cuttlefish_mapping:datatype(MappingRecord),
         {Key, caster(Value, DT)}
     end || {Key, Value} <- Conf].
 
@@ -137,7 +141,8 @@ transform_datatypes(Conf, Schema) ->
 %%      (fuzzy match)
 find_mapping(Key, Schema) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
-        fun(Mapping={K, _D, _A}, {HM, FM}) -> 
+        fun(Mapping, {HM, FM}) ->
+            K = cuttlefish_mapping:key(Mapping), 
             case {Key =:= K, variable_key_match(Key, K)} of
                 {true, _} -> {[Mapping|HM], FM};
                 {_, true} -> {HM, [Mapping|FM]};
@@ -192,7 +197,11 @@ string(S) ->
     {ok, Tokens, _} = erl_scan:string(S),
     CommentTokens = erl_comment_scan:string(S),
     Schemas = parse_schema(Tokens, CommentTokens),
-    lists:partition(fun({_, _, Attributes}) -> proplists:is_defined(translation, Attributes) end, Schemas). 
+    lists:partition(
+        fun(Tuple) -> 
+            element(1, Tuple) =/= mapping
+        end, 
+        Schemas). 
 
 parse_schema(Tokens, Comments) ->
     parse_schema(Tokens, Comments, []).
@@ -210,9 +219,25 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
         end, 
         {[], []}, 
         CommentTokens),
-    { Key, Default } = parse(Tokens),
+    %%{ Key, Default } = parse(Tokens),
+    Tuple = try parse(Tokens) of
+        T -> T
+    catch
+        _:_ -> io:format("Error parsing ~p~n", [Tokens])
+    end,
     Attributes = comment_parser(Comments),
-    parse_schema(TailTokens, TailComments, [{Key, Default, Attributes}| Acc]).
+
+    Item = case element(1, Tuple) of
+        mapping ->
+            {mapping, Key, Mapping, Proplist} = Tuple,
+            Doc = proplists:get_value(doc, Attributes, []), 
+            cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
+        _ -> %%translation
+            {Mapping, Fun} = Tuple,
+            {Mapping, Fun, Attributes}
+    end,
+    Attributes = comment_parser(Comments),
+    parse_schema(TailTokens, TailComments, [Item| Acc]).
 
 parse_schema_tokens(Scanned) -> 
     parse_schema_tokens(Scanned, []).
@@ -252,16 +277,16 @@ comment_parser(Comments) ->
 
 attribute_formatter([{translation, _}| T]) ->
     [{translation, true}| attribute_formatter(T)];
-attribute_formatter([{datatype, DT}| T]) ->
-    [{datatype, data_typer(DT)}| attribute_formatter(T)];
-attribute_formatter([{advanced, _}| T]) ->
-    [{advanced, true}| attribute_formatter(T)];
-attribute_formatter([{mapping, Mapping}| T]) ->
-    [{mapping, lists:flatten(Mapping)}| attribute_formatter(T)];
-attribute_formatter([{include_default, NameSub}| T]) ->
-    [{include_default, lists:flatten(NameSub)}| attribute_formatter(T)];
-attribute_formatter([{commented, CommentValue}| T]) ->
-    [{commented, lists:flatten(CommentValue)}| attribute_formatter(T)];
+%attribute_formatter([{datatype, DT}| T]) ->
+%    [{datatype, data_typer(DT)}| attribute_formatter(T)];
+%attribute_formatter([{advanced, _}| T]) ->
+%    [{advanced, true}| attribute_formatter(T)];
+%attribute_formatter([{mapping, Mapping}| T]) ->
+%    [{mapping, lists:flatten(Mapping)}| attribute_formatter(T)];
+%attribute_formatter([{include_default, NameSub}| T]) ->
+%    [{include_default, lists:flatten(NameSub)}| attribute_formatter(T)];
+%attribute_formatter([{commented, CommentValue}| T]) ->
+%    [{commented, lists:flatten(CommentValue)}| attribute_formatter(T)];
 attribute_formatter([Other | T]) ->
     [ Other | attribute_formatter(T)];
 attribute_formatter([]) -> [].
@@ -278,11 +303,11 @@ percent_stripper_r(Line) ->
         percent_stripper_l(
             lists:reverse(Line))).
 
-data_typer(DT) ->
-    DataTypes = lists:flatten(DT),
-    DataType = hd(string:tokens(DataTypes, [$\s])),
-    Extra = DataTypes -- DataType,
-    {list_to_atom(DataType), [ percent_stripper(T) || T <- string:tokens(Extra, [$,])] }.
+%%data_typer(DT) ->
+%%    DataTypes = lists:flatten(DT),
+%%    DataType = hd(string:tokens(DataTypes, [$\s])),
+%%    Extra = DataTypes -- DataType,
+%%    {list_to_atom(DataType), [ percent_stripper(T) || T <- string:tokens(Extra, [$,])] }.
 
 -ifdef(TEST).
 map_test() ->
@@ -333,17 +358,10 @@ comment_parser_test() ->
         "%% @mapping riak_kv.anti_entropy"
     ],
     ParsedComments = comment_parser(Comments),
-    ?assertEqual(
-        [
-            {doc,["this is a sample doc",
+    ?assertEqual(["this is a sample doc",
                   "it spans multiple lines",
-                  "there can be line breaks"]},
-            {datatype,{enum,["on","off"]}},
-            {advanced, true},
-            {include_default, "name_substitution"},
-            {mapping, "riak_kv.anti_entropy"}
-        ], ParsedComments
-        ),
+                  "there can be line breaks"],
+                  proplists:get_value(doc, ParsedComments)), 
     ok.
 
 caster_ip_test() ->
@@ -353,27 +371,70 @@ caster_ip_test() ->
 
 find_mapping_test() ->
     Mappings = [
-        {"key.with.fixed.name", 0, []},
-        {"key.with.$variable.name", 1, []}
+        cuttlefish_mapping:parse({mapping, "key.with.fixed.name", "", [{ default, 0}]}),
+        cuttlefish_mapping:parse({mapping, "key.with.$variable.name", "",  [{ default, 1}]})
     ],
+
     ?assertEqual(
-        {"key.with.fixed.name", 0, []}, 
-        find_mapping("key.with.fixed.name", Mappings)),
+        "key.with.fixed.name",
+        cuttlefish_mapping:key(find_mapping("key.with.fixed.name", Mappings))
+        ),
+
     ?assertEqual(
-        {"key.with.$variable.name", 1, []}, 
-        find_mapping("key.with.A.name", Mappings)),
+        0,
+        cuttlefish_mapping:default(find_mapping("key.with.fixed.name", Mappings))
+        ),
+
     ?assertEqual(
-        {"key.with.$variable.name", 1, []}, 
-        find_mapping("key.with.B.name", Mappings)),
+        "key.with.$variable.name",
+        cuttlefish_mapping:key(find_mapping("key.with.A.name", Mappings))
+        ),
+
     ?assertEqual(
-        {"key.with.$variable.name", 1, []}, 
-        find_mapping("key.with.C.name", Mappings)),
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.A.name", Mappings))
+        ),
+
     ?assertEqual(
-        {"key.with.$variable.name", 1, []}, 
-        find_mapping("key.with.D.name", Mappings)),
+        "key.with.$variable.name",
+        cuttlefish_mapping:key(find_mapping("key.with.B.name", Mappings))
+        ),
+
     ?assertEqual(
-        {"key.with.$variable.name", 1, []}, 
-        find_mapping("key.with.E.name", Mappings)),
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.B.name", Mappings))
+        ),
+
+    ?assertEqual(
+        "key.with.$variable.name",
+        cuttlefish_mapping:key(find_mapping("key.with.C.name", Mappings))
+        ),
+
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.C.name", Mappings))
+        ),
+
+    ?assertEqual(
+        "key.with.$variable.name",
+        cuttlefish_mapping:key(find_mapping("key.with.D.name", Mappings))
+        ),
+
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.D.name", Mappings))
+        ),
+
+    ?assertEqual(
+        "key.with.$variable.name",
+        cuttlefish_mapping:key(find_mapping("key.with.E.name", Mappings))
+        ),
+
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.E.name", Mappings))
+        ),
+
     ok.
 
 -endif.

@@ -1,16 +1,18 @@
 %% example of super basic mapping
 %% @doc Default ring creation size.  Make sure it is a power of 2,
 %% e.g. 16, 32, 64, 128, 256, 512 etc
-%% @datatype integer
-%% @mapping riak_core.ring_creation_size
-%% @commented 64
-{ "ring_size", undefined }.
+{mapping, "ring_size", "riak_core.ring_creation_size", [
+  {datatype, integer},
+  {commented, "64"}
+]}.
 
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
-%% @datatype enum on, off, debug
-%% @mapping riak_kv.anti_entropy
-{ "anti_entropy", "on" }.
+{mapping, "anti_entropy", "riak_kv.anti_entropy", [
+  {datatype, enum},
+  {enum, ["on", "off", "debug"]},
+  {default, "on"}
+]}.
 
 %% @translation
 { "riak_kv.anti_entropy",
@@ -27,19 +29,23 @@
 
 %% complex lager example
 %% @doc location of the console log
-%% @mapping lager.handlers
-{ "log.console.file", "./log/console.log"}.
+{mapping, "log.console.file", "lager.handlers", [
+  {default, "./log/console.log"}
+]}.
 
 %% *gasp* notice the same @mapping!
 %% @doc location of the error log
-%% @mapping lager.handlers
-{ "log.error.file", "./log/error.log"}.
+{mapping, "log.error.file", "lager.handlers", [
+  {default, "./log/error.log"}
+]}.
 
 %% *gasp* notice the same @mapping!
 %% @doc turn on syslog
-%% @datatype enum on, off
-%% @mapping lager.handlers
-{ "log.syslog", "off"}.
+{mapping, "log.syslog", "lager.handlers", [
+  {default, "off"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% @translation
 { "lager.handlers",
@@ -62,10 +68,12 @@
 
 %% SASL 
 %% We should never care about this
-%% @datatype enum on, off
-%% @mapping sasl.sasl_error_logger
-%% @advanced
-{"sasl", "off"}.
+{mapping, "sasl", "sasl.sasl_error_logger", [
+  {default, "off"},
+  {datatype, enum},
+  {enum, ["on", "off"]},
+  {advanced, true}
+]}.
 
 %% @translation
 {"sasl.sasl_error_logger",
@@ -80,10 +88,11 @@
 %% HTTP Listeners
 %% @doc listener.http.<name> is an IP address and TCP port that the Riak
 %% HTTP interface will bind.
-%% @datatype ip
-%% @mapping riak_core.http
-%% @include_default internal
-{"listener.http.$name", "127.0.0.1:8098"}.
+{mapping, "listener.http.$name", "riak_core.http", [
+  {default, "127.0.0.1:8098"},
+  {datatype, ip},
+  {include_default, "internal"}
+]}.
 
 %% @translation
 {"riak_core.http",
@@ -96,10 +105,11 @@
 %% protobuf Listeners
 %% @doc listener.protobuf.<name> is an IP address and TCP port that the Riak 
 %% Protocol Buffers interface will bind.
-%% @datatype ip
-%% @mapping riak_api.pb
-%% @include_default internal
-{"listener.protobuf.$name", "127.0.0.1:8087"}.
+{mapping, "listener.protobuf.$name", "riak_api.pb", [
+  {default, "127.0.0.1:8087"},
+  {datatype, ip},
+  {include_default, "internal"}
+]}.
 
 %% @translation
 {"riak_api.pb",
@@ -114,22 +124,23 @@
 %% By default the value is 5. If you anticipate a huge number of
 %% connections being initialised *simultaneously*, set this number
 %% higher.
-%% @mapping riak_api.pb_backlog
-%% @datatype integer
-%% @commented 64
-{"protobuf.backlog", undefined}.
+{mapping, "protobuf.backlog", "riak_api.pb_backlog", [
+  {datatype, integer},
+  {commented, "64"}
+]}.
 
 %% @doc Default location of ringstate
-%% @mapping riak_core.ring_state_dir
-{"ring.state_dir", "./data/ring"}.
+{mapping, "ring.state_dir", "riak_core.ring_state_dir", [
+  {default, "./data/ring"}
+]}.
 
 %% @doc listener.https.<name> is an IP address and TCP port that the Riak
 %% HTTPS interface will bind.
-%% @datatype ip
-%% @mapping riak_core.https
-%% @include_default internal
-%% @commented 127.0.0.1:8098
-{"listener.https.$name", undefined}.
+{mapping, "listener.https.$name", "riak_core.https", [
+  {commented, "127.0.0.1:8098"},
+  {datatype, ip},
+  {include_default, "internal"}
+]}.
 
 %% @translation
 {"riak_core.https",
@@ -141,33 +152,33 @@
 
 %% @doc Default cert location for https can be overridden
 %% with the ssl config variable, for example:
-%% @mapping riak_core.ssl.certfile
-%% @commented ./etc/cert.pem
-{"ssl.certfile", undefined}.
+{mapping, "ssl.certfile", "riak_core.ssl.certfile", [
+  {commented, "./etc/cert.pem"}
+]}.
 
 %% @doc Default key location for https can be overridden
 %% with the ssl config variable, for example:
-%% @mapping riak_core.ssl.keyfile
-%% @commented ./etc/key.pem
-{"ssl.keyfile", undefined}.
+{mapping, "ssl.keyfile", "riak_core.ssl.keyfile", [
+  {commented, "./etc/key.pem"}
+]}.
 
 %% @doc handoff.port is the TCP port that Riak uses for
 %% intra-cluster data handoff.
-%% @datatype integer
-%% @mapping riak_core.handoff_port
-{"handoff.port", "8099" }.
+{mapping, "handoff.port", "riak_core.handoff_port", [
+  {default, "8099"},
+  {datatype, integer}
+]}.
 
 %% @doc To encrypt riak_core intra-cluster data handoff traffic,
 %% uncomment the following line and edit its path to an
 %% appropriate certfile and keyfile.  (This example uses a
 %% single file with both items concatenated together.)
-%% @mapping riak_core.handoff_ssl_options.certfile
-%% @commented /tmp/erlserver.pem
-{"handoff.ssl.certfile", undefined}.
+{mapping, "handoff.ssl.certfile", "riak_core.handoff_ssl_options.certfile", [
+  {commented, "/tmp/erlserver.pem"}
+]}.
 
 %% @doc if you need a seperate keyfile for handoff
-%% @mapping riak_core.handoff_ssl_options.keyfile
-{"handoff.ssl.keyfile", undefined}.
+{mapping, "handoff.ssl.keyfile", "riak_core.handoff_ssl_options.keyfile", []}.
 
 %% @doc DTrace support
 %% Do not enable 'dtrace' unless your Erlang/OTP
@@ -175,9 +186,11 @@
 %% available in R15B01 (supported by the Erlang/OTP
 %% official source package) and in R14B04 via a custom
 %% source repository & branch.
-%% @datatype enum on, off
-%% @mapping riak_core.dtrace_support
-{"dtrace", "off"}.
+{mapping, "dtrace", "riak_core.dtrace_support", [
+  {default, "off"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% consistent on/off (in lieu of enabled/disabled, true/false)
 %% @translation
@@ -193,25 +206,33 @@
 }.
 
 %% Platform-specific installation paths (substituted by rebar)
-%% @mapping riak_core.platform_bin_dir
-{"platform_bin_dir", "./bin"}.
+{mapping, "platform_bin_dir", "riak_core.platform_bin_dir", [
+  {default, "./bin"}
+]}.
 
-%% @mapping riak_core.platform_data_dir
-{"platform_data_dir", "./data"}.
+{mapping, "platform_data_dir", "riak_core.platform_data_dir", [
+  {default, "./data"}
+]}.
 
-%% @mapping riak_core.platform_etc_dir
-{"platform_etc_dir", "./etc"}.
+{mapping, "platform_etc_dir", "riak_core.platform_etc_dir", [
+  {default, "./etc"}
+]}.
 
-%% @mapping riak_core.platform_lib_dir
-{"platform_lib_dir", "./lib"}.
+{mapping, "platform_lib_dir", "riak_core.platform_lib_dir", [
+  {default, "./lib"}
+]}.
 
-%% @mapping riak_core.platform_log_dir
-{"platform_log_dir", "./log"}.
+{mapping, "platform_log_dir", "riak_core.platform_log_dir", [
+  {default, "./log"}
+]}.
 
 %% @doc To enable Search functionality set this 'on'.
 %% @datatype enum on, off
-%% @mapping riak_search.enabled
-{"search", "off"}.
+{mapping, "search", "riak_search.enabled", [
+  {default, "off"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% @translation
 {"riak_search.enabled", fun(Conf) -> 
@@ -231,72 +252,88 @@ end}.
 %% workloads, but has the potential to negatively impact
 %% the Erlang VM, leading to higher worst-case latencies
 %% and possible throughput collapse.
-%% @datatype enum erlang, nif
-%% @mapping bitcask.io_mode
-{"bitcask.io_mode", "erlang"}.
+{mapping, "bitcask.io_mode", "bitcask.io_mode", [
+  {default, "erlang"},
+  {datatype, enum},
+  {enum, ["erlang", "nif"]}
+]}.
 
 %% @doc bitcask data root
-%% @mapping bitcask.data_root
-{"bitcask.data_root", "./data/bitcask"}.
+{mapping, "bitcask.data_root", "bitcask.data_root", [
+  {default, "./data/bitcask"}
+]}.
 
 %% @doc leveldb data_root
-%% @mapping eleveldb.data_root
-{ "leveldb.data_root", "./data/leveldb"}.
+{mapping, "leveldb.data_root", "eleveldb.data_root", [
+  {default, "./data/leveldb"}
+]}.
 
 %% Merge Index Config
 %% @doc The root dir to store search merge_index data
-%% @mapping merge_index.data_root
-{"merge_index.data_root", "./data/merge_index"}.
+{mapping, "merge_index.data_root", "merge_index.data_root", [
+  {default, "./data/merge_index"}
+]}.
 
 %% @doc Size, in bytes, of the in-memory buffer.  When this
 %% threshold has been reached the data is transformed
 %% into a segment file which resides on disk.
-%% @datatype integer
-%% @mapping merge_index.buffer_rollover_size
-{"merge_index.buffer_rollover_size", "1048576"}.
+{mapping, "merge_index.buffer_rollover_size", "merge_index.buffer_rollover_size", [
+  {default, "1048576"},
+  {datatype, integer}
+]}.
 
 %% @doc Overtime the segment files need to be compacted.
 %% This is the maximum number of segments that will be
 %% compacted at once.  A lower value will lead to
 %% quicker but more frequent compactions.
-%% @datatype integer
-%% @mapping merge_index.max_compact_segments
-{"merge_index.max_compact_segments", "20"}.
+{mapping, "merge_index.max_compact_segments", "merge_index.max_compact_segments", [
+  {default, "20"},
+  {datatype, integer}
+]}.
 
 %% Lager Config
 
 %% @doc Whether to write a crash log, and where.
 %% Commented/omitted/undefined means no crash logger.
-%% @mapping lager.crash_log
-{"log.crash.file", "./log/crash.log"}.
+{mapping, "log.crash.file", "lager.crash_log", [
+  {default, "./log/crash.log"}
+]}.
 
 %% @doc Maximum size in bytes of events in the crash log - defaults to 65536
 %% @datatype integer
-%% @mapping lager.crash_log_msg_size
-{"log.crash.msg_size", "65536"}.
+%% @mapping 
+{mapping, "log.crash.msg_size", "lager.crash_log_msg_size", [
+  {default, "65536"},
+  {datatype, integer}
+]}.
 
 %% @doc Maximum size of the crash log in bytes, before its rotated, set
 %% to 0 to disable rotation - default is 0
-%% @datatype integer
-%% @mapping lager.crash_log_size
-{"log.crash.size", "10485760"}.
+{mapping, "log.crash.size", "lager.crash_log_size", [
+  {default, "10485760"},
+  {datatype, integer}
+]}.
 
 %% @doc What time to rotate the crash log - default is no time
 %% rotation. See the lager README for a description of this format:
 %% https://github.com/basho/lager/blob/master/README.org
-%% @mapping lager.crash_log_date
-{"log.crash.date", "$D0"}.
+{mapping, "log.crash.date", "lager.crash_log_date", [
+  {default, "$D0"}
+]}.
 
 %% @doc Number of rotated crash logs to keep, 0 means keep only the
 %% current one - default is 0
-%% @datatype integer
-%% @mapping lager.crash_log_count
-{"log.crash.count", "5"}.
+{mapping, "log.crash.count", "lager.crash_log_count", [
+  {default, "5"},
+  {datatype, integer}
+]}.
 
 %% @doc Whether to redirect error_logger messages into lager - defaults to true
-%% @datatype enum on, off
-%% @mapping lager.error_logger_redirect
-{"log.error.redirect", "on"}.
+{mapping, "log.error.redirect", "lager.error_logger_redirect", [
+  {default, "on"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% @translation
 {"lager.error_logger_redirect", fun(Conf) -> 
@@ -310,16 +347,19 @@ end}.
 
 %% @doc maximum number of error_logger messages to handle in a second
 %% lager 2.0.0 shipped with a limit of 50, which is a little low for riak's startup
-%% @datatype integer
-%% @mapping lager.error_logger_hwm
-{"log.error.messages_per_second", "100"}.
+{mapping, "log.error.messages_per_second", "lager.error_logger_hwm", [
+  {default, "100"},
+  {datatype, integer}
+]}.
 
 %% Riak KV config
 %% @doc Storage_backend specifies the Erlang module defining the storage
 %% mechanism that will be used on this node.
-%% @datatype enum bitcask, leveldb, memory, multi
-%% @mapping riak_kv.storage_backend
-{"storage_backend", "bitcask"}.
+{mapping, "storage_backend", "riak_kv.storage_backend", [
+  {default, "bitcask"},
+  {datatype, enum},
+  {enum, ["bitcask", "leveldb", "memory", "multi"]}
+]}.
 
 %% @translation
 {"riak_kv.storage_backend",
@@ -337,23 +377,25 @@ end}.
 %% @doc raw_name is the first part of all URLS used by the Riak raw HTTP
 %% interface.  See riak_web.erl and raw_http_resource.erl for
 %% details.
-%% @mapping riak_kv.raw_name
-%% @commented riak
-{"raw_name", undefined}.
+{mapping, "raw_name", "riak_kv.raw_name", [
+  {commented, "riak"}
+]}.
 
 %% @doc Restrict how fast AAE can build hash trees. Building the tree
 %% for a given partition requires a full scan over that partition's
 %% data. Once built, trees stay built until they are expired.
 %% Config is of the form:
 %%   {num-builds, per-timespan-in-milliseconds}
-%% Default is 1 build per hour.
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_build_limit
-{"anti_entropy.build_limit.number", "1"}.
+%% Default is 1 build per hour. 
+{mapping, "anti_entropy.build_limit.number", "riak_kv.anti_entropy_build_limit", [
+  {default, "1"},
+  {datatype, integer}
+]}.
 
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_build_limit
-{"anti_entropy.build_limit.per_timespan", "3600000"}.
+{mapping, "anti_entropy.build_limit.per_timespan", "riak_kv.anti_entropy_build_limit", [
+  {default, "3600000"},
+  {datatype, integer}
+]}.
 
 %% @translation
 {"riak_kv.anti_entropy_build_limit",
@@ -369,50 +411,59 @@ end}.
 %% expiration is not needed for normal AAE operation and should be
 %% infrequent for performance reasons. The time is specified in
 %% milliseconds. The default is 1 week.
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_expire
-{"anti_entropy.expire", "604800000"}.
+{mapping, "anti_entropy.expire", "riak_kv.anti_entropy_expire", [
+  {default, "604800000"},
+  {datatype, integer}
+]}.
 
 %% @doc Limit how many AAE exchanges/builds can happen concurrently.
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_concurrency
-{"anti_entropy.concurrency", "2"}.
+{mapping, "anti_entropy.concurrency", "riak_kv.anti_entropy_concurrency", [
+  {default, "2"},
+  {datatype, integer}
+]}.
 
 %% @doc The tick determines how often the AAE manager looks for work
 %% to do (building/expiring trees, triggering exchanges, etc).
 %% The default is every 15 seconds. Lowering this value will
 %% speedup the rate that all replicas are synced across the cluster.
 %% Increasing the value is not recommended.
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_tick
-{"anti_entropy.tick", "15000"}.
+{mapping, "anti_entropy.tick", "riak_kv.anti_entropy_tick", [
+  {default, "15000"},
+  {datatype, integer}
+]}.
 
 %% @doc The directory where AAE hash trees are stored.
-%% @mapping riak_kv.anti_entropy_data_dir
-{"anti_entropy.data_dir", "./data/anti_entropy"}.
+{mapping, "anti_entropy.data_dir", "riak_kv.anti_entropy_data_dir", [
+  {default, "./data/anti_entropy"}
+]}.
 
 %% @doc The LevelDB options used by AAE to generate the LevelDB-backed
 %% on-disk hashtrees.
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_leveldb_opts.write_buffer_size
-{"anti_entropy.write_buffer_size", "4194304"}.
+{mapping, "anti_entropy.write_buffer_size", "riak_kv.anti_entropy_leveldb_opts.write_buffer_size", [
+  {default, "4194304"},
+  {datatype, integer}
+]}.
 
-%% @datatype integer
-%% @mapping riak_kv.anti_entropy_leveldb_opts.max_open_files
-{"anti_entropy.max_open_files", "20"}.
+{mapping, "anti_entropy.max_open_files", "riak_kv.anti_entropy_leveldb_opts.max_open_files", [
+  {default, "20"},
+  {datatype, integer}
+]}.
 
-%% mapred_name is URL used to submit map/reduce requests to Riak.
-%% @mapping riak_kv.mapred_name
-{"mapred_name", "mapred"}.
+%% @doc mapred_name is URL used to submit map/reduce requests to Riak.
+{mapping, "mapred_name", "riak_kv.mapred_name",  [
+  {default, "mapred"}
+]}.
 
 %% @doc mapred_2i_pipe indicates whether secondary-index
 %% MapReduce inputs are queued in parallel via their own
 %% pipe ('true'), or serially via a helper process
 %% ('false' or undefined).  Set to 'false' or leave
 %% undefined during a rolling upgrade from 1.0.
-%% @datatype enum on, off
-%% @mapping riak_kv.mapred_2i_pipe
-{"mapred_2i_pipe", "on"}.
+{mapping, "mapred_2i_pipe", "riak_kv.mapred_2i_pipe", [
+  {default, "on"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% @translation
 {"riak_kv.mapred_2i_pipe",
@@ -428,35 +479,42 @@ end}.
 %% virtual machines are available for executing map, reduce,
 %% pre- and post-commit hook functions.
 %% @datatype integer
-%% @mapping riak_kv.map_js_vm_count
-{"javascript_vm.map_js_vm_count", "8" }.
-%% @datatype integer
-%% @mapping riak_kv.reduce_js_vm_count
-{"javascript_vm.reduce_js_vm_count", "6" }.
-%% @datatype integer
-%% @mapping riak_kv.hook_js_vm_count
-{"javascript_vm.hook_js_vm_count", "2" }.
+%% @mapping 
+{mapping, "javascript_vm.map_js_vm_count", "riak_kv.map_js_vm_count", [
+  {default, "8"},
+  {datatype, integer}
+]}.
+{mapping, "javascript_vm.reduce_js_vm_count", "riak_kv.reduce_js_vm_count", [
+  {default, "6"},
+  {datatype, integer}
+]}.
+{mapping, "javascript_vm.hook_js_vm_count", "riak_kv.hook_js_vm_count", [
+  {default, "2"},
+  {datatype, integer}
+]}.
 
 %% @doc js_max_vm_mem is the maximum amount of memory, in megabytes,
 %% allocated to the Javascript VMs. If unset, the default is
 %% 8MB.
-%% @datatype integer
-%% @mapping riak_kv.js_max_vm_mem
-{"javascript_vm.max_vm_mem", "8"}.
+{mapping, "javascript_vm.max_vm_mem", "riak_kv.js_max_vm_mem", [
+  {default, "8"},
+  {datatype, integer}
+]}.
 
 %% @doc js_thread_stack is the maximum amount of thread stack, in megabyes,
 %% allocate to the Javascript VMs. If unset, the default is 16MB.
 %% NOTE: This is not the same as the C thread stack.
-%% @datatype integer
-%% @mapping riak_kv.js_thread_stack
-{"javascript_vm.thread_stack", "16"}.
+{mapping, "javascript_vm.thread_stack", "riak_kv.js_thread_stack", [
+  {default, "16"},
+  {datatype, integer}
+]}.
 
 %% @doc js_source_dir should point to a directory containing Javascript
 %% source files which will be loaded by Riak when it initializes
 %% Javascript VMs.
-%% @mapping riak_kv.js_source_dir
-%% @commented /tmp/js_source
-{"javascript_vm.source_dir", undefined}.
+{mapping, "javascript_vm.source_dir", "riak_kv.js_source_dir", [
+  {commented, "/tmp/js_source"}
+]}.
 
 %% @doc http_url_encoding determines how Riak treats URL encoded
 %% buckets, keys, and links over the REST API. When set to 'on'
@@ -464,15 +522,18 @@ end}.
 %% Otherwise, Riak defaults to compatibility mode where links
 %% are decoded, but buckets and keys are not. The compatibility
 %% mode will be removed in a future release.
-%% @datatype enum on, off
-%% @mapping riak_kv.http_url_encoding
-{"http_url_encoding", "on"}.
+{mapping, "http_url_encoding", "riak_kv.http_url_encoding", [
+  {default, "on"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 
 %% @doc Switch to vnode-based vclocks rather than client ids.  This
 %% significantly reduces the number of vclock entries.
 %% Only set on if *all* nodes in the cluster are upgraded to 1.0
-%% @mapping riak_kv.vnode_vclocks
-{"vnode_vclocks", "on"}.
+{mapping, "vnode_vclocks", "riak_kv.vnode_vclocks", [
+  {default, "on"}
+]}.
 
 %% @translation
 {"riak_kv.vnode_vclocks",
@@ -491,8 +552,12 @@ end}.
 %% true for better control of memory usage during key listing
 %% operations
 %% @datatype enum on, off
-%% @mapping riak_kv.listkeys_backpressure
-{"listkeys_backpressure", "on"}.
+%% @mapping 
+{mapping, "listkeys_backpressure", "riak_kv.listkeys_backpressure", [
+  {default, "on"},
+  {datatype, enum},
+  {enum, ["on", "off"]} 
+]}.
 
 %% @translation
 {"riak_kv.listkeys_backpressure",
@@ -510,54 +575,68 @@ end}.
 %% mechanism that obsoletes 1.3's health checks. Note that this number
 %% represents two potential processes, so +P in vm.args should be at 
 %% least 3X the fsm_limit.
-%% @datatype integer
-%% @mapping riak_kv.fsm_limit
-{"fsm_limit", "50000"}.
+{mapping, "fsm_limit", "riak_kv.fsm_limit", [
+  {default, "50000"},
+  {datatype, integer}
+]}.
 
 %% @doc object_format controls which binary representation of a riak_object 
 %% is stored on disk.
 %% Current options are: v0, v1.
 %% v0: Original erlang:term_to_binary format. Higher space overhead.
 %% v1: New format for more compact storage of small values.
-%% @datatype enum v0, v1
-%% @mapping riak_kv.object_format
-{"object_format", "v1"}.
+{mapping, "object_format", "riak_kv.object_format", [
+  {default, "v1"},
+  {datatype, enum},
+  {enum, ["v0", "v1"]}
+]}.
 
 %% riak_sysmon config
 %% @doc To disable forwarding events of a particular type, use a
 %% limit of 0.
-%% @datatype integer
-%% @mapping riak_sysmon.process_limit
-{"riak_sysmon.process_limit", "30"}.
-%% @datatype integer
-%% @mapping riak_sysmon.port_limit
-{"riak_sysmon.port_limit", "2"}.
+{mapping, "riak_sysmon.process_limit", "riak_sysmon.process_limit", [
+  {default, "30"},
+  {datatype, integer}
+]}.
+
+{mapping, "riak_sysmon.port_limit", "riak_sysmon.port_limit", [
+  {default, "2"},
+  {datatype, integer}
+]}.
 
 %% Finding reasonable limits for a given workload is a matter
 %% of experimentation.
 %% NOTE: Enabling the 'gc_ms_limit' monitor (by setting non-zero)
 %%       can cause performance problems on multi-CPU systems.
-%% @datatype integer
-%% @mapping riak_sysmon.gc_ms_limit
-{"riak_sysmon.gc_ms_limit", "0"}.
-%% @datatype integer
-%% @mapping riak_sysmon.heap_word_limit
-{"riak_sysmon.heap_word_limit", "40111000"}.
+{mapping, "riak_sysmon.gc_ms_limit", "riak_sysmon.gc_ms_limit", [
+  {default, "0"},
+  {datatype, integer}
+]}.
+{mapping, "riak_sysmon.heap_word_limit", "riak_sysmon.heap_word_limit", [
+  {default, "40111000"},
+  {datatype, integer}
+]}.
 
 %% @doc Configure the following items to 'false' to disable logging
 %% of that event type.
-%% @datatype enum true, false
-%% @mapping riak_sysmon.busy_port
-{"riak_sysmon.busy_port", "true"}.
-%% @datatype enum true, false
-%% @mapping riak_sysmon.busy_dist_port
-{"riak_sysmon.busy_dist_port", "true"}.
+{mapping, "riak_sysmon.busy_port", "riak_sysmon.busy_port", [
+  {default, "true"},
+  {datatype, enum},
+  {enum, ["true", "false"]}
+]}.
+{mapping, "riak_sysmon.busy_dist_port", "riak_sysmon.busy_dist_port", [
+  {default, "true"},
+  {datatype, enum},
+  {enum, ["true", "false"]}
+]}.
 
 %% riak_control config
 %% @doc Set to false to disable the admin panel.
-%% @datatype enum on, off
-%% @mapping riak_control.enabled
-{"riak_control", "off"}.
+{mapping, "riak_control", "riak_control.enabled", [
+  {default, "off"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
 %% @translation
 {"riak_control.enabled",
  fun(Conf) ->
@@ -571,16 +650,19 @@ end}.
 
 %% @doc Authentication style used for access to the admin
 %% panel. Valid styles are 'userlist' <TODO>.
-%% @datatype enum userlist
-%% @mapping riak_control.auth
-{"riak_control.auth", "userlist"}.
+{mapping, "riak_control.auth", "riak_control.auth", [
+  {default, "userlist"},
+  {datatype, enum},
+  {enum, ["userlist"]}
+]}.
 
 %% @doc If auth is set to 'userlist' then this is the
 %% list of usernames and passwords for access to the
 %% admin panel.
-%% @mapping riak_control.userlist
-%% @include_default user
-{ "riak_control.user.$username.password", "pass"}.
+{mapping, "riak_control.user.$username.password", "riak_control.userlist", [
+  {default, "pass"},
+  {include_default, "user"}
+]}.
 
 %%@translation
 {"riak_control.userlist",
@@ -600,8 +682,12 @@ end}.
 %% @doc The admin panel is broken up into multiple
 %% components, each of which is enabled or disabled
 %% by one of these settings.
-%% @mapping riak_control.admin
-{"riak_control.admin", "on"}.
+{mapping, "riak_control.admin", "riak_control.admin", [
+  {default, "on"},
+  {datatype, enum},
+  {enum, ["on", "off"]}
+]}.
+
 %% @translation
 {"riak_control.admin",
  fun(Conf) ->
