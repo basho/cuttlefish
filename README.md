@@ -170,13 +170,3 @@ We'll also eventually be able to source `vm.args` from the `riak.conf` also, but
 [DONE] I have removed mention of **default.config** from this readme. Hopefully, you're asking right now "What's that?". I need to remove that from the implementation.
 [DONE] Model the entire riak 1.4 standard app.config in `riak.conf`
 * Generate the `riak.conf` that would ship with riak from the schema
-
-### testing snippet
-
-I don't know where else to keep this for now:
-
-```erlang
-{Translations, Schema} = cuttlefish_schema:file("./test/riak.schema").
-Conf = conf_parse:file("./test/riak.conf").
-cuttlefish_schema:map(Translations, Schema, Conf).
-```

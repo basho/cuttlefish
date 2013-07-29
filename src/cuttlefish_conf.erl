@@ -102,13 +102,4 @@ generate_comments_test() ->
 	Comments = generate_comments(SchemaElement),
 	?assertEqual(["## Hi!", "## Bye!"], Comments).
 
-generated_conf_file_test() ->
-	{_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
-	ConfFileLines = generate(Schema),
-
-	{ok, S} = file:open("../generated.conf", write),
-	[ io:format(S, "~s~n", [Line]) || Line <- ConfFileLines],
-	file:close(S).
-
-
 -endif.

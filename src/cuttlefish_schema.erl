@@ -321,8 +321,6 @@ map_test() ->
 
     NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(undefined, NewHTTPS),
-
-    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 percent_stripper_test() ->
@@ -391,42 +389,4 @@ find_mapping_test() ->
         find_mapping("key.with.E.name", Mappings)),
     ok.
 
-all_the_marbles_test() ->
-    %%lager:start(),
-    {Translations, Schema} = file("../test/riak.schema"),
-    Conf = [], %conf_parse:file("../test/riak.conf"),
-    NewConfig = map(Translations, Schema, Conf),
-    ?assert(is_proplist(NewConfig)),
-
-    {ok, [AppConfig]} = file:consult("../test/default.config"),
-    
-    ?assert(is_proplist(AppConfig)),
-
-    proplist_equals(AppConfig, NewConfig),
-    ok.
-
-proplist_equals(Expected, Actual) ->
-    ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
-    ActualKeys = lists:sort(proplists:get_keys(Actual)),
-    ?assertEqual(ExpectedKeys, ActualKeys), 
-    [ begin 
-        ExpectedValue = proplists:get_value(EKey, Expected),
-        ActualValue = proplists:get_value(EKey, Actual, undefined),
-        case {is_proplist(ExpectedValue), is_proplist(ActualValue)} of
-            {true, true} ->
-                proplist_equals(ExpectedValue, ActualValue);
-            {false, false} ->
-                ?assertEqual(ExpectedValue, ActualValue);
-            _ ->
-                ?assert(false)
-        end
-    end || EKey <- ExpectedKeys].
-
-is_proplist(Proplist) when is_list(Proplist) ->
-    lists:all(
-        fun(X) -> 
-            is_tuple(X) andalso tuple_size(X) =:= 2
-        end,
-        Proplist);
-is_proplist(_) -> false.
 -endif.
