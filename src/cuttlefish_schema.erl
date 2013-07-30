@@ -54,7 +54,9 @@ map(Translations, Schema, Config) ->
     
     %% Translations
     lists:foldl(
-        fun({Mapping, Xlat, _}, Acc) ->
+        fun(TranslationRecord, Acc) ->
+            Mapping = cuttlefish_translation:mapping(TranslationRecord), 
+            Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
                     %%io:format("Translation: ~s~n", [Mapping]),
@@ -232,11 +234,9 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
             {mapping, Key, Mapping, Proplist} = Tuple,
             Doc = proplists:get_value(doc, Attributes, []), 
             cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
-        _ -> %%translation
-            {Mapping, Fun} = Tuple,
-            {Mapping, Fun, Attributes}
+        translation ->
+            cuttlefish_translation:parse(Tuple)
     end,
-    Attributes = comment_parser(Comments),
     parse_schema(TailTokens, TailComments, [Item| Acc]).
 
 parse_schema_tokens(Scanned) -> 
