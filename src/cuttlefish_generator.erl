@@ -8,8 +8,22 @@
 -export([map/3]).
 
 map(Translations, Schema, Config) ->
+    %% Config at this point is just what's in the .conf file.
+    %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Schema),
+
+    %% Everything in DConfig is of datatype "string", 
+    %% transform_datatypes turns them into other erlang terms
+    %% based on the schema
     Conf = transform_datatypes(DConfig, Schema),
+
+    %% This fold handles 1:1 mappings, that have no cooresponding translations
+    %% The accumlator is the app.config proplist that we start building from
+    %% these 1:1 mappings, hence the return "DirectMappings". 
+    %% It also builds a list of "TranslationsToDrop". It's basically saying that
+    %% if a user didn't actually configure this setting in the .conf file and 
+    %% there's no default in the schema, then there won't be enough information
+    %% during the translation phase to succeed, so we'll earmark it to be skipped
     {DirectMappings, TranslationsToDrop} = lists:foldl(
         fun(MappingRecord, {ConfAcc, XlatAcc}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
@@ -30,17 +44,17 @@ map(Translations, Schema, Config) ->
         {[], []},
         Schema),
     
-    %% Translations
+    %% The fold handles the translations. After we've build the DirecetMappings,
+    %% we use that to seed this fold's accumulator. As we go through each translation
+    %% we write that to the `app.config` that lives in the accumutator.
     lists:foldl(
         fun(TranslationRecord, Acc) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord), 
             Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
-                    %%io:format("Translation: ~s~n", [Mapping]),
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = Xlat(Conf),
-                    %%io:format("tyktorp(~s, ~p, ~p)~n", [Mapping, Acc, NewValue]),
                     set_value(Tokens, Acc, NewValue);
                 _ ->
                     Acc
