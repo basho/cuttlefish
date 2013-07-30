@@ -14,10 +14,10 @@ generate_element(MappingRecord) ->
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Advanced = cuttlefish_mapping:advanced(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
-    %% @advanced: leave out of generated .conf file
-    %% @commeneted $val: insert into .conf file, but commented out with $val
-    %% @include_default $val:  substitute '$name' or whatever in the key for $val
-    %%    e.g. @include_default internal
+    %% advanced: leave out of generated .conf file
+    %% commeneted $val: insert into .conf file, but commented out with $val
+    %% include_default $val:  substitute '$name' or whatever in the key for $val
+    %%    e.g. {include_default, "internal"}
     %%         listener.http.$name -> listener.http.internal 
 
     Field = cuttlefish_util:variable_key_replace(Key, IncDef),

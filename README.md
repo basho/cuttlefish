@@ -191,6 +191,95 @@ We define three mappings here, that have different values in the `riak.conf` fil
           ]},
 ```
 
+## Lists and Proplists and $names, oh my!
+Sometimes you'll find yourself needing to map elements of a list or proplist. Consider the way we configure HTTP listeners for Riak. 
+
+```erlang
+ {riak_core,
+    [
+      {http,
+        [
+          {"127.0.0.1",8098},
+          {"10.0.0.1",80}
+        ]
+      }
+    ]
+  }
+```
+
+We got really aggressive with the line breaks here, to illustrate that riak_core.http is a list of {IP, Port} tuples. Now, say for some reason, you wanted 10 of these listeners. We're not here to judge you, we're here to help. What we didn't want to do was introduce some kind of list data structure on the right hand side of our `.conf` file. Instead we took a "list element per line" approach. We wanted to give you a syntax that was something like this:
+
+```
+listener.http.internal = 127.0.0.1:8098
+listener.http.external = 10.0.0.1:80
+```
+
+but wait, what's the deal with this "internal"/"external" business? Well, the mapping is defined with a wildcard. Think of it like a match group in a regex.
+
+```erlang
+%% HTTP Listeners
+%% @doc listener.http.<name> is an IP address and TCP port that the Riak
+%% HTTP interface will bind.
+{mapping, "listener.http.$name", "riak_core.http", [
+  {default, "127.0.0.1:8098"},
+  {datatype, ip},
+  {include_default, "internal"}
+]}.
+
+{ translation,
+  "riak_core.http",
+    fun(Conf) ->
+        HTTP = cuttlefish_util:key_starts_with("listener.http.", Conf),
+        [ IP || {_, IP} <- HTTP]
+    end
+}.
+```
+
+See the `$name`? it can be anything! Then the translation is "smart" enough to parse all the listner.http.* config keys and create the list of {IP, Port}s for the "riak_core.http" section. (TODO: in the future, we'll add the ability to refer back to $name as a variable, but for now, we didn't need to because in this case, name was a throwaway).
+
+Also, notice the `{datatype, ip}`, that is smart enough to turn "IP:Port" into {IP, Port}. Don't worry, it works for IPv6 too. We'll publish a complete list of datatypes in this readme after we finish the validation piece.
+
+This is the perfect place to talk about 'include_default'. If there's a wildcard in the ConfKey, we don't want to include that wildcard in the default generated `.conf` file, so we need an example. The value from `include_default` provides that sample. So, the generated `.conf` looks like this:
+
+```
+## listener.http.<name> is an IP address and TCP port that the Riak
+## HTTP interface will bind.
+listener.http.internal = 127.0.0.1:8098
+```
+
+## So, $names don't matter?
+(or)
+## What's in a $name? That which we call internal by any other name would still bind internally; so HTTP would, were it not HTTP called.
+
+Not so fast, Billy! Sometimes it does matter. Let's look at the userlist in Riak Control:
+
+```erlang
+%% @doc If auth is set to 'userlist' then this is the
+%% list of usernames and passwords for access to the
+%% admin panel.
+{mapping, "riak_control.user.$username.password", "riak_control.userlist", [
+  {default, "pass"},
+  {include_default, "user"}
+]}.
+
+{translation,
+"riak_control.userlist",
+fun(Conf) ->
+  UserList1 = lists:filter(
+    fun({K, _V}) -> 
+      cuttlefish_util:variable_key_match(K, "riak_control.user.$username.password")
+    end,
+    Conf),
+  UserList = [ begin
+    [_, _, Username, _] = string:tokens(Key, "."),
+    {Username, Password}
+  end || {Key, Password} <- UserList1]
+
+end}.
+```
+Right now, we're leaving it up to the translation fun to tokenize the string and extract the username, but it shouldn't have to. We should provide helpers for this, and we will.
+
+
 ## What's it look like to users
 
 Riak uses the semantic of $conf_dir/app.config for configuration. We're going to  replace that with a file called `riak.conf`, with a syntax that looks like this:
