@@ -9,7 +9,8 @@
 	replace_proplist_value/3,
 	replace_tuple_element/3,
 	key_starts_with/2,
-	variable_key_replace/2]).
+	variable_key_replace/2,
+	variable_key_match/2]).
 
 replace_proplist_value(Key, Value, Proplist) ->
 	proplists:delete(Key, Proplist) ++ [{Key, Value}].
@@ -37,6 +38,21 @@ variable_key_replace(Key, Sub) ->
             _ -> Tok
         end
     end || Tok <- KeyTokens], "."). 
+
+variable_key_match(Key, KeyDef) ->
+    KeyTokens = string:tokens(Key, "."),
+    KeyDefTokens = string:tokens(KeyDef, "."),
+
+    case length(KeyTokens) =:= length(KeyDefTokens) of
+        true ->
+            Zipped = lists:zip(KeyTokens, KeyDefTokens),
+            lists:all(
+                fun({X,Y}) ->
+                    X =:= Y orelse hd(Y) =:= $$
+                end,
+                Zipped);
+        _ -> false
+    end.
 
 %% TODO: keeping around for possible use in the advanced.config usecase. 
 %% Priority is a nested set of proplists, but each list has only one item

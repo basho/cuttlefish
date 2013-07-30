@@ -17,7 +17,7 @@ generated_conf_file_test() ->
 generated_config_file_test() ->
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     Conf = conf_parse:file("../test/riak.conf"),
-    NewConfig = cuttlefish_schema:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
     
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
@@ -26,7 +26,7 @@ generated_config_file_test() ->
 all_the_marbles_test() ->
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [], %conf_parse:file("../test/riak.conf"),
-    NewConfig = cuttlefish_schema:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
     ?assert(is_proplist(NewConfig)),
 
     {ok, [AppConfig]} = file:consult("../test/default.config"),

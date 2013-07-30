@@ -669,7 +669,7 @@ end}.
 fun(Conf) ->
   UserList1 = lists:filter(
     fun({K, _V}) -> 
-      cuttlefish_schema:variable_key_match(K, "riak_control.user.$username.password")
+      cuttlefish_util:variable_key_match(K, "riak_control.user.$username.password")
     end,
     Conf),
   UserList = [ begin
