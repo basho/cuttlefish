@@ -56,7 +56,7 @@ The best way to get it, is to take a look at some examples. Let's start with ria
 %% e.g. 16, 32, 64, 128, 256, 512 etc
 {mapping, "ring_size", "riak_core.ring_creation_size", [
   {datatype, integer},
-  {commented, "64"}
+  {commented, 64}
 ]}.
 ```
 
@@ -107,8 +107,8 @@ Ok, that does sound more confusing than it should. Let's take a look at one, you
 %% @doc enable active anti-entropy subsystem
 {mapping, "anti_entropy", "riak_kv.anti_entropy", [
   {datatype, enum},
-  {enum, ["on", "off", "debug"]},
-  {default, "on"}
+  {enum, [on, off, debug]},
+  {default, on}
 ]}.
 
 { translation,
@@ -154,9 +154,9 @@ There are other cases when multiple values turn into a single `app.config` compl
 %% *gasp* notice the same @mapping!
 %% @doc turn on syslog
 {mapping, "log.syslog", "lager.handlers", [
-  {default, "off"},
+  {default, off},
   {datatype, enum},
-  {enum, ["on", "off"]}
+  {enum, [on, off]}
 ]}.
 
 { translation,
@@ -221,7 +221,7 @@ but wait, what's the deal with this "internal"/"external" business? Well, the ma
 %% @doc listener.http.<name> is an IP address and TCP port that the Riak
 %% HTTP interface will bind.
 {mapping, "listener.http.$name", "riak_core.http", [
-  {default, "127.0.0.1:8098"},
+  {default, {"127.0.0.1", 8098}},
   {datatype, ip},
   {include_default, "internal"}
 ]}.

@@ -9,7 +9,10 @@ generated_conf_file_test() ->
 	ConfFileLines = cuttlefish_conf:generate(Schema),
 
 	{ok, S} = file:open("../generated.conf", write),
-	[ io:format(S, "~s~n", [Line]) || Line <- ConfFileLines],
+	[ begin
+        io:format("~p~n", [lists:flatten(Line)]),
+        io:format(S, "~s~n", [lists:flatten(Line)]) 
+    end || Line <- ConfFileLines],
 	file:close(S).
 
 

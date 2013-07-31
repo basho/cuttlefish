@@ -122,9 +122,8 @@ transform_datatypes(Conf, Schema) ->
     [ begin
         %% Look up mapping from schema
         MappingRecord = find_mapping(Key, Schema),
-        %%Mapping = proplists:get_value(mapping, Attributes),
         DT = cuttlefish_mapping:datatype(MappingRecord),
-        {Key, caster(Value, DT)}
+        {Key, cuttlefish_datatypes:from_string(Value, DT)}
     end || {Key, Value} <- Conf].
 
 %% Ok, this is tricky
@@ -152,20 +151,6 @@ find_mapping(Key, Schema) ->
         {0, 0} -> {error, io_lib:format("~s not_found", [Key])};
         {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Key])}
     end.
-
-
-%% I used to write java. in java, when you want to change something from
-%% one datatype to another, you cast. So that's what we do here.
--spec caster(term(), atom()) -> term().
-caster(X, enum) -> list_to_atom(X);
-caster(X, integer) -> list_to_integer(X);
-caster(X, ip) ->
-    Parts = string:tokens(X, ":"),
-    [Port|BackwardsIP] = lists:reverse(Parts),
-    {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
-caster(X, _) -> X.
-
-
 
 -ifdef(TEST).
 
@@ -260,10 +245,5 @@ find_mapping_test() ->
         cuttlefish_mapping:default(find_mapping("key.with.E.name", Mappings))
         ),
 
-    ok.
-
-caster_ip_test() ->
-    ?assertEqual({"127.0.0.1", 8098}, caster("127.0.0.1:8098", ip)),
-    ?assertEqual({"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, caster("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
     ok.
 -endif.

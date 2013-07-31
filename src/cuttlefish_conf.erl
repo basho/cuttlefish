@@ -14,6 +14,7 @@ generate_element(MappingRecord) ->
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Advanced = cuttlefish_mapping:advanced(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
+    Datatype = cuttlefish_mapping:datatype(MappingRecord),
     %% advanced: leave out of generated .conf file
     %% commeneted $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
@@ -27,10 +28,11 @@ generate_element(MappingRecord) ->
             [];
         commented ->
             Comments = generate_comments(MappingRecord),
-            Comments ++ [lists:flatten([ "## ", Field, " = ", Commented ]), ""];
+            io:format("to_string(~p, ~p)~n", [Commented, Datatype]),
+            Comments ++ [lists:flatten([ "## ", Field, " = ", cuttlefish_datatypes:to_string(Commented, Datatype) ]), ""];
         default ->
             Comments = generate_comments(MappingRecord),
-            Comments ++ [lists:flatten([ Field, " = ", Default ]), ""]  
+            Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]  
     end.
 
 generate_element(true, _, _) -> no;
@@ -40,7 +42,7 @@ generate_element(_, undefined, _Comment) -> commented;
 generate_element(_Advanced, _Default, _Commented) -> no.
 
 generate_comments(MappingRecord) ->
-    io:format("DocRec: ~p~n", [cuttlefish_mapping:key(MappingRecord)]),
+    %%io:format("DocRec: ~p~n", [cuttlefish_mapping:key(MappingRecord)]),
     Doc = cuttlefish_mapping:doc(MappingRecord),
     [ "## " ++ D || D <- Doc].
 
@@ -57,7 +59,7 @@ generate_element_test() ->
         cuttlefish_mapping:parse({mapping, "ring_size", "riak_core.ring_creation_size", 
             [
              {datatype, integer},
-             {commented, "64"},
+             {commented, 64},
              {doc, ["Default ring creation size.  Make sure it is a power of 2,",
                     "e.g. 16, 32, 64, 128, 256, 512 etc"]}
             ]
