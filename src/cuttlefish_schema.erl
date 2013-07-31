@@ -41,11 +41,7 @@ string(S) ->
     {ok, Tokens, _} = erl_scan:string(S),
     CommentTokens = erl_comment_scan:string(S),
     Schemas = parse_schema(Tokens, CommentTokens),
-    lists:partition(
-        fun(Tuple) -> 
-            element(1, Tuple) =/= mapping
-        end, 
-        Schemas). 
+    lists:partition(fun cuttlefish_translation:is_translation/1, Schemas).
 
 parse_schema(Tokens, Comments) ->
     parse_schema(Tokens, Comments, []).

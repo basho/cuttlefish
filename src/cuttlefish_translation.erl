@@ -11,7 +11,8 @@
 	}).
 
 -export([
-	parse/1, 
+	parse/1,
+	is_translation/1,
 	mapping/1, 
 	func/1]).
 
@@ -21,6 +22,7 @@ parse({translation, Mapping, Fun}) ->
 		func = Fun
 	}.
 
+is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation. 
 mapping(T) 	-> T#translation.mapping.
 func(T) 	-> T#translation.func.
 

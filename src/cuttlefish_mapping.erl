@@ -19,6 +19,7 @@
 
 -export([
     parse/1,
+    is_mapping/1,
     key/1,
     mapping/1,
     default/1,
@@ -43,6 +44,9 @@ parse({mapping, Key, Mapping, Proplist}) ->
         include_default = proplists:get_value(include_default, Proplist)  
     };
 parse(_) -> error.
+
+is_mapping(M) ->
+    is_tuple(M) andalso element(1, M) =:= mapping. 
 
 key(M)              -> M#mapping.key.
 mapping(M)          -> M#mapping.mapping.
