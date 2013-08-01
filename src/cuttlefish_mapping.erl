@@ -10,7 +10,7 @@
         mapping::string(),
         default::term(),
         commented::term(),
-        datatype = string :: atom(),
+        datatype = string :: cuttlefish_datatypes:datatype(),
         enum::[atom()],
         advanced = false :: boolean(),
         doc = [] :: list(),
@@ -65,7 +65,7 @@ default(M) -> M#mapping.default.
 -spec commented(mapping()) -> term().
 commented(M)        -> M#mapping.commented.
 
--spec datatype(mapping()) -> atom().
+-spec datatype(mapping()) -> cuttlefish_datatypes:datatype().
 datatype(M) -> M#mapping.datatype.
 
 -spec enum(mapping()) -> [atom()].

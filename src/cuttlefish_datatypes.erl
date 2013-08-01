@@ -5,6 +5,9 @@
 -compile(export_all).
 -endif.
 
+-opaque datatype() :: integer | string | enum | ip.
+-export_type([datatype/0]).
+
 -export([supported/0, from_string/2, to_string/2]).
 
 supported() ->
@@ -15,7 +18,7 @@ supported() ->
         ip
     ].
 
--spec to_string(term(), atom()) -> string().
+-spec to_string(term(), datatype()) -> string().
 to_string(Integer, integer) when is_integer(Integer) -> integer_to_list(Integer);
 to_string(Integer, integer) when is_list(Integer) -> Integer;
 
@@ -34,7 +37,7 @@ to_string(X, InvalidDatatype) ->
 
 %% I used to write java. in java, when you want to change something from
 %% one datatype to another, you cast. So that's what we do here.
--spec from_string(term(), atom()) -> term().
+-spec from_string(term(), datatype()) -> term().
 from_string(Atom, enum) when is_atom(Atom) -> Atom;
 from_string(String, enum) -> list_to_atom(String);
 

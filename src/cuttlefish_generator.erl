@@ -155,6 +155,7 @@ find_mapping(Key, Schema) ->
 -ifdef(TEST).
 
 map_test() ->
+    lager:start(),
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     Conf = conf_parse:file("../test/riak.conf"),
     NewConfig = map(Translations, Schema, Conf),
