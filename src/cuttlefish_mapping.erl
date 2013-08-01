@@ -8,14 +8,17 @@
 -record(mapping, {
         key::string(),
         mapping::string(),
-        default::string(),
-        commented::string(),
-        datatype,
-        enum::list,
-        advanced = false,
-        doc = [],
+        default::term(),
+        commented::term(),
+        datatype = string :: atom(),
+        enum::[atom()],
+        advanced = false :: boolean(),
+        doc = [] :: list(),
         include_default::string()
     }).
+
+-opaque mapping() :: #mapping{}.
+-export_type([mapping/0]).
 
 -export([
     parse/1,
@@ -31,6 +34,7 @@
     include_default/1
     ]).
 
+-spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
 parse({mapping, Key, Mapping, Proplist}) ->
     #mapping{
         key = Key,
@@ -45,21 +49,36 @@ parse({mapping, Key, Mapping, Proplist}) ->
     };
 parse(_) -> error.
 
+-spec is_mapping(any()) -> boolean().
 is_mapping(M) ->
     is_tuple(M) andalso element(1, M) =:= mapping. 
 
-key(M)              -> M#mapping.key.
-mapping(M)          -> M#mapping.mapping.
-default(M)          -> M#mapping.default.
+-spec key(mapping()) -> string().
+key(M) -> M#mapping.key.
+
+-spec mapping(mapping()) -> string().
+mapping(M) -> M#mapping.mapping.
+
+-spec default(mapping()) -> term().
+default(M) -> M#mapping.default.
+
+-spec commented(mapping()) -> term().
 commented(M)        -> M#mapping.commented.
-datatype(M)         -> M#mapping.datatype.
-enum(M)             -> M#mapping.enum.
-advanced(M)         -> M#mapping.advanced.
-doc(M)              -> M#mapping.doc.
-include_default(M)  -> M#mapping.include_default.
 
-%% need to keep proplists
+-spec datatype(mapping()) -> atom().
+datatype(M) -> M#mapping.datatype.
 
+-spec enum(mapping()) -> [atom()].
+enum(M) -> M#mapping.enum.
+
+-spec advanced(mapping()) -> boolean().
+advanced(M) -> M#mapping.advanced.
+
+-spec doc(mapping()) -> [string()].
+doc(M) -> M#mapping.doc.
+
+-spec include_default(mapping()) -> string().
+include_default(M) -> M#mapping.include_default.
 
 -ifdef(TEST).
 

@@ -29,14 +29,20 @@
 -compile(export_all).
 -endif.
 
--spec file(string()) -> [{string(), any(), list()}].
+-spec file(string()) -> {
+    [cuttlefish_translation:translation()], 
+    [cuttlefish_mapping:mapping()]
+}.
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
     string(S).
 
--spec string(string()) -> {[{string(), fun(), list()}], [{string(), any(), list()}]}.
+-spec string(string()) -> {
+    [cuttlefish_translation:translation()], 
+    [cuttlefish_mapping:mapping()]
+}.
 string(S) -> 
     {ok, Tokens, _} = erl_scan:string(S),
     CommentTokens = erl_comment_scan:string(S),
@@ -46,7 +52,14 @@ string(S) ->
 parse_schema(Tokens, Comments) ->
     parse_schema(Tokens, Comments, []).
 
-parse_schema([], _, Acc) ->
+%% We're done! We don't care about any comments after the last schema item
+-spec parse_schema(
+    [any()],
+    [any()],
+    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping()]
+    ) -> 
+        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping()].
+parse_schema([], _LeftoverComments, Acc) ->
     lists:reverse(Acc);
 parse_schema(ScannedTokens, CommentTokens, Acc) ->
     {LineNo, Tokens, TailTokens } = parse_schema_tokens(ScannedTokens),
@@ -60,14 +73,14 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
         {[], []}, 
         CommentTokens),
     %%{ Key, Default } = parse(Tokens),
-    Tuple = try parse(Tokens) of
+    {Type, Tuple} = try parse(Tokens) of
         T -> T
     catch
         _:_ -> io:format("Error parsing ~p~n", [Tokens])
     end,
     Attributes = comment_parser(Comments),
 
-    Item = case element(1, Tuple) of
+    Item = case Type of
         mapping ->
             {mapping, Key, Mapping, Proplist} = Tuple,
             Doc = proplists:get_value(doc, Attributes, []), 
@@ -85,11 +98,11 @@ parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
 parse_schema_tokens([H|Scanned], Acc) ->
     parse_schema_tokens(Scanned, [H|Acc]).
 
--spec parse(list()) -> {string(), any()}.
+-spec parse(list()) -> { mapping | translation, tuple()}.
 parse(Scanned) ->
     {ok,Parsed} = erl_parse:parse_exprs(Scanned),
     {value, X, _} = erl_eval:exprs(Parsed,[]),
-    X.
+    {element(1, X), X}.
 
 comment_parser(Comments) ->
     StrippedComments = 

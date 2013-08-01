@@ -9,6 +9,8 @@
 	mapping::string(),
 	func::fun()
 	}).
+-opaque translation() :: #translation{}.
+-export_type([translation/0]).
 
 -export([
 	parse/1,
@@ -16,14 +18,20 @@
 	mapping/1, 
 	func/1]).
 
+-spec parse({translation, string(), fun()}) -> translation().
 parse({translation, Mapping, Fun}) ->
 	#translation{
 		mapping = Mapping,
 		func = Fun
 	}.
 
-is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation. 
+-spec is_translation(any()) -> boolean().
+is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation.
+
+-spec mapping(translation()) -> string().
 mapping(T) 	-> T#translation.mapping.
+
+-spec func(translation()) -> fun().
 func(T) 	-> T#translation.func.
 
 -ifdef(TEST).
