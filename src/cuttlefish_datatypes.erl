@@ -69,10 +69,22 @@ to_string_enum_test() ->
 to_string_string_test() ->
     ?assertEqual("string", to_string("string", string)).
 
+from_string_integer_test() ->
+    ?assertEqual(32, from_string(32, integer)),
+    ?assertEqual(32, from_string("32", integer)).
+
 from_string_ip_test() ->
     ?assertEqual({"127.0.0.1", 8098}, from_string("127.0.0.1:8098", ip)),
     ?assertEqual(
         {"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, 
         from_string("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
     ok.
+
+from_string_enum_test() ->
+    ?assertEqual(true, from_string("true", enum)),
+    ?assertEqual(true, from_string(true, enum)).
+
+from_string_string_test() ->
+    ?assertEqual("string", from_string("string", string)).
+
 -endif.
