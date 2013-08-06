@@ -1,6 +1,16 @@
 -module(cuttlefish_conf).
 
--export([generate/1]).
+-export([
+    generate/1,
+    file/1]).
+
+file(Filename) ->
+    case conf_parse:file(Filename) of
+        {error, Reason} ->
+            lager:error("Could not open file (~s) for Reason ~s", [Filename, Reason]);
+        Conf ->
+            Conf
+    end.
 
 generate(Schema) ->
     lists:foldl(

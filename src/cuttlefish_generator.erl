@@ -5,7 +5,7 @@
 -compile(export_all).
 -endif.
 
--export([map/3]).
+-export([map/3, find_mapping/2]).
 
 map(Translations, Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
