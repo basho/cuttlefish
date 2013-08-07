@@ -2,6 +2,7 @@
 
 -export([
     generate/1,
+    generate_file/2,
     file/1]).
 
 file(Filename) ->
@@ -12,11 +13,29 @@ file(Filename) ->
             Conf
     end.
 
+%%validate(Schema, Config) ->
+%%    %% For each config item, find the mapping and try converting that datertype
+%%    [ begin
+%%        Mapping = cuttlefish_generator:find_mapping(Key, Schema),
+%%        cuttlefish_mapping:datatype(Mapping),
+%%        ok 
+%%    end || {Key, _Value} <- Config],
+%%    ok.
+
 generate(Schema) ->
     lists:foldl(
         fun(SchemaElement, ConfFile) ->
             ConfFile ++ generate_element(SchemaElement)
         end, [], Schema).
+
+generate_file(Schema, Filename) ->
+    ConfFileLines = generate(Schema),
+    
+    {ok, S} = file:open(Filename, write),
+    [ begin
+        io:format(S, "~s~n", [lists:flatten(Line)]) 
+    end || Line <- ConfFileLines],
+    file:close(S).
 
 generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
@@ -38,7 +57,6 @@ generate_element(MappingRecord) ->
             [];
         commented ->
             Comments = generate_comments(MappingRecord),
-            io:format("to_string(~p, ~p)~n", [Commented, Datatype]),
             Comments ++ [lists:flatten([ "## ", Field, " = ", cuttlefish_datatypes:to_string(Commented, Datatype) ]), ""];
         default ->
             Comments = generate_comments(MappingRecord),

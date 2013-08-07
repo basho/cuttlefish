@@ -5,15 +5,9 @@
 
 %% This test generates a default .conf file from the riak.schema. view it at ../generated.conf
 generated_conf_file_test() ->
-	{_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
-	ConfFileLines = cuttlefish_conf:generate(Schema),
-
-	{ok, S} = file:open("../generated.conf", write),
-	[ begin
-        io:format("~p~n", [lists:flatten(Line)]),
-        io:format(S, "~s~n", [lists:flatten(Line)]) 
-    end || Line <- ConfFileLines],
-	file:close(S).
+    {_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    cuttlefish_conf:generate_file(Schema, "../generated.conf"),
+    ok.
 
 
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
