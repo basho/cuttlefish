@@ -9,7 +9,7 @@ cli_options() ->
 %% Option Name, Short Code, Long Code, Argument Spec, Help Message
 [
  {help,               $h, "help",        undefined,              "Print this usage page"},
- {ent_dir,            $e, "etc_dir",     {string, "/etc"},       "etc dir"},
+ {etc_dir,            $e, "etc_dir",     {string, "/etc"},       "etc dir"},
  {dest_dir,           $d, "dest_dir",    {string, "/tmp"},       "speficies the directory to write the config file to"},
  {dest_file,          $f, "dest_file",   {string, "app.config"}, "the file name to write"},
  {schema_file,        $s, "schema_file", string,                 "a cuttlefish schema file, multiple files allowed"},
@@ -72,12 +72,13 @@ main(Args) ->
     Conf = cuttlefish_conf:file(hd(ConfFiles)),  
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
 
-    AdvancedConfig = filename:join(EtcDir, "advanced.config"),
-    FinalConfig = case filelib:is_file(AdvancedConfig) of
+    AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+    FinalConfig = case filelib:is_file(AdvancedConfigFile) of
         true ->
             ?STDERR("~s/advanced.config detected, overlaying proplists", [EtcDir]),
             %% TODO: this should not be NewConfig
-            NewConfig;
+            {ok, [AdvancedConfig]} = file:consult(AdvancedConfigFile), 
+            cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
         _ ->
             %% Nothing to see here, these aren't the droids you're looking for.
             NewConfig
