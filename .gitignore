@@ -5,3 +5,5 @@ ebin/*
 .eunit
 src/conf_parse.erl
 deps
+cuttlefish
+
