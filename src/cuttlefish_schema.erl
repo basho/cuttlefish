@@ -36,7 +36,6 @@
     [cuttlefish_mapping:mapping()]
 } | error.
 file(Filename) ->
-    io:format("HI!~n"),
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),

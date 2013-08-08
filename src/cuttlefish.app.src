@@ -1,7 +1,7 @@
 {application, cuttlefish,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "cuttlefish configuration abstraction"},
+  {vsn, "0.1.0"},
   {registered, []},
   {applications, [
                   kernel,
