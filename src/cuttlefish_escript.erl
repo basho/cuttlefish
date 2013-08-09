@@ -67,9 +67,8 @@ main(Args) ->
     ?STDERR("ConfFiles: ~p", [ConfFiles]),
     ?STDERR("SchemaFiles: ~p", [SchemaFiles]),
 
-    %% TODO?: Support multiple files
-    {Translations, Schema} = cuttlefish_schema:file(hd(SchemaFiles)),
-    Conf = cuttlefish_conf:file(hd(ConfFiles)),  
+    {Translations, Schema} = cuttlefish_schema:files(SchemaFiles),
+    Conf = cuttlefish_conf:files(ConfFiles),  
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),

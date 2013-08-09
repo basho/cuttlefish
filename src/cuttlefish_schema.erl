@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([file/1]).
+-export([files/1, file/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -30,6 +30,31 @@
 -endif.
 
 -type errorlist() :: {error, [string()]}.
+
+files(ListOfSchemaFiles) ->
+    lists:foldl(
+        fun(SchemaFile, {TranslationAcc, MappingAcc}) ->
+            {Translations, Mappings} = cuttlefish_schema:file(SchemaFile),
+            
+            NewMappings = lists:foldl(
+                fun(Mapping, NewMappingAcc) -> 
+                    cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
+                end, 
+                MappingAcc, 
+                Mappings), 
+
+            %% TODO: this!
+            NewTranslations = lists:foldl(
+                fun(Translation, NewTranslationAcc) -> 
+                    cuttlefish_translation:replace(Translation, NewTranslationAcc)
+                end, 
+                TranslationAcc, 
+                Translations), 
+
+            {NewTranslations, NewMappings} 
+        end, 
+        {[], []}, 
+        ListOfSchemaFiles).
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
@@ -249,5 +274,26 @@ parse_bad_datatype_test() ->
         ]),
     _Parsed = string(SchemaString),
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
+
+files_test() ->
+    {Translations, Mappings} = files(["../test/multi1.schema", "../test/multi2.schema"]),
+    ?assertEqual(2, length(Mappings)),
+    [M1, M2] = Mappings,
+    ?assertEqual("a.b.d", cuttlefish_mapping:key(M1)),
+    ?assertEqual("what.ev1", cuttlefish_mapping:mapping(M1)),
+
+    ?assertEqual("a.b.c", cuttlefish_mapping:key(M2)),
+    ?assertEqual("what.ev4", cuttlefish_mapping:mapping(M2)),
+
+    ?assertEqual(2, length(Translations)),
+    [T1, T2] = Translations,
+    ?assertEqual("what.ev2", cuttlefish_translation:mapping(T1)),
+    F1 = cuttlefish_translation:func(T1),
+    ?assertEqual(1, F1(x)),
+
+    ?assertEqual("what.ev1", cuttlefish_translation:mapping(T2)),
+    F2 = cuttlefish_translation:func(T2),
+    ?assertEqual(4, F2(x)),
+    ok.
 
 -endif.

@@ -3,14 +3,29 @@
 -export([
     generate/1,
     generate_file/2,
-    file/1]).
+    file/1,
+    files/1]).
+
+files(ListOfConfFiles) ->
+    lists:foldl(
+        fun(ConfFile, ConfAcc) -> 
+            Conf = cuttlefish_conf:file(ConfFile),
+            lists:foldl(
+                fun({K,V}, MiniAcc) ->
+                    cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
+                end, 
+                ConfAcc, 
+                Conf) 
+        end, 
+        [], 
+        ListOfConfFiles).
 
 file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
             lager:error("Could not open file (~s) for Reason ~s", [Filename, Reason]);
         Conf ->
-            Conf
+            remove_duplicates(Conf)
     end.
 
 %%validate(Schema, Config) ->
@@ -74,6 +89,14 @@ generate_comments(MappingRecord) ->
     Doc = cuttlefish_mapping:doc(MappingRecord),
     [ "## " ++ D || D <- Doc].
 
+remove_duplicates(Conf) ->
+    lists:foldl(
+        fun({K,V}, MiniAcc) ->
+            cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
+        end, 
+        [], 
+        Conf).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
@@ -133,5 +156,26 @@ generate_comments_test() ->
     ]}),
     Comments = generate_comments(SchemaElement),
     ?assertEqual(["## Hi!", "## Bye!"], Comments).
+
+duplicates_test() ->
+    Conf = file("../test/multi1.conf"),
+    ?assertEqual(2, length(Conf)),
+    ?assertEqual("3", proplists:get_value("a.b.c", Conf)),
+    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ok.
+
+duplicates_multi_test() ->
+    Conf = files(["../test/multi1.conf", "../test/multi2.conf"]),
+    ?assertEqual(2, length(Conf)),
+    ?assertEqual("4", proplists:get_value("a.b.c", Conf)),
+    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ok.
+
+files_one_nonent() ->
+    Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
+    ?assertEqual(2, length(Conf)),
+    ?assertEqual("3", proplists:get_value("a.b.c", Conf)),
+    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ok.
 
 -endif.

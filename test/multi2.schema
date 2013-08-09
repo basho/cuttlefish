@@ -1,0 +1,3 @@
+{mapping, "a.b.c", "what.ev4", []}.
+
+{translation, "what.ev1", fun(X) -> 4 end}.

@@ -1,0 +1,10 @@
+{mapping, "a.b.c", "what.ev1", []}.
+{mapping, "a.b.c", "what.ev2", []}.
+{mapping, "a.b.d", "what.ev1", []}.
+{mapping, "a.b.c", "what.ev3", []}.
+
+{translation, "what.ev1", fun(X) -> 1 end}.
+{translation, "what.ev1", fun(X) -> 2 end}.
+{translation, "what.ev2", fun(X) -> 1 end}.
+{translation, "what.ev1", fun(X) -> 3 end}.
+
