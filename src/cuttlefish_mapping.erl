@@ -32,7 +32,8 @@
     advanced/1,
     doc/1,
     include_default/1,
-    replace_mapping/2
+    replace/2,
+    remove_duplicates/1
     ]).
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
@@ -81,10 +82,19 @@ doc(M) -> M#mapping.doc.
 -spec include_default(mapping()) -> string().
 include_default(M) -> M#mapping.include_default.
 
--spec replace_mapping(mapping(), [mapping()]) -> [mapping()].
-replace_mapping(Mapping, ListOfMappings) ->
+-spec replace(mapping(), [mapping()]) -> [mapping()].
+replace(Mapping, ListOfMappings) ->
     Removed = lists:filter(fun(M) -> key(M) =/= key(Mapping) end, ListOfMappings), 
     Removed ++ [Mapping].
+
+-spec remove_duplicates([mapping()]) -> [mapping()].
+remove_duplicates(Mappings) ->
+    lists:foldl(
+        fun(Mapping, Acc) ->
+            replace(Mapping, Acc)
+        end, 
+        [], 
+        Mappings). 
 
 -ifdef(TEST).
 
@@ -128,7 +138,7 @@ mapping_test() ->
 
     ok.
 
-replace_mapping_test() ->
+replace_test() ->
     Element1 = parse({
         mapping,
         "conf.key18",
@@ -190,8 +200,45 @@ replace_mapping_test() ->
         ]
     }),
 
-    NewMappings = replace_mapping(Override, SampleMappings),
+    NewMappings = replace(Override, SampleMappings),
     ?assertEqual([Element1, Override], NewMappings),
+    ok.
+
+
+remove_duplicates_test() ->
+    SampleMappings = [parse({
+        mapping,
+        "conf.key",
+        "erlang.key1",
+        [
+            {advanced, true},
+            {default, "default value"},
+            {datatype, enum}, 
+            {enum, ["on", "off"]},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    }),
+    parse({
+        mapping,
+        "conf.key",
+        "erlang.key2",
+        [
+            {advanced, true},
+            {default, "default value"},
+            {datatype, enum}, 
+            {enum, ["on", "off"]},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    })
+    ],
+
+    NewMappings = remove_duplicates(SampleMappings),
+    [_|Expected] = SampleMappings,
+    ?assertEqual(Expected, NewMappings),
     ok.
 
 -endif.
