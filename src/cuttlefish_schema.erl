@@ -61,7 +61,9 @@ string(S) ->
 
             case length(Errors) of
                 0 ->
-                    lists:partition(fun cuttlefish_translation:is_translation/1, Schemas);
+                    {Translations, Mappings} = lists:partition(fun cuttlefish_translation:is_translation/1, Schemas),
+                    {cuttlefish_translation:remove_duplicates(Translations),
+                     cuttlefish_mapping:remove_duplicates(Mappings)};
                 _ ->
                     [ [ lager:error(Str) || Str <- Strings] || {error, Strings} <- Errors],
                     {error, Errors}
