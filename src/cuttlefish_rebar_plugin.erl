@@ -38,17 +38,19 @@ generate(Config0, ReltoolFile) ->
             %% Finally, overlay the files specified by the overlay section
             case lists:keyfind(overlay, 1, ReltoolConfig) of
                 {overlay, Overlays} when is_list(Overlays) ->
-                    Schemas = lists:filter(fun(Overlay) -> 
+                    SchemaOverlays = lists:filter(fun(Overlay) -> 
                             element(1, Overlay) =:= template 
                                 andalso filename:extension(element(3, Overlay)) =:= ".schema"
                         end, 
                         Overlays), 
 
-                    Kludge = lists:flatten(filename:join(TargetDir, element(3, hd(Schemas)))),
+                    Schemas = lists:sort(fun(A,B) -> filename:basename(A) > filename:basename(B) end, [
+                        lists:flatten(filename:join(TargetDir, element(3, Schema)))
+                    || Schema <- SchemaOverlays]),
 
-                    io:format("Schema: ~p~n", [Kludge]),
+                    io:format("Schema: ~p~n", [Schemas]),
 
-                    {_, Schema} = cuttlefish_schema:file(Kludge),
+                    {_, Schema} = cuttlefish_schema:files(Schemas),
                     
                     %% TODO: output file configurable
                     Filename = filename:join([TargetDir, "etc", "riak.conf"]),
@@ -68,6 +70,7 @@ generate(Config0, ReltoolFile) ->
     end,
     ok.
 
+%% Only run for top level project
 should_i_run(ReltoolConfig) ->
     case lists:keyfind(sys, 1, ReltoolConfig) of
         {sys, _} = _SysTuple ->

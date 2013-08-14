@@ -12,7 +12,7 @@ cli_options() ->
  {etc_dir,            $e, "etc_dir",     {string, "/etc"},       "etc dir"},
  {dest_dir,           $d, "dest_dir",    {string, "/tmp"},       "speficies the directory to write the config file to"},
  {dest_file,          $f, "dest_file",   {string, "app.config"}, "the file name to write"},
- {schema_file,        $s, "schema_file", string,                 "a cuttlefish schema file, multiple files allowed"},
+ {schema_dir,         $s, "schema_dir",  string,                 "a directory containing .schema files"},
  {conf_file,          $c, "conf_file",   string,                 "a cuttlefish conf file, multiple files allowed"},
  {app_config,         $a, "app_config",  string,                 "the advanced erlangy app.config"}
 ].
@@ -58,16 +58,26 @@ main(Args) ->
     end, 
 
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
-    SchemaFiles = proplists:get_all_values(schema_file, ParsedArgs),
+    SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
+    SchemaFiles = [ filename:join(SchemaDir, Filename)  || Filename <- filelib:wildcard("*.schema", SchemaDir)], %%proplists:get_all_values(schema_file, ParsedArgs),
+    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles), 
+    case length(SortedSchemaFiles) of
+        0 ->
+            ?STDERR("No Schema files found in specified", []),
+            halt(1);
+        _ -> 
+            ?STDERR("SchemaFiles: ~p", [SortedSchemaFiles])
+    end,
+
     DestinationPath = proplists:get_value(dest_dir, ParsedArgs),
     DestinationFilename = proplists:get_value(dest_file, ParsedArgs),
     Destination = filename:join(DestinationPath, DestinationFilename),
 
     ?STDERR("Generating config in: ~p", [Destination]),
     ?STDERR("ConfFiles: ~p", [ConfFiles]),
-    ?STDERR("SchemaFiles: ~p", [SchemaFiles]),
+    ?STDERR("SchemaFiles: ~p", [SortedSchemaFiles]),
 
-    {Translations, Schema} = cuttlefish_schema:files(SchemaFiles),
+    {Translations, Schema} = cuttlefish_schema:files(SortedSchemaFiles),
     Conf = cuttlefish_conf:files(ConfFiles),  
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
 
@@ -75,7 +85,6 @@ main(Args) ->
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
         true ->
             ?STDERR("~s/advanced.config detected, overlaying proplists", [EtcDir]),
-            %% TODO: this should not be NewConfig
             {ok, [AdvancedConfig]} = file:consult(AdvancedConfigFile), 
             cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
         _ ->
