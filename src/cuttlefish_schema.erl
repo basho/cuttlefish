@@ -122,20 +122,19 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
         end, 
         {[], []}, 
         CommentTokens),
-    %%{ Key, Default } = parse(Tokens),
-    {Type, Return} = parse(Tokens),
-    Attributes = comment_parser(Comments),
-
-    Item = case Type of
-        error ->
+    
+    Item = case parse(Tokens) of
+        {error, Reason} ->
             MoreInfo = "Schema parse error near line number " ++ integer_to_list(LineNo),
-            {error, [MoreInfo|Return]};
-        mapping ->
-            {mapping, Key, Mapping, Proplist} = Return,
+            {error, [MoreInfo|Reason]};
+        {mapping, {mapping, Key, Mapping, Proplist}} ->
+            Attributes = comment_parser(Comments),
             Doc = proplists:get_value(doc, Attributes, []), 
             cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
-        translation ->
-            cuttlefish_translation:parse(Return)
+        {translation, Return} ->
+            cuttlefish_translation:parse(Return);
+        Other ->
+            {error, io_lib:format("Unknown parse return: ~p", [Other])}
     end,
     parse_schema(TailTokens, TailComments, [Item| Acc]).
 

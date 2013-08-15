@@ -41,12 +41,14 @@
     replace/2,
     remove_duplicates/1]).
 
--spec parse({translation, string(), fun()}) -> translation().
+-spec parse({translation, string(), fun()}) -> translation() | error.
 parse({translation, Mapping, Fun}) ->
     #translation{
         mapping = Mapping,
         func = Fun
-    }.
+    };
+parse(_) ->
+    error.
 
 -spec is_translation(any()) -> boolean().
 is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation.

@@ -71,7 +71,8 @@ generate_file(Schema, Filename) ->
     [ begin
         io:format(S, "~s~n", [lists:flatten(Line)]) 
     end || Line <- ConfFileLines],
-    file:close(S).
+    file:close(S),
+    ok.
 
 generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
