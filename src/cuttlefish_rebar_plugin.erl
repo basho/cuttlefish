@@ -1,5 +1,8 @@
 %% -------------------------------------------------------------------
 %%
+%% cuttlefish_rebar_plugin: generates an application's default .conf
+%% as part of the build
+%%
 %% Copyright (c) 2013 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
