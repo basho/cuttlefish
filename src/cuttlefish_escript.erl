@@ -31,7 +31,7 @@ cli_options() ->
 [
  {help,               $h, "help",        undefined,              "Print this usage page"},
  {etc_dir,            $e, "etc_dir",     {string, "/etc"},       "etc dir"},
- {dest_dir,           $d, "dest_dir",    {string, "/tmp"},       "speficies the directory to write the config file to"},
+ {dest_dir,           $d, "dest_dir",    string,                 "speficies the directory to write the config file to"},
  {dest_file,          $f, "dest_file",   {string, "app.config"}, "the file name to write"},
  {schema_dir,         $s, "schema_dir",  string,                 "a directory containing .schema files"},
  {conf_file,          $c, "conf_file",   string,                 "a cuttlefish conf file, multiple files allowed"},
@@ -70,6 +70,7 @@ main(Args) ->
             ?STDERR("~s exists, disabling cuttlefish.", [AppConf]),
             %% TODO: placeholder to basho's cuttlefish documentation url
             ?STDERR("If you'd like to know more about cuttlefish, check your local library!", []),
+            ?STDERR(" or see http://github.com/basho/cuttlefish", []),
             ?STDOUT("~s", [AppConf]),
             halt(0);
         _ ->
@@ -90,7 +91,15 @@ main(Args) ->
             ?STDERR("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
 
-    DestinationPath = proplists:get_value(dest_dir, ParsedArgs),
+    DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
+        false ->
+            DP = filename:join(EtcDir, "generated"),
+            file:make_dir(DP),
+            DP;
+        true ->
+             proplists:get_value(dest_dir, ParsedArgs)
+    end,
+
     DestinationFilename = proplists:get_value(dest_file, ParsedArgs),
     Destination = filename:join(DestinationPath, DestinationFilename),
 
@@ -114,7 +123,8 @@ main(Args) ->
     end, 
 
     file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalConfig])),
-    %% todo: write out dated archived version
-    %%file:write_file(filename:join(DestinationPath, DestinationFilename ++ "." ++ ),io_lib:fwrite("~p.\n",[NewConfig])),
+    {{Y, M, D}, {HH, MM, SS}} = calendar:local_time(),
+    AuditConfigFile = io_lib:format("~s.~p.~p.~p.~p.~p.~p", [Destination, Y, M, D, HH, MM, SS]), 
+    file:write_file(AuditConfigFile,io_lib:fwrite("~p.\n",[NewConfig])),
     ?STDOUT("~s", [Destination]),
     ok.
