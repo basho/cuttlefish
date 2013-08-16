@@ -412,8 +412,8 @@ end}.
 %% infrequent for performance reasons. The time is specified in
 %% milliseconds. The default is 1 week.
 {mapping, "anti_entropy.expire", "riak_kv.anti_entropy_expire", [
-  {default, 604800000},
-  {datatype, integer}
+  {default, "1w"},
+  {datatype, duration}
 ]}.
 
 %% @doc Limit how many AAE exchanges/builds can happen concurrently.
@@ -428,8 +428,8 @@ end}.
 %% speedup the rate that all replicas are synced across the cluster.
 %% Increasing the value is not recommended.
 {mapping, "anti_entropy.tick", "riak_kv.anti_entropy_tick", [
-  {default, 15000},
-  {datatype, integer}
+  {default, "15s"},
+  {datatype, duration}
 ]}.
 
 %% @doc The directory where AAE hash trees are stored.
