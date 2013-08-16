@@ -21,6 +21,7 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_duration).
 
+-define(FORTNIGHT, 1209600000).
 -define(WEEK,   604800000).
 -define(DAY,    86400000).
 -define(HOUR,   3600000).
@@ -80,19 +81,22 @@ parse_token_r([$s,$m|BackwardMillis]) ->
     numerify(MilliStr);
 parse_token_r([$s|BackwardsSeconds]) ->
     SecondStr = lists:reverse(BackwardsSeconds),
-    1000 * numerify(SecondStr);
+    ?SECOND * numerify(SecondStr);
 parse_token_r([$m|BackwardsMinutes]) ->
     MinuteStr = lists:reverse(BackwardsMinutes),
-    60000 * numerify(MinuteStr);
+    ?MINUTE * numerify(MinuteStr);
 parse_token_r([$h|BackwardsHours]) ->
     HourStr = lists:reverse(BackwardsHours),
-    3600000 * numerify(HourStr);
+    ?HOUR * numerify(HourStr);
 parse_token_r([$d|BackwardsDays]) ->
     DayStr = lists:reverse(BackwardsDays),
-    numerify(DayStr) * 86400000;
+    numerify(DayStr) * ?DAY;
 parse_token_r([$w|BackwardsWeeks]) ->
     WeekStr = lists:reverse(BackwardsWeeks),
-    numerify(WeekStr) * 604800000;
+    numerify(WeekStr) * ?WEEK;
+parse_token_r([$f|BackwardsFortnights]) ->
+    FortnightStr = lists:reverse(BackwardsFortnights),
+    numerify(FortnightStr) * ?FORTNIGHT;
 parse_token_r(Error) ->
     {error, Error}.
 
@@ -173,6 +177,8 @@ parse_test() ->
     %% Weird but ok?
     test_parse(121001, "1m1s1ms1m"),
     
+    %% Easter Egg
+    test_parse(1904461001, "1f1w1d1h1m1s1ms"),
     ok.
 
 test_parse(ExpectedMillis, StringToParse) ->
