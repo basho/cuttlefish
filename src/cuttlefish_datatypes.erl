@@ -26,7 +26,7 @@
 -compile(export_all).
 -endif.
 
--opaque datatype() :: integer | string | enum | ip | duration | duration_secs.
+-opaque datatype() :: integer | string | enum | ip | duration | duration_secs | bytesize.
 -export_type([datatype/0]).
 
 -export([supported/0, from_string/2, to_string/2]).
@@ -38,7 +38,8 @@ supported() ->
         enum,
         ip,
         duration,
-        duration_secs
+        duration_secs,
+        bytesize
     ].
 
 -spec to_string(term(), datatype()) -> string().
@@ -56,6 +57,9 @@ to_string(Duration, duration) when is_integer(Duration) -> cuttlefish_duration:m
 
 to_string(Duration, duration_secs) when is_list(Duration) -> Duration;
 to_string(Duration, duration_secs) when is_integer(Duration) -> cuttlefish_duration:seconds(Duration);
+
+to_string(Bytesize, bytesize) when is_list(Bytesize) -> Bytesize;
+to_string(Bytesize, bytesize) when is_integer(Bytesize) -> cuttlefish_bytesize:to_string(Bytesize);
 
 to_string(String, string) when is_list(String) -> String;
 
@@ -83,6 +87,8 @@ from_string(Duration, duration) when is_list(Duration) -> cuttlefish_duration:pa
 from_string(Duration, duration_secs) when is_integer(Duration) -> Duration;
 from_string(Duration, duration_secs) when is_list(Duration) -> ceiling(cuttlefish_duration:parse(Duration) / 1000); 
 
+from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
+from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize); 
 
 from_string(String, string) when is_list(String) -> String;
 from_string(Thing, InvalidDatatype) ->

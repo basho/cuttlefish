@@ -31,7 +31,8 @@
     replace_tuple_element/3,
     key_starts_with/2,
     variable_key_replace/2,
-    variable_key_match/2]).
+    variable_key_match/2,
+    numerify/1]).
 
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
@@ -75,17 +76,19 @@ variable_key_match(Key, KeyDef) ->
         _ -> false
     end.
 
-%% TODO: keeping around for possible use in the advanced.config usecase. 
-%% Priority is a nested set of proplists, but each list has only one item
-%% for easy merge
-%% merge([{K,V}]=Priority, Proplist) ->
-%%     case proplists:get_value(K, Proplist) of
-%%         undefined -> Proplist ++ Priority;
-%%         Existing ->
-%%             proplists:delete(K, Proplist) ++ merge(V, Existing) 
-%%     end; 
-%% merge([], Proplist) -> Proplist;
-%% merge(Priority, []) -> Priority.
+numerify([$.|_]=Num) -> numerify([$0|Num]);
+numerify(String) ->
+    try list_to_float(String) of
+        Float -> Float
+    catch
+        _:_ ->
+            try list_to_integer(String) of
+                Int -> Int
+            catch
+                _:_ ->
+                    {error, String}
+            end
+    end.
 
 -ifdef(TEST).
 

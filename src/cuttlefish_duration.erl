@@ -78,36 +78,27 @@ parse_token(T) -> parse_token_r(lists:reverse(T)).
 
 parse_token_r([$s,$m|BackwardMillis]) ->
     MilliStr = lists:reverse(BackwardMillis),
-    numerify(MilliStr);
+    cuttlefish_util:numerify(MilliStr);
 parse_token_r([$s|BackwardsSeconds]) ->
     SecondStr = lists:reverse(BackwardsSeconds),
-    ?SECOND * numerify(SecondStr);
+    ?SECOND * cuttlefish_util:numerify(SecondStr);
 parse_token_r([$m|BackwardsMinutes]) ->
     MinuteStr = lists:reverse(BackwardsMinutes),
-    ?MINUTE * numerify(MinuteStr);
+    ?MINUTE * cuttlefish_util:numerify(MinuteStr);
 parse_token_r([$h|BackwardsHours]) ->
     HourStr = lists:reverse(BackwardsHours),
-    ?HOUR * numerify(HourStr);
+    ?HOUR * cuttlefish_util:numerify(HourStr);
 parse_token_r([$d|BackwardsDays]) ->
     DayStr = lists:reverse(BackwardsDays),
-    numerify(DayStr) * ?DAY;
+    cuttlefish_util:numerify(DayStr) * ?DAY;
 parse_token_r([$w|BackwardsWeeks]) ->
     WeekStr = lists:reverse(BackwardsWeeks),
-    numerify(WeekStr) * ?WEEK;
+    cuttlefish_util:numerify(WeekStr) * ?WEEK;
 parse_token_r([$f|BackwardsFortnights]) ->
     FortnightStr = lists:reverse(BackwardsFortnights),
-    numerify(FortnightStr) * ?FORTNIGHT;
+    cuttlefish_util:numerify(FortnightStr) * ?FORTNIGHT;
 parse_token_r(Error) ->
     {error, Error}.
-
-numerify([$.|_]=Num) -> numerify([$0|Num]);
-numerify(String) ->
-    try list_to_float(String) of
-        Float -> Float
-    catch
-        _:_ ->
-            list_to_integer(String)
-    end.
 
 is_digit(Char) -> 
     Char =:= $1 orelse
