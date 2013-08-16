@@ -385,7 +385,7 @@ end}.
 %% for a given partition requires a full scan over that partition's
 %% data. Once built, trees stay built until they are expired.
 %% Config is of the form:
-%%   {num-builds, per-timespan-in-milliseconds}
+%%   {num-builds, per-timespan}
 %% Default is 1 build per hour. 
 {mapping, "anti_entropy.build_limit.number", "riak_kv.anti_entropy_build_limit", [
   {default, 1},
@@ -393,8 +393,8 @@ end}.
 ]}.
 
 {mapping, "anti_entropy.build_limit.per_timespan", "riak_kv.anti_entropy_build_limit", [
-  {default, 3600000},
-  {datatype, integer}
+  {default, "1h"},
+  {datatype, duration}
 ]}.
 
 {translation,

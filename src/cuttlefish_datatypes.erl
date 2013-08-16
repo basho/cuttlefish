@@ -26,7 +26,7 @@
 -compile(export_all).
 -endif.
 
--opaque datatype() :: integer | string | enum | ip.
+-opaque datatype() :: integer | string | enum | ip | duration | duration_secs.
 -export_type([datatype/0]).
 
 -export([supported/0, from_string/2, to_string/2]).
@@ -36,7 +36,9 @@ supported() ->
         integer,
         string,
         enum,
-        ip
+        ip,
+        duration,
+        duration_secs
     ].
 
 -spec to_string(term(), datatype()) -> string().
@@ -47,7 +49,13 @@ to_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> IP ++ ":" ++ int
 to_string(IPString, ip) when is_list(IPString) -> IPString;
 
 to_string(Enum, enum) when is_list(Enum) -> Enum; 
-to_string(Enum, enum) when is_atom(Enum) -> atom_to_list(Enum); 
+to_string(Enum, enum) when is_atom(Enum) -> atom_to_list(Enum);
+
+to_string(Duration, duration) when is_list(Duration) -> Duration;
+to_string(Duration, duration) when is_integer(Duration) -> cuttlefish_duration:milliseconds(Duration);
+
+to_string(Duration, duration_secs) when is_list(Duration) -> Duration;
+to_string(Duration, duration_secs) when is_integer(Duration) -> cuttlefish_duration:seconds(Duration);
 
 to_string(String, string) when is_list(String) -> String;
 
@@ -56,8 +64,6 @@ to_string(X, InvalidDatatype) ->
     lager:error("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]),
     error. 
 
-%% I used to write java. in java, when you want to change something from
-%% one datatype to another, you cast. So that's what we do here.
 -spec from_string(term(), datatype()) -> term().
 from_string(Atom, enum) when is_atom(Atom) -> Atom;
 from_string(String, enum) -> list_to_atom(String);
@@ -71,10 +77,25 @@ from_string(X, ip) ->
     [Port|BackwardsIP] = lists:reverse(Parts),
     {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
 
+from_string(Duration, duration) when is_integer(Duration) -> Duration;
+from_string(Duration, duration) when is_list(Duration) -> cuttlefish_duration:parse(Duration); 
+
+from_string(Duration, duration_secs) when is_integer(Duration) -> Duration;
+from_string(Duration, duration_secs) when is_list(Duration) -> ceiling(cuttlefish_duration:parse(Duration) / 1000); 
+
+
 from_string(String, string) when is_list(String) -> String;
 from_string(Thing, InvalidDatatype) ->
    lager:error("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]),
    error.
+
+ceiling(X) ->
+    T = erlang:trunc(X),
+    case (X - T) of
+        Neg when Neg < 0 -> T;
+        Pos when Pos > 0 -> T + 1;
+        _ -> T
+    end.
 
 -ifdef(TEST).
 
@@ -107,6 +128,19 @@ from_string_ip_test() ->
 from_string_enum_test() ->
     ?assertEqual(true, from_string("true", enum)),
     ?assertEqual(true, from_string(true, enum)).
+
+from_string_duration_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    ?assertEqual(1100, from_string("1s100ms", duration)),
+    ?assertEqual(1100, from_string(1100, duration)),
+    ok.
+
+from_string_duration_secs_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    %% also rounds up for smaller units
+    ?assertEqual(2, from_string("1s100ms", duration_secs)),
+    ?assertEqual(2, from_string(2, duration_secs)),
+    ok.
 
 from_string_string_test() ->
     ?assertEqual("string", from_string("string", string)).

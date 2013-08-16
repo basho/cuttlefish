@@ -21,15 +21,34 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_duration).
 
+-define(WEEK,   604800000).
+-define(DAY,    86400000).
+-define(HOUR,   3600000).
+-define(MINUTE, 60000).
+-define(SECOND, 1000).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 -endif.
 
--export([parse/1, validate/1]).
+-export([parse/1, milliseconds/1, seconds/1]).
 
-validate(_DurationString) -> {error, todo}.
-    %% make sure only one kind of each token is there.
+milliseconds(Millis) ->
+    Units = lists:filter(fun({N, _Unit}) -> N =/= 0 end, [
+        { Millis div ?WEEK,                "w"},
+        {(Millis rem ?WEEK)   div ?DAY,    "d"},
+        {(Millis rem ?DAY)    div ?HOUR,   "h"},
+        {(Millis rem ?HOUR)   div ?MINUTE, "m"},
+        {(Millis rem ?MINUTE) div ?SECOND, "s"},
+        { Millis rem ?SECOND,              "ms"}
+    ]),
+    lists:flatten([ 
+        integer_to_list(N) ++ Unit 
+    || {N, Unit} <- Units]).
+
+seconds(Seconds) ->
+    milliseconds(Seconds * 1000).
 
 parse(InputDurationString) ->
     DurationString = string:to_lower(InputDurationString),
@@ -100,6 +119,21 @@ is_digit(Char) ->
     Char =:= $..
 -ifdef(TEST).
 
+milliseconds_test() ->
+    ?assertEqual("500ms", milliseconds(500)),
+    ?assertEqual("1s500ms", milliseconds(1500)),
+    ?assertEqual("30m", milliseconds(1800000)),
+    ?assertEqual("1w1d1h1m1s1ms", milliseconds(694861001)),
+    ok.
+
+seconds_test() ->
+    ?assertEqual("50s", seconds(50)),
+    ?assertEqual("1m1s", seconds(61)),
+    ?assertEqual("30m", seconds(1800)),
+    ?assertEqual("1w1d1h1m1s", seconds(694861)),
+    ok.
+
+
 parse_test() ->
     test_parse(500,  "500ms"),
     test_parse(500,  ".5s"),
@@ -135,6 +169,10 @@ parse_test() ->
     test_parse(694860000, "1w1d1h1m"),
     test_parse(694861000, "1w1d1h1m1s"),
     test_parse(694861001, "1w1d1h1m1s1ms"),
+
+    %% Weird but ok?
+    test_parse(121001, "1m1s1ms1m"),
+    
     ok.
 
 test_parse(ExpectedMillis, StringToParse) ->
