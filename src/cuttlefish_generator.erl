@@ -169,7 +169,7 @@ find_mapping(Key, Schema) ->
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, io_lib:format("~s not_found", [Key])};
+        {0, 0} -> {error, lists:flatten(io_lib:format("~s not_found", [Key]))};
         {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Key])}
     end.
 
@@ -265,6 +265,17 @@ find_mapping_test() ->
     ?assertEqual(
         1,
         cuttlefish_mapping:default(find_mapping("key.with.E.name", Mappings))
+        ),
+
+    %% Test variable name with dot
+    ?assertEqual(
+        {error, "key.with.E.F.name not_found"},
+        find_mapping("key.with.E.F.name", Mappings)
+        ),
+    %% Test variable name with escaped dot
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping("key.with.E\\.F.name", Mappings))
         ),
 
     ok.

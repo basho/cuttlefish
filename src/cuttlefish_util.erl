@@ -62,7 +62,23 @@ variable_key_replace(Key, Sub) ->
     end || Tok <- KeyTokens], "."). 
 
 variable_key_match(Key, KeyDef) ->
-    KeyTokens = string:tokens(Key, "."),
+    KeyTokenz = string:tokens(Key, "."),
+
+    %% Oh no, what if a token was supposed to contain a "dot"?
+    %% well, then you escaped it with a \\ and we'll fix that now.
+    {[], RKeyTokens} = lists:foldl(
+        fun(X, {Incomplete, Acc}) ->
+            case lists:reverse(X) of
+                [$\\|K] ->
+                    {lists:reverse(K) ++ ".", Acc};
+                _ ->
+                    {[], [ Incomplete ++ X | Acc]}
+            end
+        end,
+        {[], []}, 
+        KeyTokenz),
+    KeyTokens = lists:reverse(RKeyTokens), 
+
     KeyDefTokens = string:tokens(KeyDef, "."),
 
     case length(KeyTokens) =:= length(KeyDefTokens) of
@@ -142,4 +158,14 @@ key_starts_with_test() ->
         ],
         Filtered),
     ok.
+
+variable_key_match_test() ->
+    ?assert(variable_key_match("alpha.bravo.charlie.delta", "alpha.bravo.charlie.delta")),
+    ?assert(variable_key_match("alpha.bravo.anything.delta", "alpha.bravo.$charlie.delta")),
+    ?assertNot(variable_key_match("alpha.bravo.anything.delta", "alpha.bravo.charlie.delta")),
+    ?assert(variable_key_match("alpha.bravo.any\\.thing.delta", "alpha.bravo.$charlie.delta")),
+    ?assert(variable_key_match("alpha.bravo.any\\.thing\\.you\\.need.delta", "alpha.bravo.$charlie.delta")),
+
+    ok.
+
 -endif.
