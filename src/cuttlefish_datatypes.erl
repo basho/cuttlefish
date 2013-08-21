@@ -85,7 +85,7 @@ from_string(Duration, duration) when is_integer(Duration) -> Duration;
 from_string(Duration, duration) when is_list(Duration) -> cuttlefish_duration:parse(Duration); 
 
 from_string(Duration, duration_secs) when is_integer(Duration) -> Duration;
-from_string(Duration, duration_secs) when is_list(Duration) -> ceiling(cuttlefish_duration:parse(Duration) / 1000); 
+from_string(Duration, duration_secs) when is_list(Duration) -> cuttlefish_util:ceiling(cuttlefish_duration:parse(Duration) / 1000); 
 
 from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
 from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize); 
@@ -95,13 +95,7 @@ from_string(Thing, InvalidDatatype) ->
    lager:error("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]),
    error.
 
-ceiling(X) ->
-    T = erlang:trunc(X),
-    case (X - T) of
-        Neg when Neg < 0 -> T;
-        Pos when Pos > 0 -> T + 1;
-        _ -> T
-    end.
+
 
 -ifdef(TEST).
 

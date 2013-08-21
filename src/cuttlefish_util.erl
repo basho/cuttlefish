@@ -32,7 +32,8 @@
     key_starts_with/2,
     variable_key_replace/2,
     variable_key_match/2,
-    numerify/1]).
+    numerify/1,
+    ceiling/1]).
 
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
@@ -104,6 +105,14 @@ numerify(String) ->
                 _:_ ->
                     {error, String}
             end
+    end.
+
+ceiling(X) ->
+    T = erlang:trunc(X),
+    case (X - T) of
+        Neg when Neg < 0 -> T;
+        Pos when Pos > 0 -> T + 1;
+        _ -> T
     end.
 
 -ifdef(TEST).
