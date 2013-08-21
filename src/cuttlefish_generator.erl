@@ -26,17 +26,33 @@
 -compile(export_all).
 -endif.
 
--export([map/3, find_mapping/2]).
+-export([map/3, nested_map/3, find_mapping/2]).
 
 map(Translations, Schema, Config) ->
-    %% Config at this point is just what's in the .conf file.
-    %% add_defaults/2 rolls the default values in from the schema
-    DConfig = add_defaults(Config, Schema),
+    map(Translations, Schema, Config, true).
 
-    %% Everything in DConfig is of datatype "string", 
-    %% transform_datatypes turns them into other erlang terms
-    %% based on the schema
-    Conf = transform_datatypes(DConfig, Schema),
+nested_map(Translations, Schema, Config) ->
+    lager:info("nested_map"),
+    lager:info("nested_map translations: ~p", [Translations]),
+    lager:info("nested_map mappings: ~p", [Schema]),
+    lager:info("nested_map config: ~p", [Config]),
+
+    map(Translations, Schema, Config, true).
+
+map(Translations, Schema, Config, ProcessDatatypes) ->
+    Conf = case ProcessDatatypes of
+        true ->
+            %% Config at this point is just what's in the .conf file.
+            %% add_defaults/2 rolls the default values in from the schema
+            DConfig = add_defaults(Config, Schema),
+
+            %% Everything in DConfig is of datatype "string", 
+            %% transform_datatypes turns them into other erlang terms
+            %% based on the schema
+            transform_datatypes(DConfig, Schema);
+        _ ->
+            Config
+    end,
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -45,8 +61,8 @@ map(Translations, Schema, Config) ->
     %% if a user didn't actually configure this setting in the .conf file and 
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
-    {DirectMappings, TranslationsToDrop} = lists:foldl(
-        fun(MappingRecord, {ConfAcc, XlatAcc}) ->
+    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldl(
+        fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
             Key = cuttlefish_mapping:key(MappingRecord),
@@ -57,14 +73,14 @@ map(Translations, Schema, Config) ->
                 {true, false} -> 
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Key, Conf),
-                    {set_value(Tokens, ConfAcc, NewValue), XlatAcc};
-                {true, true} -> {ConfAcc, XlatAcc};
-                _ -> {ConfAcc, [Mapping|XlatAcc]}
+                    {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
+                {true, true} -> {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
+                _ -> {ConfAcc, {[Mapping|MaybeDrop], Keep}}
             end
         end, 
-        {[], []},
+        {[], {[],[]}},
         Schema),
-    
+    TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
@@ -75,9 +91,21 @@ map(Translations, Schema, Config) ->
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
                     Tokens = string:tokens(Mapping, "."),
-                    NewValue = Xlat(Conf),
+                    %% get Xlat arity
+                    Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
+                    lager:info("~p func/~p", [Mapping, Arity]),
+                    NewValue = case Arity of 
+                        1 ->
+                            Xlat(Conf);
+                        3 -> 
+                            Xlat(Conf, Schema, Translations);
+                        Other -> 
+                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 3.", [Other, Mapping]),
+                            undefined
+                    end,
                     set_value(Tokens, Acc, NewValue);
                 _ ->
+                    lager:info("~p in Translations to drop...", [Mapping]),
                     Acc
             end
         end, 
@@ -131,7 +159,12 @@ add_defaults(Conf, Schema) ->
             case {Match, FuzzyMatch} of
                 {false, true} -> 
                     Sub = cuttlefish_mapping:include_default(MappingRecord),
-                    [{cuttlefish_util:variable_key_replace(Key, Sub), Default}|Acc];
+                    lager:info("cuttlefish_util:variable_key_replace(~p, ~p)", [Key, Sub]),
+                    case Sub of 
+                        undefined -> Acc;
+                        _ ->
+                            [{cuttlefish_util:variable_key_replace(Key, Sub), Default}|Acc]
+                    end;
                 {false, false} -> [{Key, Default}|Acc];
                 _ -> Acc
             end 

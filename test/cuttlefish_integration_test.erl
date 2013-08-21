@@ -33,6 +33,36 @@ all_the_marbles_test() ->
     proplist_equals(AppConfig, NewConfig),
     ok.
 
+multibackend_test() ->
+    {Translations, Schema} = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
+    [ begin 
+        lager:info("T ~p", [cuttlefish_translation:mapping(T)]),
+        Arity = proplists:get_value(arity, erlang:fun_info(cuttlefish_translation:func(T) )),
+        lager:info("Arity ~p", [Arity])
+    end || T <- Translations],
+    Conf = [
+        {"storage_backend", "multi"},
+        {"multi_backend.bitcask_mult.storage_backend", "bitcask"},
+        {"multi_backend.bitcask_mult.bitcask.data_root", "/path/to/dat/cask"},
+
+        {"multi_backend.leveldb_mult.storage_backend", "leveldb"},
+        {"multi_backend.leveldb_mult.leveldb.data_root", "/path/to/dat/level"},
+
+        {"multi_backend.memory_mult.storage_backend", "memory"},
+        {"multi_backend.memory_mult.memory_backend.ttl", "1d"},
+
+        {"multi_backend.leveldb_mult2.storage_backend", "leveldb"},
+        {"multi_backend.leveldb_mult.leveldb.data_root", "/path/to/dat/level2"}
+    ],
+
+    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    KV = proplists:get_value(riak_kv, NewConfig),
+    Multi = proplists:get_value(multi_backend, KV), 
+
+    lager:error("MultiBackendConfig: ~p", [Multi]),
+    ?assert(false),
+    ok. 
+
 
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),

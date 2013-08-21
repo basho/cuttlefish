@@ -32,6 +32,7 @@
     key_starts_with/2,
     variable_key_replace/2,
     variable_key_match/2,
+    variables_for_mapping/2,
     numerify/1,
     ceiling/1]).
 
@@ -63,6 +64,22 @@ variable_key_replace(Key, Sub) ->
     end || Tok <- KeyTokens], "."). 
 
 variable_key_match(Key, KeyDef) ->
+    KeyTokens = tokenize_variable_key(Key),
+
+    KeyDefTokens = string:tokens(KeyDef, "."),
+
+    case length(KeyTokens) =:= length(KeyDefTokens) of
+        true ->
+            Zipped = lists:zip(KeyTokens, KeyDefTokens),
+            lists:all(
+                fun({X,Y}) ->
+                    X =:= Y orelse hd(Y) =:= $$
+                end,
+                Zipped);
+        _ -> false
+    end.
+
+tokenize_variable_key(Key) ->
     KeyTokenz = string:tokens(Key, "."),
 
     %% Oh no, what if a token was supposed to contain a "dot"?
@@ -78,20 +95,41 @@ variable_key_match(Key, KeyDef) ->
         end,
         {[], []}, 
         KeyTokenz),
-    KeyTokens = lists:reverse(RKeyTokens), 
+    lists:reverse(RKeyTokens).
 
-    KeyDefTokens = string:tokens(KeyDef, "."),
+variables_for_mapping(KeyDef, Conf) ->
+    lists:foldl(
+        fun({Key, _}, Acc) ->
+            KeyTokens = tokenize_variable_key(Key),
+            KeyDefTokens = string:tokens(KeyDef, "."),
 
-    case length(KeyTokens) =:= length(KeyDefTokens) of
-        true ->
-            Zipped = lists:zip(KeyTokens, KeyDefTokens),
-            lists:all(
-                fun({X,Y}) ->
-                    X =:= Y orelse hd(Y) =:= $$
-                end,
-                Zipped);
-        _ -> false
-    end.
+
+            case length(KeyTokens) =:= length(KeyDefTokens) of
+                true ->
+                    Zipped = lists:zip(KeyDefTokens, KeyTokens),
+                    Match = lists:all(
+                        fun({X,Y}) ->
+                            X =:= Y orelse hd(X) =:= $$
+                        end,
+                        Zipped),
+                    case Match of
+                        true ->
+                            Matches = lists:filter(fun({X,Y}) ->
+                                X =/= Y andalso hd(X) =:= $$
+                            end, Zipped),
+                            case length(Matches) > 0 of
+                                true -> 
+                                    [hd(Matches)|Acc];
+                                _ -> Acc
+                            end;
+                        _ -> Acc
+                    end;
+
+                _ -> Acc
+            end
+        end, [], Conf). 
+
+    
 
 numerify([$.|_]=Num) -> numerify([$0|Num]);
 numerify(String) ->
@@ -174,6 +212,26 @@ variable_key_match_test() ->
     ?assertNot(variable_key_match("alpha.bravo.anything.delta", "alpha.bravo.charlie.delta")),
     ?assert(variable_key_match("alpha.bravo.any\\.thing.delta", "alpha.bravo.$charlie.delta")),
     ?assert(variable_key_match("alpha.bravo.any\\.thing\\.you\\.need.delta", "alpha.bravo.$charlie.delta")),
+    ok.
+
+variables_for_mapping_test() ->
+    Conf = [
+        {"multi_backend.backend1.storage_backend", 1},
+        {"multi_backend.backend2.storage_backend", 2},
+        {"multi_backend.backend\\.3.storage_backend", 3},
+        {"multi_backend.backend4.storage_backend", 4}
+    ],
+
+    Vars = proplists:get_all_values("$name", 
+            variables_for_mapping("multi_backend.$name.storage_backend", Conf)
+    ),
+    
+    ?assertEqual(4, length(Vars)),
+    ?assert(lists:member("backend1", Vars)),
+    ?assert(lists:member("backend2", Vars)),
+    ?assert(lists:member("backend.3", Vars)),
+    ?assert(lists:member("backend4", Vars)),
+    ?assertEqual(4, length(Vars)),
 
     ok.
 
