@@ -78,10 +78,10 @@ generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
     Key = cuttlefish_mapping:key(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
-    Advanced = cuttlefish_mapping:advanced(MappingRecord),
+    Level = cuttlefish_mapping:level(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
     Datatype = cuttlefish_mapping:datatype(MappingRecord),
-    %% advanced: leave out of generated .conf file
+    %% level != basic: leave out of generated .conf file
     %% commeneted $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
     %%    e.g. {include_default, "internal"}
@@ -89,7 +89,7 @@ generate_element(MappingRecord) ->
 
     Field = cuttlefish_util:variable_key_replace(Key, IncDef),
 
-    case generate_element(Advanced, Default, Commented) of
+    case generate_element(Level, Default, Commented) of
         no ->
             [];
         commented ->
@@ -100,11 +100,10 @@ generate_element(MappingRecord) ->
             Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]  
     end.
 
-generate_element(true, _, _) -> no;
 generate_element(_, undefined, undefined) -> no;
-generate_element(_, _Default, undefined) -> default;
-generate_element(_, undefined, _Comment) -> commented;
-generate_element(_Advanced, _Default, _Commented) -> no.
+generate_element(basic, _Default, undefined) -> default;
+generate_element(basic, undefined, _Comment) -> commented;
+generate_element(_Level, _Default, _Commented) -> no.
 
 generate_comments(MappingRecord) ->
     %%io:format("DocRec: ~p~n", [cuttlefish_mapping:key(MappingRecord)]),

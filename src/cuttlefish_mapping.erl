@@ -33,7 +33,7 @@
         commented::term(),
         datatype = string :: cuttlefish_datatypes:datatype(),
         enum::[atom()],
-        advanced = false :: boolean(),
+        level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default::string()
     }).
@@ -50,7 +50,7 @@
     commented/1,
     datatype/1,
     enum/1,
-    advanced/1,
+    level/1,
     doc/1,
     include_default/1,
     replace/2,
@@ -64,7 +64,7 @@ parse({mapping, Key, Mapping, Proplist}) ->
         default = proplists:get_value(default, Proplist),
         commented = proplists:get_value(commented, Proplist),
         mapping = Mapping,
-        advanced = proplists:get_value(advanced, Proplist, false),
+        level = proplists:get_value(level, Proplist, basic),
         datatype = proplists:get_value(datatype, Proplist, string),
         enum = proplists:get_value(enum, Proplist),
         doc = proplists:get_value(doc, Proplist, []),
@@ -94,8 +94,8 @@ datatype(M) -> M#mapping.datatype.
 -spec enum(mapping()) -> [atom()].
 enum(M) -> M#mapping.enum.
 
--spec advanced(mapping()) -> boolean().
-advanced(M) -> M#mapping.advanced.
+-spec level(mapping()) -> basic | intermediate | advanced.
+level(M) -> M#mapping.level.
 
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
@@ -126,7 +126,7 @@ mapping_test() ->
         "conf.key",
         "erlang.key",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -141,7 +141,7 @@ mapping_test() ->
     ?assertEqual("conf.key", Record#mapping.key),
     ?assertEqual("default value", Record#mapping.default),
     ?assertEqual("erlang.key", Record#mapping.mapping),
-    ?assertEqual(true, Record#mapping.advanced),
+    ?assertEqual(advanced, Record#mapping.level),
     ?assertEqual(enum, Record#mapping.datatype),
     ?assertEqual(["on", "off"], Record#mapping.enum),
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
@@ -151,7 +151,7 @@ mapping_test() ->
     ?assertEqual("conf.key", key(Record)),
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
-    ?assertEqual(true, advanced(Record)),
+    ?assertEqual(advanced, level(Record)),
     ?assertEqual(enum, datatype(Record)),
     ?assertEqual(["on", "off"], enum(Record)),
     ?assertEqual(["documentation", "for feature"], doc(Record)),
@@ -165,7 +165,7 @@ replace_test() ->
         "conf.key18",
         "erlang.key4",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -181,7 +181,7 @@ replace_test() ->
         "conf.key",
         "erlang.key1",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -195,7 +195,7 @@ replace_test() ->
         "conf.key",
         "erlang.key2",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -211,7 +211,7 @@ replace_test() ->
         "conf.key",
         "erlang.key",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -232,7 +232,7 @@ remove_duplicates_test() ->
         "conf.key",
         "erlang.key1",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
@@ -246,7 +246,7 @@ remove_duplicates_test() ->
         "conf.key",
         "erlang.key2",
         [
-            {advanced, true},
+            {level, advanced},
             {default, "default value"},
             {datatype, enum}, 
             {enum, ["on", "off"]},
