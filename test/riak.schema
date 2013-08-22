@@ -106,7 +106,7 @@
 %% @doc listener.protobuf.<name> is an IP address and TCP port that the Riak 
 %% Protocol Buffers interface will bind.
 {mapping, "listener.protobuf.$name", "riak_api.pb", [
-  {default, "127.0.0.1:8087"},
+  {default, {"127.0.0.1", 8087}},
   {datatype, ip},
   {include_default, "internal"}
 ]}.

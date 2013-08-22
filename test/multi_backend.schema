@@ -16,7 +16,6 @@
  fun(Conf, Mappings, Translations) ->
   %% group by $name into list, also cut the "multi_backend.$name" off every key
   BackendNames = cuttlefish_util:variables_for_mapping("multi_backend.$name.storage_backend", Conf),
-  io:format("BackendNames: ~p~n", [BackendNames]),
   %% for each in list, case statement on backend type
   [ begin
     BackendConfigName = "multi_backend." ++ Name,
@@ -27,7 +26,7 @@
           {Key -- (BackendConfigName ++ "."), Value}
         end || {Key, Value} <- cuttlefish_util:key_starts_with(BackendConfigPrefix, Conf)],
 
-        BackendProplist = cuttlefish_generator:nested_map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
 
         {riak_kv_bitcask_backend, proplists:get_value(bitcask, BackendProplist)};
       leveldb ->
@@ -36,7 +35,7 @@
           {Key -- (BackendConfigName ++ "."), Value}
         end || {Key, Value} <- cuttlefish_util:key_starts_with(BackendConfigPrefix, Conf)],
 
-        BackendProplist = cuttlefish_generator:nested_map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
 
         {riak_kv_eleveldb_backend, proplists:get_value(eleveldb, BackendProplist)};
       memory ->
@@ -44,7 +43,7 @@
         SubConf = [ begin
           {Key -- (BackendConfigName ++ "."), Value}
         end || {Key, Value} <- cuttlefish_util:key_starts_with(BackendConfigPrefix, Conf)],
-        BackendProplist = cuttlefish_generator:nested_map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
         {riak_kv_memory_backend, proplists:get_value(memory_backend, proplists:get_value(riak_kv, BackendProplist))};
       _ -> oops_all_berries
     end,

@@ -26,33 +26,18 @@
 -compile(export_all).
 -endif.
 
--export([map/3, nested_map/3, find_mapping/2]).
+-export([map/3, find_mapping/2]).
 
-map(Translations, Schema, Config) ->
-    map(Translations, Schema, Config, true).
+map(Translations, Mappings, Config) ->
 
-nested_map(Translations, Schema, Config) ->
-    lager:info("nested_map"),
-    lager:info("nested_map translations: ~p", [Translations]),
-    lager:info("nested_map mappings: ~p", [Schema]),
-    lager:info("nested_map config: ~p", [Config]),
+    %% Config at this point is just what's in the .conf file.
+    %% add_defaults/2 rolls the default values in from the schema
+    DConfig = add_defaults(Config, Mappings),
 
-    map(Translations, Schema, Config, true).
-
-map(Translations, Schema, Config, ProcessDatatypes) ->
-    Conf = case ProcessDatatypes of
-        true ->
-            %% Config at this point is just what's in the .conf file.
-            %% add_defaults/2 rolls the default values in from the schema
-            DConfig = add_defaults(Config, Schema),
-
-            %% Everything in DConfig is of datatype "string", 
-            %% transform_datatypes turns them into other erlang terms
-            %% based on the schema
-            transform_datatypes(DConfig, Schema);
-        _ ->
-            Config
-    end,
+    %% Everything in DConfig is of datatype "string", 
+    %% transform_datatypes turns them into other erlang terms
+    %% based on the schema
+    Conf =  transform_datatypes(DConfig, Mappings),
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -79,7 +64,7 @@ map(Translations, Schema, Config, ProcessDatatypes) ->
             end
         end, 
         {[], {[],[]}},
-        Schema),
+        Mappings),
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
@@ -93,19 +78,18 @@ map(Translations, Schema, Config, ProcessDatatypes) ->
                     Tokens = string:tokens(Mapping, "."),
                     %% get Xlat arity
                     Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    lager:info("~p func/~p", [Mapping, Arity]),
                     NewValue = case Arity of 
                         1 ->
                             Xlat(Conf);
                         3 -> 
-                            Xlat(Conf, Schema, Translations);
+                            Xlat(Conf, Mappings, Translations);
                         Other -> 
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 3.", [Other, Mapping]),
                             undefined
                     end,
                     set_value(Tokens, Acc, NewValue);
                 _ ->
-                    lager:info("~p in Translations to drop...", [Mapping]),
+                    lager:debug("~p in Translations to drop...", [Mapping]),
                     Acc
             end
         end, 
@@ -144,38 +128,145 @@ token_type(Token) ->
         [X] -> {named, list_to_atom(X), none}
     end.
 
-add_defaults(Conf, Schema) ->
+add_defaults(Conf, Mappings) ->
+
+    FuzzyKeyDefs = lists:filter(
+        fun(Key) -> lists:member($$, Key) end, 
+        [ cuttlefish_mapping:key(M) || M <- Mappings]
+    ),
+
+    %% Find all fuzzy matches in Conf, 
+    %% get all their {Prefix, Var}s
+    %% for each Prefix, 
+
+    FuzzyKeys = lists:foldl(
+        fun({Key, _}, FuzzyMatches) ->
+            Fuzz = lists:filter(
+                fun(KeyDef) -> 
+                    cuttlefish_util:variable_key_match(Key, KeyDef)
+                end, 
+                FuzzyKeyDefs), 
+            case length(Fuzz) of
+                0 -> FuzzyMatches;
+                _ -> [{hd(Fuzz), Key}|FuzzyMatches]
+            end
+        end, 
+        [], 
+        Conf), 
+
+    FuzzVal = [ {K, proplists:get_all_values(K, FuzzyKeys)} || K <- proplists:get_keys(FuzzyKeys)],
+
+    Names = [ begin 
+        C = [ {L, 0}  || L <- List ],
+        {K, cuttlefish_util:variables_for_mapping(K, C)}
+    end || {K, List} <- FuzzVal],
+
+    %% Names need organizing by prefix now
+    %% Names: [{"n.$name.x",[{"$name","ak"},{"$name","bk"}]}]
+
+    Prefixes1 = lists:foldl(
+        fun({KeyDef, NameList}, Acc) -> 
+            {Prefix, _, _} = cuttlefish_util:split_variable(KeyDef), 
+            [{Prefix, NameList}|Acc]
+        end, 
+        [], 
+        Names),
+    PrefixesWithoutDefaults = [
+        {Key, [ Y || {_, Y} <- lists:flatten(proplists:get_all_values(Key, Prefixes1))]}
+    || Key <- proplists:get_keys(Prefixes1)],
+
+    %% PrefixesWithoutDefaults
+    %% [{"n",["ck","ak","bk"]}]
+
+    %% Go through the FuzzyKeyDefs again.
+    %% make sure that each one starts with a Prefix. 
+    %% if not, add include_default to prefixes
+
+    DefaultsNeeded = lists:filter(
+        fun(FKD) -> 
+            lists:all(
+                fun({P, _List}) -> 
+                    string:str(FKD, P) =/= 1 
+                end, 
+                PrefixesWithoutDefaults) 
+        end, 
+        FuzzyKeyDefs), 
+
+    Prefixes = lists:foldl(
+        fun(Needed, Acc) ->
+            M = find_mapping(Needed, Mappings),
+            DefaultVar = cuttlefish_mapping:include_default(M),
+
+            case DefaultVar of
+                undefined ->
+                    Acc;
+                _ ->
+                    {Prefix, _Var, _} = cuttlefish_util:split_variable(Needed), 
+                    DefaultVar = cuttlefish_mapping:include_default(M),
+                    [{Prefix, [DefaultVar]}|Acc] 
+            end
+            
+        end, 
+        PrefixesWithoutDefaults, 
+        DefaultsNeeded), 
+    io:format("PrefixesWithoutDefaults: ~p~n", [PrefixesWithoutDefaults]),
+    io:format("DefaultsNeeded: ~p~n", [DefaultsNeeded]),
+    io:format("Prefixes: ~p~n", [Prefixes]),
+
     lists:foldl(
         fun(MappingRecord, Acc) ->
             Default = cuttlefish_mapping:default(MappingRecord),
-            Key = cuttlefish_mapping:key(MappingRecord),
-            Match = lists:any(
+            KeyDef = cuttlefish_mapping:key(MappingRecord),
+
+            IsFuzzyMatch = lists:member(KeyDef, FuzzyKeyDefs),
+
+            IsStrictMatch = lists:any(
                 fun({K, _V}) ->
-                    cuttlefish_util:variable_key_match(K, Key)
+                    K =:= KeyDef
                 end, 
                 Conf),
+
             %% No, then plug in the default
-            FuzzyMatch = lists:member($$, Key),
-            case {Match, FuzzyMatch} of
-                {false, true} -> 
-                    Sub = cuttlefish_mapping:include_default(MappingRecord),
-                    lager:info("cuttlefish_util:variable_key_replace(~p, ~p)", [Key, Sub]),
-                    case Sub of 
-                        undefined -> Acc;
-                        _ ->
-                            [{cuttlefish_util:variable_key_replace(Key, Sub), Default}|Acc]
-                    end;
-                {false, false} -> [{Key, Default}|Acc];
-                _ -> Acc
+            case {IsStrictMatch, IsFuzzyMatch} of
+                %% Strict match means we have the setting already
+                {true, false} -> Acc;
+                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but 
+                %% it's part of a complex data structure.
+                {false, true} ->
+                    lists:foldl(
+                        fun({Prefix, List}, SubAcc) -> 
+                            case string:str(KeyDef, Prefix) =:= 1 of
+                                true ->
+                                    ToAdd = [ begin
+                                        io:format("KeyDef: ~p, Key:~p~n", [KeyDef, K]),
+                                        KeyToAdd = cuttlefish_util:variable_key_replace(KeyDef, K),
+                                        case proplists:is_defined(KeyToAdd, Acc) of
+                                            true ->
+                                                no;
+                                            _ ->
+                                                {KeyToAdd, Default}
+                                        end 
+                                    end || K <- List],
+                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd), 
+                                    SubAcc ++ ToAdd2;
+                                _ -> SubAcc
+                            end
+                        end, 
+                        Acc, 
+                        Prefixes);
+                %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
+                {false, false} -> [{KeyDef, Default}|Acc];
+                %% If Match =:= true, do nothing, the value is set in the .conf file
+                _ -> lager:error("Both fuzzy and strict match! should not happen")
             end 
         end, 
         Conf, 
-        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Schema)).
+        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Mappings)).
 
-transform_datatypes(Conf, Schema) ->
+transform_datatypes(Conf, Mappings) ->
     [ begin
         %% Look up mapping from schema
-        MappingRecord = find_mapping(Key, Schema),
+        MappingRecord = find_mapping(Key, Mappings),
         DT = cuttlefish_mapping:datatype(MappingRecord),
         {Key, cuttlefish_datatypes:from_string(Value, DT)}
     end || {Key, Value} <- Conf].
@@ -186,7 +277,7 @@ transform_datatypes(Conf, Schema) ->
 %% 2. The mapping is not there -> error
 %% 3. The mapping is there, but the key in the schema contains a $.
 %%      (fuzzy match)
-find_mapping(Key, Schema) ->
+find_mapping(Key, Mappings) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
         fun(Mapping, {HM, FM}) ->
             K = cuttlefish_mapping:key(Mapping), 
@@ -197,7 +288,7 @@ find_mapping(Key, Schema) ->
             end
         end,
         {[], []},
-        Schema),
+        Mappings),
 
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
@@ -207,6 +298,65 @@ find_mapping(Key, Schema) ->
     end.
 
 -ifdef(TEST).
+
+add_defaults_test() ->
+    %%lager:start(),
+    Conf = [
+        %%{"a.b.c", "override"}, %% Specifically left out. Uncomment line to break test,
+        {"a.c.d", "override"},
+        {"no.match", "unchanged"},
+        %%{"m.rk.x", "defined"}, %% since this is undefined no defaults should be created for "m",
+        
+        %% two matches on a name "ak" and "bk"
+        {"n.ak.x", "set_n_name_x"},
+        {"n.bk.x", "set_n_name_x2"},
+        {"n.ck.y", "set_n_name_y3"}
+          
+    ],
+
+    Mappings = [
+        %% First mapping, direct, not in .conf, will be default
+        cuttlefish_mapping:parse({mapping, "a.b.c", "b.c", [
+                {default, "q"}
+            ]}),
+        %% default is "l", but since "a.c.d" is in Conf, it will be "override"
+        cuttlefish_mapping:parse({mapping, "a.c.d", "c.d", [
+                {default, "l"}
+            ]}),
+        cuttlefish_mapping:parse({mapping, "m.$name.x", "some.proplist", [
+                {default, "m_name_x"}
+            ]}),
+        cuttlefish_mapping:parse({mapping, "n.$name.x", "some.proplist", [
+            {default, "n_name_x"}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "n.$name.y", "some.proplist", [
+            {default, "n_name_y"}
+        ]})
+
+
+
+    ],
+
+    DConf = add_defaults(Conf, Mappings),
+
+    io:format("DConf: ~p~n", [DConf]),
+
+
+    ?assertEqual(9, length(DConf)),
+    ?assertEqual("q", proplists:get_value("a.b.c", DConf)),
+    ?assertNotEqual("l", proplists:get_value("a.c.d", DConf)),
+    ?assertEqual("override", proplists:get_value("a.c.d", DConf)),
+    ?assertEqual("unchanged", proplists:get_value("no.match", DConf)),
+
+    ?assertEqual("set_n_name_x", proplists:get_value("n.ak.x", DConf)),
+    ?assertEqual("set_n_name_x2", proplists:get_value("n.bk.x", DConf)),
+    ?assertEqual("n_name_x", proplists:get_value("n.ck.x", DConf)),
+
+    ?assertEqual("n_name_y", proplists:get_value("n.ak.y", DConf)),
+    ?assertEqual("n_name_y", proplists:get_value("n.bk.y", DConf)),
+    ?assertEqual("set_n_name_y3", proplists:get_value("n.ck.y", DConf)),
+
+    ok.
 
 map_test() ->
     lager:start(),

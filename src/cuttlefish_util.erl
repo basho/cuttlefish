@@ -30,9 +30,11 @@
     replace_proplist_value/3,
     replace_tuple_element/3,
     key_starts_with/2,
+    split_variable/1,
     variable_key_replace/2,
     variable_key_match/2,
     variables_for_mapping/2,
+    tokenize_variable_key/1,
     numerify/1,
     ceiling/1]).
 
@@ -53,6 +55,24 @@ key_starts_with(Prefix, Proplist) ->
             string:str(Key, Prefix) =:= 1
         end, 
         Proplist).
+
+split_variable(KeyDef) ->
+    KeyDefTokens = tokenize_variable_key(KeyDef),
+    {PrefixToks, Var, SuffixToks} = lists:foldr(
+        fun(T, {Prefix, Var, Suffix}) ->
+            case {T, Var} of
+                {[$$|_], []} -> {Prefix, T, Suffix};
+                {_, []} -> {Prefix, Var, [T|Suffix]};
+                {_, _} -> {[T|Prefix], Var, Suffix}
+            end
+        end, 
+        {[], [], []},
+        KeyDefTokens),
+    {
+        string:join(PrefixToks, "."),
+        Var,    
+        string:join(SuffixToks, ".")
+    }.
 
 variable_key_replace(Key, Sub) ->
     KeyTokens = string:tokens(Key, "."), 
