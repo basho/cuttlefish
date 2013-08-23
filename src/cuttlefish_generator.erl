@@ -183,8 +183,7 @@ add_defaults(Conf, Mappings) ->
 %%     {"listener.protobuf",["internal"]},
 %%     {"listener.http",["internal"]},
 %%     {"multi_backend",
-%%      ["bitcask_mult","bitcask_mult","leveldb_mult","memory_mult",
-%%       "leveldb_mult2","memory_mult","leveldb_mult","leveldb_mult"]}]
+%%      ["bitcask_mult","leveldb_mult","leveldb_mult2","memory_mult"}]
 %%%%%%%%%%%%%%%%%%%%%%%%
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
@@ -213,21 +212,23 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
         orddict:new(), 
         Conf), 
     
+    %% PrefixesWithoutDefaults are all the names it found referenced in the Conf 
+    %% proplist. It may look something like this: [{"n",["ck","ak","bk"]}]
     PrefixesWithoutDefaults = orddict:fold(
         fun(KeyDef, NameList, Acc) -> 
             {Prefix, _, _} = cuttlefish_util:split_variable(KeyDef), 
-            orddict:append_list(Prefix, NameList, Acc) 
-            %%[{Prefix, NameList}|Acc]
+            orddict:append_list(Prefix, NameList, Acc)
         end, 
         orddict:new(), 
         FuzzyKeys),
 
-    %% PrefixesWithoutDefaults
-    %% [{"n",["ck","ak","bk"]}]
-    %% Go through the FuzzyKeyDefs again.
+    %% We're almost done, we need to go through the FuzzyKeyDefs again.
     %% make sure that each one starts with a Prefix. 
-    %% if not, add include_default to prefixes
+    %% if not *AND* the schema provides a 'include_default', add that
+    %% default substitution to the list of prefixes
 
+    %% For each FuzzyKeyDef, if it is not covered by a prefix in
+    %% PrefixesWithoutDefaults, add it to DefaultsNeeded.
     DefaultsNeeded = lists:filter(
         fun(FKD) -> 
             lists:all(
@@ -238,7 +239,9 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
         end, 
         FuzzyKeyDefs), 
 
-    _Prefixes = lists:foldl(
+    %% This fold is our end result.
+    %% For each DefaultNeeded, add the default if the schema has an "include_default"
+    lists:foldl(
         fun(Needed, Acc) ->
             M = find_mapping(Needed, Mappings),
             DefaultVar = cuttlefish_mapping:include_default(M),
