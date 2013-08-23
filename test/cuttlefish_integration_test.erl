@@ -102,8 +102,6 @@ multibackend_test() ->
     ?assertEqual(86400, proplists:get_value(ttl, MemProps)),
     ?assertEqual(4096, proplists:get_value(max_memory, MemProps)),
 
-    %%lager:error("MultiBackendConfig: ~p", [Multi]),
-    %%?assert(false),
     ok. 
 
 

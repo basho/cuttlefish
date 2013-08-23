@@ -122,7 +122,6 @@ set_value([HeadToken|MoreTokens], PList, NewValue) ->
 %% The complex bits are for setting defaults for named mappings
 %%
 add_defaults(Conf, Mappings) ->
-
     %%%%%%%%%%%%%%%%%%%
     %% The following section is all about the fuzzy matches
     %%%%%%%%%%%%%%%%%%%
@@ -151,9 +150,6 @@ add_defaults(Conf, Mappings) ->
         end, 
         orddict:new(), 
         Conf), 
-
-    %% Group them by Key
-    io:format("FuzzyKeys: ~p~n", [FuzzyKeys]), 
     
     PrefixesWithoutDefaults = orddict:fold(
         fun(KeyDef, NameList, Acc) -> 
@@ -236,7 +232,6 @@ add_defaults(Conf, Mappings) ->
                             case string:str(KeyDef, Prefix) =:= 1 of
                                 true ->
                                     ToAdd = [ begin
-                                        io:format("KeyDef: ~p, Key:~p~n", [KeyDef, K]),
                                         KeyToAdd = cuttlefish_util:variable_key_replace(KeyDef, K),
                                         case proplists:is_defined(KeyToAdd, Acc) of
                                             true ->
@@ -350,6 +345,7 @@ add_defaults_test() ->
     ?assertEqual("n_name_y", proplists:get_value("n.bk.y", DConf)),
     ?assertEqual("set_n_name_y3", proplists:get_value("n.ck.y", DConf)),
     ?assertEqual("o_name_z", proplists:get_value("o.blue.z", DConf)),
+    ?assert(fail),
     ok.
 
 map_test() ->
