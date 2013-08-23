@@ -13,7 +13,7 @@ generated_conf_file_test() ->
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
 generated_config_file_test() ->
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
-    Conf = conf_parse:file("../test/riak.conf"),
+    Conf = [], %% conf_parse:file("../test/riak.conf"),
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
     
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
@@ -32,6 +32,77 @@ all_the_marbles_test() ->
 
     proplist_equals(AppConfig, NewConfig),
     ok.
+
+multibackend_test() ->
+    {Translations, Schema} = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
+    Conf = [
+        {"storage_backend", "multi"},
+        {"multi_backend.bitcask_mult.storage_backend", "bitcask"},
+        {"multi_backend.bitcask_mult.bitcask.data_root", "/path/to/dat/cask"},
+
+        {"multi_backend.leveldb_mult.storage_backend", "leveldb"},
+        {"multi_backend.leveldb_mult.leveldb.data_root", "/path/to/dat/level"},
+
+        {"multi_backend.memory_mult.storage_backend", "memory"},
+        {"multi_backend.memory_mult.memory_backend.ttl", "1d"},
+
+        {"multi_backend.leveldb_mult2.storage_backend", "leveldb"},
+        {"multi_backend.leveldb_mult2.leveldb.data_root", "/path/to/dat/level2"}
+    ],
+
+    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    KV = proplists:get_value(riak_kv, NewConfig),
+    Multi = proplists:get_value(multi_backend, KV), 
+
+    {<<"bitcask_mult">>, riak_kv_bitcask_backend, BitcaskProps} = lists:keyfind(<<"bitcask_mult">>, 1, Multi),
+    
+    ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)), 
+    ?assertEqual(4,                   proplists:get_value(open_timeout, BitcaskProps)),
+    ?assertEqual(2147483648,          proplists:get_value(max_file_size, BitcaskProps)),
+    ?assertEqual(60,                  proplists:get_value(frag_merge_trigger, BitcaskProps)),
+    ?assertEqual(536870912,           proplists:get_value(dead_bytes_merge_trigger, BitcaskProps)),
+    ?assertEqual(40,                  proplists:get_value(frag_threshold, BitcaskProps)),
+    ?assertEqual(134217728,           proplists:get_value(dead_bytes_threshold, BitcaskProps)),
+    ?assertEqual(10485760,            proplists:get_value(small_file_threshold, BitcaskProps)),
+    ?assertEqual(-1,                  proplists:get_value(max_fold_age, BitcaskProps)),
+    ?assertEqual(0,                   proplists:get_value(max_fold_puts, BitcaskProps)),
+    ?assertEqual(-1,                  proplists:get_value(expiry_secs, BitcaskProps)),
+    ?assertEqual(true,                proplists:get_value(require_hint_crc, BitcaskProps)),
+    ?assertEqual(0,                   proplists:get_value(expiry_grace_time, BitcaskProps)),
+    ?assertEqual(erlang,              proplists:get_value(io_mode, BitcaskProps)),
+    ?assertEqual(none,                proplists:get_value(sync_strategy, BitcaskProps)),
+    ?assertEqual(always,              proplists:get_value(merge_window, BitcaskProps)),
+
+    {<<"leveldb_mult">>, riak_kv_eleveldb_backend, Level1Props} = lists:keyfind(<<"leveldb_mult">>, 1, Multi),
+    ?assertEqual("/path/to/dat/level", proplists:get_value(data_root, Level1Props)),
+    ?assertEqual(30, proplists:get_value(max_open_files, Level1Props)),
+    ?assertEqual(false, proplists:get_value(cache_size, Level1Props)),
+    ?assertEqual(15728640, proplists:get_value(write_buffer_size_min, Level1Props)),
+    ?assertEqual(31457280, proplists:get_value(write_buffer_size_max, Level1Props)),
+    ?assertEqual(4096, proplists:get_value(sst_block_size, Level1Props)),
+    ?assertEqual(16, proplists:get_value(block_restart_interval, Level1Props)),
+    ?assertEqual(true, proplists:get_value(verify_checksums, Level1Props)),
+    ?assertEqual(true, proplists:get_value(verify_compaction, Level1Props)),
+    ?assertEqual(true, proplists:get_value(use_bloomfilter, Level1Props)),
+
+    {<<"leveldb_mult2">>, riak_kv_eleveldb_backend, Level2Props} = lists:keyfind(<<"leveldb_mult2">>, 1, Multi),
+   
+    ?assertEqual("/path/to/dat/level2", proplists:get_value(data_root, Level2Props)),
+    ?assertEqual(30, proplists:get_value(max_open_files, Level2Props)),
+    ?assertEqual(false, proplists:get_value(cache_size, Level2Props)),
+    ?assertEqual(15728640, proplists:get_value(write_buffer_size_min, Level2Props)),
+    ?assertEqual(31457280, proplists:get_value(write_buffer_size_max, Level2Props)),
+    ?assertEqual(4096, proplists:get_value(sst_block_size, Level2Props)),
+    ?assertEqual(16, proplists:get_value(block_restart_interval, Level2Props)),
+    ?assertEqual(true, proplists:get_value(verify_checksums, Level2Props)),
+    ?assertEqual(true, proplists:get_value(verify_compaction, Level2Props)),
+    ?assertEqual(true, proplists:get_value(use_bloomfilter, Level2Props)),
+ 
+    {<<"memory_mult">>, riak_kv_memory_backend, MemProps} = lists:keyfind(<<"memory_mult">>, 1, Multi),
+    ?assertEqual(86400, proplists:get_value(ttl, MemProps)),
+    ?assertEqual(4096, proplists:get_value(max_memory, MemProps)),
+
+    ok. 
 
 
 proplist_equals(Expected, Actual) ->
