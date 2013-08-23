@@ -105,40 +105,35 @@ map(Translations, Mappings, Config) ->
 
 %% This is the last token, so things ends with replacing the proplist value.
 set_value([LastToken], Acc, NewValue) ->
-    {_Type, Token, _X} = token_type(LastToken),
-    cuttlefish_util:replace_proplist_value(Token, NewValue, Acc); 
+    cuttlefish_util:replace_proplist_value(list_to_atom(LastToken), NewValue, Acc); 
 %% This is the case of all but the last token.
 %% recurse until you hit a leaf.
 set_value([HeadToken|MoreTokens], PList, NewValue) ->
-    {_Type, Token, _X} = token_type(HeadToken),
+    Token = list_to_atom(HeadToken),
     OldValue = proplists:get_value(Token, PList, []),
     cuttlefish_util:replace_proplist_value(
         Token,
         set_value(MoreTokens, OldValue, NewValue),
         PList).
 
-%% TODO: Why is this function still here?
-%% It's an important reminder that '$name' tokens aren't what you'd call "done"
-%% They currently work as a place holder and it's up to the schema to do more 
-%% robust handling. It might be that that's enough, but until we're sure.
-%% never forget token_type/1
-token_type(Token) ->
-    case string:tokens(Token, "$") of
-        [Token] -> { normal, list_to_atom(Token), none};
-        [X] -> {named, list_to_atom(X), none}
-    end.
-
+%% @doc adds default values from the schema when something's not 
+%% defined in the Conf, to give a complete app.config
+%% 
+%% The complex bits are for setting defaults for named mappings
+%%
 add_defaults(Conf, Mappings) ->
 
+    %%%%%%%%%%%%%%%%%%%
+    %% The following section is all about the fuzzy matches
+    %%%%%%%%%%%%%%%%%%%
+    %% Get a list of all the key definitions from the schema
+    %% that involve a pattern match
     FuzzyKeyDefs = lists:filter(
         fun(Key) -> lists:member($$, Key) end, 
         [ cuttlefish_mapping:key(M) || M <- Mappings]
     ),
 
-    %% Find all fuzzy matches in Conf, 
-    %% get all their {Prefix, Var}s
-    %% for each Prefix, 
-
+    %% Now, get all the Keys athat could match them
     FuzzyKeys = lists:foldl(
         fun({Key, _}, FuzzyMatches) ->
             Fuzz = lists:filter(
@@ -148,36 +143,29 @@ add_defaults(Conf, Mappings) ->
                 FuzzyKeyDefs), 
             case length(Fuzz) of
                 0 -> FuzzyMatches;
-                _ -> [{hd(Fuzz), Key}|FuzzyMatches]
+                _ -> 
+                    KD = hd(Fuzz),
+                    ListOfVars = [ Var || {_, Var } <- cuttlefish_util:variables_for_mapping(KD, [{Key, 0}])],
+                    orddict:append_list(KD, ListOfVars, FuzzyMatches)
             end
         end, 
-        [], 
+        orddict:new(), 
         Conf), 
 
-    FuzzVal = [ {K, proplists:get_all_values(K, FuzzyKeys)} || K <- proplists:get_keys(FuzzyKeys)],
-
-    Names = [ begin 
-        C = [ {L, 0}  || L <- List ],
-        {K, cuttlefish_util:variables_for_mapping(K, C)}
-    end || {K, List} <- FuzzVal],
-
-    %% Names need organizing by prefix now
-    %% Names: [{"n.$name.x",[{"$name","ak"},{"$name","bk"}]}]
-
-    Prefixes1 = lists:foldl(
-        fun({KeyDef, NameList}, Acc) -> 
+    %% Group them by Key
+    io:format("FuzzyKeys: ~p~n", [FuzzyKeys]), 
+    
+    PrefixesWithoutDefaults = orddict:fold(
+        fun(KeyDef, NameList, Acc) -> 
             {Prefix, _, _} = cuttlefish_util:split_variable(KeyDef), 
-            [{Prefix, NameList}|Acc]
+            orddict:append_list(Prefix, NameList, Acc) 
+            %%[{Prefix, NameList}|Acc]
         end, 
-        [], 
-        Names),
-    PrefixesWithoutDefaults = [
-        {Key, [ Y || {_, Y} <- lists:flatten(proplists:get_all_values(Key, Prefixes1))]}
-    || Key <- proplists:get_keys(Prefixes1)],
+        orddict:new(), 
+        FuzzyKeys),
 
     %% PrefixesWithoutDefaults
     %% [{"n",["ck","ak","bk"]}]
-
     %% Go through the FuzzyKeyDefs again.
     %% make sure that each one starts with a Prefix. 
     %% if not, add include_default to prefixes
@@ -185,10 +173,10 @@ add_defaults(Conf, Mappings) ->
     DefaultsNeeded = lists:filter(
         fun(FKD) -> 
             lists:all(
-                fun({P, _List}) -> 
+                fun(P) -> 
                     string:str(FKD, P) =/= 1 
                 end, 
-                PrefixesWithoutDefaults) 
+                orddict:fetch_keys(PrefixesWithoutDefaults))
         end, 
         FuzzyKeyDefs), 
 
@@ -209,9 +197,19 @@ add_defaults(Conf, Mappings) ->
         end, 
         PrefixesWithoutDefaults, 
         DefaultsNeeded), 
-    io:format("PrefixesWithoutDefaults: ~p~n", [PrefixesWithoutDefaults]),
-    io:format("DefaultsNeeded: ~p~n", [DefaultsNeeded]),
-    io:format("Prefixes: ~p~n", [Prefixes]),
+
+    %%%%%%%%%%%%%%%%%%%%%%%%
+    %% Prefixes is the thing we need for defaults of named keys
+    %% it looks like this:
+    %%
+    %% Prefixes: [{"riak_control.user",["user"]},
+    %%     {"listener.https",["internal"]},
+    %%     {"listener.protobuf",["internal"]},
+    %%     {"listener.http",["internal"]},
+    %%     {"multi_backend",
+    %%      ["bitcask_mult","bitcask_mult","leveldb_mult","memory_mult",
+    %%       "leveldb_mult2","memory_mult","leveldb_mult","leveldb_mult"]}]
+    %%%%%%%%%%%%%%%%%%%%%%%%
 
     lists:foldl(
         fun(MappingRecord, Acc) ->
@@ -331,31 +329,27 @@ add_defaults_test() ->
         ]}),
         cuttlefish_mapping:parse({mapping, "n.$name.y", "some.proplist", [
             {default, "n_name_y"}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "o.$name.z", "some.proplist", [
+            {default, "o_name_z"},
+            {include_default, "blue"}
         ]})
-
-
-
     ],
 
     DConf = add_defaults(Conf, Mappings),
-
     io:format("DConf: ~p~n", [DConf]),
-
-
-    ?assertEqual(9, length(DConf)),
+    ?assertEqual(10, length(DConf)),
     ?assertEqual("q", proplists:get_value("a.b.c", DConf)),
     ?assertNotEqual("l", proplists:get_value("a.c.d", DConf)),
     ?assertEqual("override", proplists:get_value("a.c.d", DConf)),
     ?assertEqual("unchanged", proplists:get_value("no.match", DConf)),
-
     ?assertEqual("set_n_name_x", proplists:get_value("n.ak.x", DConf)),
     ?assertEqual("set_n_name_x2", proplists:get_value("n.bk.x", DConf)),
     ?assertEqual("n_name_x", proplists:get_value("n.ck.x", DConf)),
-
     ?assertEqual("n_name_y", proplists:get_value("n.ak.y", DConf)),
     ?assertEqual("n_name_y", proplists:get_value("n.bk.y", DConf)),
     ?assertEqual("set_n_name_y3", proplists:get_value("n.ck.y", DConf)),
-
+    ?assertEqual("o_name_z", proplists:get_value("o.blue.z", DConf)),
     ok.
 
 map_test() ->
@@ -363,8 +357,7 @@ map_test() ->
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     Conf = conf_parse:file("../test/riak.conf"),
     NewConfig = map(Translations, Schema, Conf),
-    io:format("~p~n", [proplists:get_value(riak_core, NewConfig)]),
-
+ 
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
 
