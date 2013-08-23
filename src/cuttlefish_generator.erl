@@ -118,13 +118,75 @@ set_value([HeadToken|MoreTokens], PList, NewValue) ->
 
 %% @doc adds default values from the schema when something's not 
 %% defined in the Conf, to give a complete app.config
-%% 
-%% The complex bits are for setting defaults for named mappings
-%%
 add_defaults(Conf, Mappings) ->
-    %%%%%%%%%%%%%%%%%%%
-    %% The following section is all about the fuzzy matches
-    %%%%%%%%%%%%%%%%%%%
+    Prefixes = get_possible_values_for_fuzzy_matches(Conf, Mappings),
+    
+    lists:foldl(
+        fun(MappingRecord, Acc) ->
+            Default = cuttlefish_mapping:default(MappingRecord),
+            KeyDef = cuttlefish_mapping:key(MappingRecord),
+
+            IsFuzzyMatch = lists:member($$, KeyDef),
+
+            IsStrictMatch = lists:any(
+                fun({K, _V}) ->
+                    K =:= KeyDef
+                end, 
+                Conf),
+
+            %% No, then plug in the default
+            case {IsStrictMatch, IsFuzzyMatch} of
+                %% Strict match means we have the setting already
+                {true, false} -> Acc;
+                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but 
+                %% it's part of a complex data structure.
+                {false, true} ->
+                    lists:foldl(
+                        fun({Prefix, List}, SubAcc) -> 
+                            case string:str(KeyDef, Prefix) =:= 1 of
+                                true ->
+                                    ToAdd = [ begin
+                                        KeyToAdd = cuttlefish_util:variable_key_replace(KeyDef, K),
+                                        case proplists:is_defined(KeyToAdd, Acc) of
+                                            true ->
+                                                no;
+                                            _ ->
+                                                {KeyToAdd, Default}
+                                        end 
+                                    end || K <- List],
+                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd), 
+                                    SubAcc ++ ToAdd2;
+                                _ -> SubAcc
+                            end
+                        end, 
+                        Acc, 
+                        Prefixes);
+                %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
+                {false, false} -> [{KeyDef, Default}|Acc];
+                %% If Match =:= true, do nothing, the value is set in the .conf file
+                _ -> 
+                    %% TODO: Handle with more style and grace
+                    lager:error("Both fuzzy and strict match! should not happen")
+            end 
+        end, 
+        Conf, 
+        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Mappings)).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+%% Prefixes is the thing we need for defaults of named keys
+%% it looks like this:
+%%
+%% Prefixes: [{"riak_control.user",["user"]},
+%%     {"listener.https",["internal"]},
+%%     {"listener.protobuf",["internal"]},
+%%     {"listener.http",["internal"]},
+%%     {"multi_backend",
+%%      ["bitcask_mult","bitcask_mult","leveldb_mult","memory_mult",
+%%       "leveldb_mult2","memory_mult","leveldb_mult","leveldb_mult"]}]
+%%%%%%%%%%%%%%%%%%%%%%%%
+get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
     %% that involve a pattern match
     FuzzyKeyDefs = lists:filter(
@@ -176,7 +238,7 @@ add_defaults(Conf, Mappings) ->
         end, 
         FuzzyKeyDefs), 
 
-    Prefixes = lists:foldl(
+    _Prefixes = lists:foldl(
         fun(Needed, Acc) ->
             M = find_mapping(Needed, Mappings),
             DefaultVar = cuttlefish_mapping:include_default(M),
@@ -187,74 +249,12 @@ add_defaults(Conf, Mappings) ->
                 _ ->
                     {Prefix, _Var, _} = cuttlefish_util:split_variable(Needed), 
                     DefaultVar = cuttlefish_mapping:include_default(M),
-                    [{Prefix, [DefaultVar]}|Acc] 
+                    orddict:append(Prefix, DefaultVar, Acc) 
             end
             
         end, 
         PrefixesWithoutDefaults, 
-        DefaultsNeeded), 
-
-    %%%%%%%%%%%%%%%%%%%%%%%%
-    %% Prefixes is the thing we need for defaults of named keys
-    %% it looks like this:
-    %%
-    %% Prefixes: [{"riak_control.user",["user"]},
-    %%     {"listener.https",["internal"]},
-    %%     {"listener.protobuf",["internal"]},
-    %%     {"listener.http",["internal"]},
-    %%     {"multi_backend",
-    %%      ["bitcask_mult","bitcask_mult","leveldb_mult","memory_mult",
-    %%       "leveldb_mult2","memory_mult","leveldb_mult","leveldb_mult"]}]
-    %%%%%%%%%%%%%%%%%%%%%%%%
-
-    lists:foldl(
-        fun(MappingRecord, Acc) ->
-            Default = cuttlefish_mapping:default(MappingRecord),
-            KeyDef = cuttlefish_mapping:key(MappingRecord),
-
-            IsFuzzyMatch = lists:member(KeyDef, FuzzyKeyDefs),
-
-            IsStrictMatch = lists:any(
-                fun({K, _V}) ->
-                    K =:= KeyDef
-                end, 
-                Conf),
-
-            %% No, then plug in the default
-            case {IsStrictMatch, IsFuzzyMatch} of
-                %% Strict match means we have the setting already
-                {true, false} -> Acc;
-                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but 
-                %% it's part of a complex data structure.
-                {false, true} ->
-                    lists:foldl(
-                        fun({Prefix, List}, SubAcc) -> 
-                            case string:str(KeyDef, Prefix) =:= 1 of
-                                true ->
-                                    ToAdd = [ begin
-                                        KeyToAdd = cuttlefish_util:variable_key_replace(KeyDef, K),
-                                        case proplists:is_defined(KeyToAdd, Acc) of
-                                            true ->
-                                                no;
-                                            _ ->
-                                                {KeyToAdd, Default}
-                                        end 
-                                    end || K <- List],
-                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd), 
-                                    SubAcc ++ ToAdd2;
-                                _ -> SubAcc
-                            end
-                        end, 
-                        Acc, 
-                        Prefixes);
-                %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
-                {false, false} -> [{KeyDef, Default}|Acc];
-                %% If Match =:= true, do nothing, the value is set in the .conf file
-                _ -> lager:error("Both fuzzy and strict match! should not happen")
-            end 
-        end, 
-        Conf, 
-        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Mappings)).
+        DefaultsNeeded).
 
 transform_datatypes(Conf, Mappings) ->
     [ begin
@@ -345,7 +345,6 @@ add_defaults_test() ->
     ?assertEqual("n_name_y", proplists:get_value("n.bk.y", DConf)),
     ?assertEqual("set_n_name_y3", proplists:get_value("n.ck.y", DConf)),
     ?assertEqual("o_name_z", proplists:get_value("o.blue.z", DConf)),
-    ?assert(fail),
     ok.
 
 map_test() ->
