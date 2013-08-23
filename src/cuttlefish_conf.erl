@@ -106,7 +106,6 @@ generate_element(basic, undefined, _Comment) -> commented;
 generate_element(_Level, _Default, _Commented) -> no.
 
 generate_comments(MappingRecord) ->
-    %%io:format("DocRec: ~p~n", [cuttlefish_mapping:key(MappingRecord)]),
     Doc = cuttlefish_mapping:doc(MappingRecord),
     [ "## " ++ D || D <- Doc].
 
