@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% riak_config: Riak configuration format and services
+%% conf_parse: for all your .conf parsing needs.
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
@@ -70,7 +70,7 @@ ws <- [ \t] `ws`;
 
 %% -------------------------------------------------------------------
 %%
-%% riak_config: Riak configuration format and services
+%% conf_parse: for all your .conf parsing needs.
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
