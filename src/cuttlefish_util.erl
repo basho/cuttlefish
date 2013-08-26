@@ -28,7 +28,6 @@
 
 -export([
     replace_proplist_value/3,
-    replace_tuple_element/3,
     key_starts_with/2,
     split_variable/1,
     variable_key_replace/2,
@@ -38,17 +37,14 @@
     numerify/1,
     ceiling/1]).
 
+%% @edoc replace the element in a proplist
+-spec replace_proplist_value(string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
 
-replace_tuple_element(Index, Value, Tuple) ->
-    list_to_tuple([
-        case N =:= Index of
-            true -> Value;
-            _ -> element(N, Tuple)
-        end
-        || N <- lists:seq(1, length(tuple_to_list(Tuple))) ]).
-
+%% @edoc For Proplist, return the subset of the proplist that starts
+%% with "Key"
+-spec key_starts_with(string(), [{string(), any()}]) -> [{string(), any()}]. 
 key_starts_with(Prefix, Proplist) ->
     lists:filter(
         fun({Key, _Value}) -> 
@@ -56,6 +52,11 @@ key_starts_with(Prefix, Proplist) ->
         end, 
         Proplist).
 
+%% @edoc split a key definition into:
+%% * Prefix: Things before the $var
+%% * Var: The $var itself
+%% * Suffix: Things after the $var
+-spec split_variable(string()) -> {string(), string(), string()}.
 split_variable(KeyDef) ->
     KeyDefTokens = tokenize_variable_key(KeyDef),
     {PrefixToks, Var, SuffixToks} = lists:foldr(
@@ -74,6 +75,8 @@ split_variable(KeyDef) ->
         string:join(SuffixToks, ".")
     }.
 
+%% @edoc replaces the $var in Key with Sub
+-spec variable_key_replace(string(), string()) -> string().
 variable_key_replace(Key, Sub) ->
     KeyTokens = string:tokens(Key, "."), 
     string:join([ begin 
@@ -83,9 +86,11 @@ variable_key_replace(Key, Sub) ->
         end
     end || Tok <- KeyTokens], "."). 
 
+%% @edoc could this fixed Key be a match for the variable key KeyDef?
+%% e.g. could a.b.$var.d =:= a.b.c.d? 
+-spec variable_key_match(string(), string()) -> boolean().
 variable_key_match(Key, KeyDef) ->
     KeyTokens = tokenize_variable_key(Key),
-
     KeyDefTokens = string:tokens(KeyDef, "."),
 
     case length(KeyTokens) =:= length(KeyDefTokens) of
@@ -99,24 +104,24 @@ variable_key_match(Key, KeyDef) ->
         _ -> false
     end.
 
+%% @edoc like string:tokens(Key, "."), but if the dot was escaped 
+%% i.e. \\., don't tokenize that
+-spec tokenize_variable_key(string()) -> [string()].
 tokenize_variable_key(Key) ->
-    KeyTokenz = string:tokens(Key, "."),
+    tokenize_variable_key(Key, "", []).
 
-    %% Oh no, what if a token was supposed to contain a "dot"?
-    %% well, then you escaped it with a \\ and we'll fix that now.
-    {[], RKeyTokens} = lists:foldl(
-        fun(X, {Incomplete, Acc}) ->
-            case lists:reverse(X) of
-                [$\\|K] ->
-                    {lists:reverse(K) ++ ".", Acc};
-                _ ->
-                    {[], [ Incomplete ++ X | Acc]}
-            end
-        end,
-        {[], []}, 
-        KeyTokenz),
-    lists:reverse(RKeyTokens).
+tokenize_variable_key([$\\, $.|Rest], Part, Acc) ->
+    tokenize_variable_key(Rest, [$.|Part], Acc);
+tokenize_variable_key([$.|Rest], Part, Acc) ->
+    tokenize_variable_key(Rest, "", [lists:reverse(Part)|Acc]);
+tokenize_variable_key([], Part, Acc) ->
+    lists:reverse([lists:reverse(Part)|Acc]);
+tokenize_variable_key([Char|Rest], Part, Acc) ->
+    tokenize_variable_key(Rest, [Char|Part], Acc).
 
+%% @edoc given a KeyDef "a.b.$c.d", what are the possible values for $c
+%% in the set of Keys in Conf = [{Key, Value}]?
+-spec variables_for_mapping(string(), [{string(), any()}]) -> [string()].
 variables_for_mapping(KeyDef, Conf) ->
     lists:foldl(
         fun({Key, _}, Acc) ->
@@ -150,7 +155,8 @@ variables_for_mapping(KeyDef, Conf) ->
         end, [], Conf). 
 
     
-
+%% @edoc turn a string into a number in a way I am happy with
+-spec numerify(string()) -> integer()|float()|{error, string()}.
 numerify([$.|_]=Num) -> numerify([$0|Num]);
 numerify(String) ->
     try list_to_float(String) of
@@ -165,6 +171,9 @@ numerify(String) ->
             end
     end.
 
+%% @edoc remember when you learned about decimal places. about a minute
+%% later, you learned about rounding up and down. This is rounding up.
+-spec ceiling(float()) -> integer().
 ceiling(X) ->
     T = erlang:trunc(X),
     case (X - T) of
@@ -174,11 +183,6 @@ ceiling(X) ->
     end.
 
 -ifdef(TEST).
-
-replace_tuple_element_test() ->
-    NewTuple = replace_tuple_element(3, "test", {1,2,3,4}),
-    ?assertEqual({1,2,"test",4}, NewTuple),
-    ok.
 
 replace_proplist_value_test() ->
     Proplist = [
