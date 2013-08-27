@@ -135,16 +135,16 @@ unescape_dots([C|Rest]) ->
 file_test() ->
     Conf = conf_parse:file("../test/riak.conf"),
     ?assertEqual(
-    	[
-            {"ring_size","32"},
-            {"anti_entropy","debug"},
-            {"log.error.file","/var/log/error.log"},
-            {"log.console.file","/var/log/console.log"},
-            {"log.syslog","on"},
-            {"listener.http.internal","127.0.0.1:8098"},
-            {"listener.http.external","10.0.0.1:80"}
-    	],
-    	Conf),
+    [
+            {["ring_size"],"32"},
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["log","syslog"],"on"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"}
+    ],
+    Conf),
     ok.
 -endif.
 %}
