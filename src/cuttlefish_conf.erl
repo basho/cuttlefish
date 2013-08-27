@@ -76,7 +76,7 @@ generate_file(Schema, Filename) ->
 
 generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
-    Key = cuttlefish_mapping:key(MappingRecord),
+    Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
@@ -87,7 +87,7 @@ generate_element(MappingRecord) ->
     %%    e.g. {include_default, "internal"}
     %%         listener.http.$name -> listener.http.internal 
 
-    Field = cuttlefish_util:variable_key_replace(Key, IncDef),
+    Field = cuttlefish_util:variable_match_replace(Key, IncDef),
 
     case generate_element(Level, Default, Commented) of
         no ->
@@ -180,22 +180,22 @@ generate_comments_test() ->
 duplicates_test() ->
     Conf = file("../test/multi1.conf"),
     ?assertEqual(2, length(Conf)),
-    ?assertEqual("3", proplists:get_value("a.b.c", Conf)),
-    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
+    ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 duplicates_multi_test() ->
     Conf = files(["../test/multi1.conf", "../test/multi2.conf"]),
     ?assertEqual(2, length(Conf)),
-    ?assertEqual("4", proplists:get_value("a.b.c", Conf)),
-    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ?assertEqual("4", proplists:get_value(["a","b","c"], Conf)),
+    ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 files_one_nonent() ->
     Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
     ?assertEqual(2, length(Conf)),
-    ?assertEqual("3", proplists:get_value("a.b.c", Conf)),
-    ?assertEqual("1", proplists:get_value("a.b.d", Conf)),
+    ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
+    ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 -endif.
