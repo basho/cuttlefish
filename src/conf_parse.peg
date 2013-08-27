@@ -42,7 +42,10 @@ setting <- ws* key ws* "=" ws* value ws* %{
 %};
 
 %% A key is a series of dot-separated identifiers.
-key <- word ("." word)* `unicode:characters_to_list(iolist_to_binary(Node))`;
+key <- head:word tail:("." word)* %{
+    [{head, H}, {tail, T}] = Node,
+    [unicode:characters_to_list(H)| [ unicode:characters_to_list(W) || [_, W] <- T]]
+%};
 
 %% A value is any character, with trailing whitespace stripped.
 value <- (!(ws* crlf) .)+ `unicode:characters_to_list(iolist_to_binary(Node))`;
