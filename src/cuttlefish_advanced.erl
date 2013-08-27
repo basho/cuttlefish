@@ -29,6 +29,8 @@
 -compile(export_all).
 -endif.
 
+%% @doc this function overlays the values in proplist 'AdvancedConfig'
+%% on top of 'GeneratedConfig'
 overlay(GeneratedConfig, AdvancedConfig) ->
     lists:foldl(
         fun({ApplicationName, ApplicationConfig}, OuterAcc) ->

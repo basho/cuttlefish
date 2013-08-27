@@ -37,12 +37,12 @@
     numerify/1,
     ceiling/1]).
 
-%% @edoc replace the element in a proplist
+%% @doc replace the element in a proplist
 -spec replace_proplist_value(string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
 
-%% @edoc For Proplist, return the subset of the proplist that starts
+%% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
 -spec key_starts_with(string(), [{string(), any()}]) -> [{string(), any()}]. 
 key_starts_with(Prefix, Proplist) ->
@@ -52,7 +52,7 @@ key_starts_with(Prefix, Proplist) ->
         end, 
         Proplist).
 
-%% @edoc split a key definition into:
+%% @doc split a key definition into:
 %% * Prefix: Things before the $var
 %% * Var: The $var itself
 %% * Suffix: Things after the $var
@@ -75,7 +75,7 @@ split_variable(KeyDef) ->
         string:join(SuffixToks, ".")
     }.
 
-%% @edoc replaces the $var in Key with Sub
+%% @doc replaces the $var in Key with Sub
 -spec variable_key_replace(string(), string()) -> string().
 variable_key_replace(Key, Sub) ->
     KeyTokens = string:tokens(Key, "."), 
@@ -86,7 +86,7 @@ variable_key_replace(Key, Sub) ->
         end
     end || Tok <- KeyTokens], "."). 
 
-%% @edoc could this fixed Key be a match for the variable key KeyDef?
+%% @doc could this fixed Key be a match for the variable key KeyDef?
 %% e.g. could a.b.$var.d =:= a.b.c.d? 
 -spec variable_key_match(string(), string()) -> boolean().
 variable_key_match(Key, KeyDef) ->
@@ -104,7 +104,7 @@ variable_key_match(Key, KeyDef) ->
         _ -> false
     end.
 
-%% @edoc like string:tokens(Key, "."), but if the dot was escaped 
+%% @doc like string:tokens(Key, "."), but if the dot was escaped 
 %% i.e. \\., don't tokenize that
 -spec tokenize_variable_key(string()) -> [string()].
 tokenize_variable_key(Key) ->
@@ -119,7 +119,7 @@ tokenize_variable_key([], Part, Acc) ->
 tokenize_variable_key([Char|Rest], Part, Acc) ->
     tokenize_variable_key(Rest, [Char|Part], Acc).
 
-%% @edoc given a KeyDef "a.b.$c.d", what are the possible values for $c
+%% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
 -spec variables_for_mapping(string(), [{string(), any()}]) -> [string()].
 variables_for_mapping(KeyDef, Conf) ->
@@ -155,7 +155,7 @@ variables_for_mapping(KeyDef, Conf) ->
         end, [], Conf). 
 
     
-%% @edoc turn a string into a number in a way I am happy with
+%% @doc turn a string into a number in a way I am happy with
 -spec numerify(string()) -> integer()|float()|{error, string()}.
 numerify([$.|_]=Num) -> numerify([$0|Num]);
 numerify(String) ->
@@ -171,7 +171,7 @@ numerify(String) ->
             end
     end.
 
-%% @edoc remember when you learned about decimal places. about a minute
+%% @doc remember when you learned about decimal places. about a minute
 %% later, you learned about rounding up and down. This is rounding up.
 -spec ceiling(float()) -> integer().
 ceiling(X) ->
