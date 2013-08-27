@@ -49,7 +49,6 @@ multibackend_test() ->
     ],
 
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
-    lager:info("NewConfig ~p", [NewConfig]),
     KV = proplists:get_value(riak_kv, NewConfig),
     Multi = proplists:get_value(multi_backend, KV), 
 

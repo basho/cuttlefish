@@ -16,36 +16,35 @@
  fun(Conf, Mappings, Translations) ->
   %% group by $name into list, also cut the "multi_backend.$name" off every key
   BackendNames = cuttlefish_util:matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf),
-  io:format("BackendNames: ~p", [BackendNames] ),
   %% for each in list, case statement on backend type
   [ begin
-    BackendConfigName = "multi_backend." ++ Name,
-    {BackendModule, BackendConfig} = case cuttlefish_util:conf_get_value(BackendConfigName ++ ".storage_backend", Conf) of
+    BackendConfigName = ["multi_backend", Name],
+    {BackendModule, BackendConfig} = case cuttlefish_util:conf_get_value(BackendConfigName ++ ["storage_backend"], Conf) of
       bitcask ->
-        BackendConfigPrefix = BackendConfigName ++ ".bitcask",
+        BackendConfigPrefix = BackendConfigName ++ ["bitcask"],
         SubConf = [ begin
-          {Key -- (BackendConfigName ++ "."), Value}
+          {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
 
         BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
 
-        {riak_kv_bitcask_backend, cuttlefish_util:conf_get_value(bitcask, BackendProplist)};
+        {riak_kv_bitcask_backend, proplists:get_value(bitcask, BackendProplist)};
       leveldb ->
-        BackendConfigPrefix = BackendConfigName ++ ".leveldb",
+        BackendConfigPrefix = BackendConfigName ++ ["leveldb"],
         SubConf = [ begin
-          {Key -- (BackendConfigName ++ "."), Value}
+          {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
 
         BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
 
-        {riak_kv_eleveldb_backend, cuttlefish_util:conf_get_value(eleveldb, BackendProplist)};
+        {riak_kv_eleveldb_backend, proplists:get_value(eleveldb, BackendProplist)};
       memory ->
-        BackendConfigPrefix = BackendConfigName ++ ".memory_backend",
+        BackendConfigPrefix = BackendConfigName ++ ["memory_backend"],
         SubConf = [ begin
-          {Key -- (BackendConfigName ++ "."), Value}
+          {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
         BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
-        {riak_kv_memory_backend, cuttlefish_util:conf_get_value(memory_backend, cuttlefish_util:conf_get_value(riak_kv, BackendProplist))};
+        {riak_kv_memory_backend, proplists:get_value(memory_backend, proplists:get_value(riak_kv, BackendProplist))};
       _ -> oops_all_berries
     end,
     {list_to_binary(Name),  BackendModule, BackendConfig}
@@ -110,7 +109,7 @@
 %% file to exceed this size threshold then that file is closed, and a new file
 %% is opened for writes.
 {mapping, "multi_backend.$name.bitcask.max_file_size", "riak_kv.multi_backend", [
-  {default, "2gb"},
+  {default, "2GB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -176,7 +175,7 @@
 {mapping, "multi_backend.$name.bitcask.dead_bytes_merge_trigger", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "512mb"}
+  {default, "512MB"}
 ]}.
 
 %% @doc `frag_threshold` setting describes what ratio of
@@ -203,7 +202,7 @@
 {mapping, "multi_backend.$name.bitcask.dead_bytes_threshold", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "128mb"}
+  {default, "128MB"}
 ]}.
 
 %% @doc `small_file_threshold` setting describes the minimum
@@ -216,7 +215,7 @@
 {mapping, "multi_backend.$name.bitcask.small_file_threshold", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "10mb"}
+  {default, "10MB"}
 ]}.
 
 %% @doc Fold keys thresholds will reuse the keydir if another fold was started less
@@ -313,7 +312,7 @@
 %% access to adjacent keys.
 {mapping, "multi_backend.$name.leveldb.cache_size", "riak_kv.multi_backend", [
   {datatype, bytesize},
-  {default, "8mb"},
+  {default, "8MB"},
   {level, advanced}
 ]}.
 
@@ -337,13 +336,13 @@
 %% write buffer for performance reasons. The random size is somewhere 
 %% between write_buffer_size_min and write_buffer_size_max.
 {mapping, "multi_backend.$name.leveldb.write_buffer_size_min", "riak_kv.multi_backend", [
-  {default, "15mb"},
+  {default, "15MB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
 
 {mapping, "multi_backend.$name.leveldb.write_buffer_size_max", "riak_kv.multi_backend", [
-  {default, "30mb"},
+  {default, "30MB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -363,7 +362,7 @@
 %% within one .sst table file. Each new block gets an index entry in the .sst
 %% table file's master index.
 {mapping, "multi_backend.$name.leveldb.block_size", "riak_kv.multi_backend", [
-  {default, "4kb"},
+  {default, "4KB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -399,7 +398,7 @@
 
 {mapping, "multi_backend.$name.memory_backend.max_memory", "riak_kv.multi_backend", [
   {datatype, bytesize},
-  {default, "4gb"},
+  {default, "4GB"},
   {level, advanced}
 ]}.
 
