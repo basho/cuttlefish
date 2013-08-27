@@ -33,6 +33,9 @@
 
 -export([parse/1, to_string/1]).
 
+%% @doc turns an integer of bytes into a string.
+%% Will use the smallest unit to not lose precision.
+%% e.g. 1024 -> 1kb, but 1025 = 1025.
 -spec to_string(integer()) -> string().
 to_string(Bytez) ->
     case { Bytez rem ?GIGABYTE, Bytez rem ?MEGABYTE, Bytez rem ?KILOBYTE} of
@@ -46,6 +49,8 @@ to_string(Bytez) ->
             integer_to_list(Bytez)
     end.
 
+%% @doc the reverse of to_string/1. turns "1kb" into 1024.
+-spec parse(string()) -> integer().
 parse(String) ->
     try
         case lists:reverse(String) of

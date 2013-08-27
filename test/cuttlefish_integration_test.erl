@@ -34,28 +34,27 @@ all_the_marbles_test() ->
     ok.
 
 multibackend_test() ->
+    lager:start(),
     {Translations, Schema} = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
     Conf = [
-        {"storage_backend", "multi"},
-        {"multi_backend.bitcask_mult.storage_backend", "bitcask"},
-        {"multi_backend.bitcask_mult.bitcask.data_root", "/path/to/dat/cask"},
-
-        {"multi_backend.leveldb_mult.storage_backend", "leveldb"},
-        {"multi_backend.leveldb_mult.leveldb.data_root", "/path/to/dat/level"},
-
-        {"multi_backend.memory_mult.storage_backend", "memory"},
-        {"multi_backend.memory_mult.memory_backend.ttl", "1d"},
-
-        {"multi_backend.leveldb_mult2.storage_backend", "leveldb"},
-        {"multi_backend.leveldb_mult2.leveldb.data_root", "/path/to/dat/level2"}
+        {["storage_backend"], "multi"},
+        {["multi_backend","bitcask_mult","storage_backend"], "bitcask"},
+        {["multi_backend","bitcask_mult","bitcask","data_root"], "/path/to/dat/cask"},
+        {["multi_backend","leveldb_mult","storage_backend"], "leveldb"},
+        {["multi_backend","leveldb_mult","leveldb","data_root"], "/path/to/dat/level"},
+        {["multi_backend","memory_mult","storage_backend"], "memory"},
+        {["multi_backend","memory_mult","memory_backend","ttl"], "1d"},
+        {["multi_backend","leveldb_mult2","storage_backend"], "leveldb"},
+        {["multi_backend","leveldb_mult2","leveldb","data_root"], "/path/to/dat/level2"}
     ],
 
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    lager:info("NewConfig ~p", [NewConfig]),
     KV = proplists:get_value(riak_kv, NewConfig),
     Multi = proplists:get_value(multi_backend, KV), 
 
     {<<"bitcask_mult">>, riak_kv_bitcask_backend, BitcaskProps} = lists:keyfind(<<"bitcask_mult">>, 1, Multi),
-    
+    io:format("BitcaskProps: ~p~n", [BitcaskProps]), 
     ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)), 
     ?assertEqual(4,                   proplists:get_value(open_timeout, BitcaskProps)),
     ?assertEqual(2147483648,          proplists:get_value(max_file_size, BitcaskProps)),

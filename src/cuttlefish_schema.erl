@@ -278,10 +278,10 @@ files_test() ->
     {Translations, Mappings} = files(["../test/multi1.schema", "../test/multi2.schema"]),
     ?assertEqual(2, length(Mappings)),
     [M1, M2] = Mappings,
-    ?assertEqual("a.b.d", cuttlefish_mapping:key(M1)),
+    ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M1)),
     ?assertEqual("what.ev1", cuttlefish_mapping:mapping(M1)),
 
-    ?assertEqual("a.b.c", cuttlefish_mapping:key(M2)),
+    ?assertEqual(["a","b","c"], cuttlefish_mapping:variable(M2)),
     ?assertEqual("what.ev4", cuttlefish_mapping:mapping(M2)),
 
     ?assertEqual(2, length(Translations)),
