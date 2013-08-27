@@ -56,7 +56,9 @@ comment <- ws* "#" (!crlf .)* `comment`;
 
 %% A word is one or more of letters, numbers and dashes or
 %% underscores.
-word <- [A-Za-z0-9_-]+ ~;
+word <- ("\\." / [A-Za-z0-9_-])+ %{
+    unescape_dots(unicode:characters_to_list(Node))
+%};
 
 %% An end-of-line is signified by a line-feed with an optional
 %% preceding carriage-return.
@@ -122,20 +124,27 @@ is_setting(ws) -> false;
 is_setting(comment) -> false;
 is_setting(_) -> true.
 
+%% @doc Removes escaped dots from keys
+unescape_dots([$\\,$.|Rest]) ->
+    [$.|unescape_dots(Rest)];
+unescape_dots([]) -> [];
+unescape_dots([C|Rest]) ->
+    [C|unescape_dots(Rest)].
+
 -ifdef(TEST).
 file_test() ->
     Conf = conf_parse:file("../test/riak.conf"),
     ?assertEqual(
-    	[
-            {"ring_size","32"},
-            {"anti_entropy","debug"},
-            {"log.error.file","/var/log/error.log"},
-            {"log.console.file","/var/log/console.log"},
-            {"log.syslog","on"},
-            {"listener.http.internal","127.0.0.1:8098"},
-            {"listener.http.external","10.0.0.1:80"}
-    	],
-    	Conf),
+    [
+            {["ring_size"],"32"},
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["log","syslog"],"on"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"}
+    ],
+    Conf),
     ok.
 -endif.
 %}
