@@ -56,7 +56,9 @@ comment <- ws* "#" (!crlf .)* `comment`;
 
 %% A word is one or more of letters, numbers and dashes or
 %% underscores.
-word <- [A-Za-z0-9_-]+ ~;
+word <- ("\\." / [A-Za-z0-9_-])+ %{
+    unescape_dots(unicode:characters_to_list(Node))
+%};
 
 %% An end-of-line is signified by a line-feed with an optional
 %% preceding carriage-return.
@@ -121,6 +123,13 @@ ws <- [ \t] `ws`;
 is_setting(ws) -> false;
 is_setting(comment) -> false;
 is_setting(_) -> true.
+
+%% @doc Removes escaped dots from keys
+unescape_dots([$\\,$.|Rest]) ->
+    [$.|unescape_dots(Rest)];
+unescape_dots([]) -> [];
+unescape_dots([C|Rest]) ->
+    [C|unescape_dots(Rest)].
 
 -ifdef(TEST).
 file_test() ->
