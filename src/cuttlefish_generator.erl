@@ -29,7 +29,6 @@
 -export([map/3, find_mapping/2]).
 
 map(Translations, Mappings, Config) ->
-
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
@@ -260,12 +259,21 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
         DefaultsNeeded).
 
 transform_datatypes(Conf, Mappings) ->
-    [ begin
-        %% Look up mapping from schema
-        MappingRecord = find_mapping(Key, Mappings),
-        DT = cuttlefish_mapping:datatype(MappingRecord),
-        {Key, cuttlefish_datatypes:from_string(Value, DT)}
-    end || {Key, Value} <- Conf].
+    lists:foldl(
+        fun({Key, Value}, Acc) ->
+            %% Look up mapping from schema
+            case find_mapping(Key, Mappings) of
+                {error, _} ->
+                    %% TODO: Revisit this log message
+                    lager:warning("No setting defined for ~s", [Key]),
+                    Acc;
+                MappingRecord ->
+                    DT = cuttlefish_mapping:datatype(MappingRecord),
+                    [{Key, cuttlefish_datatypes:from_string(Value, DT)}|Acc]
+            end
+        end, 
+        [], 
+        Conf). 
 
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:

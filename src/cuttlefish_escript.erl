@@ -83,7 +83,7 @@ main(Args) ->
             halt(0);
         _ ->
             %% Just keep going
-            lager:info("no app.config detected in ~s, activating cuttlefish", [EtcDir]),
+            lager:info("No app.config detected in ~s, activating cuttlefish", [EtcDir]),
             ok
     end, 
 
@@ -100,10 +100,10 @@ main(Args) ->
     SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles), 
     case length(SortedSchemaFiles) of
         0 ->
-            lager:info("No Schema files found in specified", []),
+            lager:debug("No Schema files found in specified", []),
             halt(1);
         _ -> 
-            lager:info("SchemaFiles: ~p", [SortedSchemaFiles])
+            lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
 
     DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
@@ -128,9 +128,9 @@ main(Args) ->
         ]),
     Destination = filename:join(DestinationPath, DestinationFilename),
 
-    lager:info("Generating config in: ~p", [Destination]),
-    lager:info("ConfFiles: ~p", [ConfFiles]),
-    lager:info("SchemaFiles: ~p", [SortedSchemaFiles]),
+    lager:debug("Generating config in: ~p", [Destination]),
+    lager:debug("ConfFiles: ~p", [ConfFiles]),
+    lager:debug("SchemaFiles: ~p", [SortedSchemaFiles]),
 
     {Translations, Schema} = cuttlefish_schema:files(SortedSchemaFiles),
     Conf = cuttlefish_conf:files(ConfFiles),  
