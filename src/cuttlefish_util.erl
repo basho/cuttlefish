@@ -27,75 +27,84 @@
 -endif.
 
 -export([
+    conf_get_value/2,
     replace_proplist_value/3,
-    key_starts_with/2,
-    split_variable/1,
-    variable_key_replace/2,
-    variable_key_match/2,
-    variables_for_mapping/2,
+    variable_starts_with/2,
+    filter_by_variable_starts_with/2,
+    split_variable_on_match/1,
+    variable_match_replace/2,
+    fuzzy_variable_match/2,
+    matches_for_variable_def/2,
     tokenize_variable_key/1,
     numerify/1,
     ceiling/1]).
+
+%% @doc it's a wrapper for proplists:get_value, a convenience function
+%% for schema writers to not have to use [] notation for varibales
+-spec conf_get_value(string()|[string()], [{[string()], any()}]) -> any().
+conf_get_value([H|_T]=Variable, ConfigProplist) when is_list(H) ->
+    proplists:get_value(Variable, ConfigProplist);
+conf_get_value(Variable, ConfigProplist) ->
+    conf_get_value(tokenize_variable_key(Variable), ConfigProplist). 
 
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
 
+variable_starts_with([HPrefix|Variable], [HPrefix|TPrefix]) ->
+    variable_starts_with(Variable, TPrefix);
+variable_starts_with(_Variable, []) ->
+    true;
+variable_starts_with(_,_) -> false.
+
 %% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
--spec key_starts_with(string(), [{string(), any()}]) -> [{string(), any()}]. 
-key_starts_with(Prefix, Proplist) ->
-    lists:filter(
-        fun({Key, _Value}) -> 
-            string:str(Key, Prefix) =:= 1
-        end, 
-        Proplist).
+-spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}]. 
+filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
+    [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
+filter_by_variable_starts_with(StringPrefix, Proplist) ->
+    filter_by_variable_starts_with(tokenize_variable_key(StringPrefix), Proplist).
 
 %% @doc split a key definition into:
 %% * Prefix: Things before the $var
 %% * Var: The $var itself
 %% * Suffix: Things after the $var
--spec split_variable(string()) -> {string(), string(), string()}.
-split_variable(KeyDef) ->
-    KeyDefTokens = tokenize_variable_key(KeyDef),
-    {PrefixToks, Var, SuffixToks} = lists:foldr(
-        fun(T, {Prefix, Var, Suffix}) ->
-            case {T, Var} of
+-spec split_variable_on_match([string()]) -> {[string()], string(), [string()]}.
+split_variable_on_match(Variable) ->
+    {PrefixToks, MatchGroup, SuffixToks} = lists:foldl(
+        fun(T, {Prefix, MatchGroup, Suffix}) ->
+            case {T, MatchGroup} of
                 {[$$|_], []} -> {Prefix, T, Suffix};
-                {_, []} -> {Prefix, Var, [T|Suffix]};
-                {_, _} -> {[T|Prefix], Var, Suffix}
+                {_, []} -> {[T|Prefix], MatchGroup, Suffix};
+                {_, _} -> {Prefix, MatchGroup, [T|Suffix]}
             end
         end, 
         {[], [], []},
-        KeyDefTokens),
+        Variable),
     {
-        string:join(PrefixToks, "."),
-        Var,    
-        string:join(SuffixToks, ".")
+        lists:reverse(PrefixToks),
+        MatchGroup,    
+        lists:reverse(SuffixToks)
     }.
 
 %% @doc replaces the $var in Key with Sub
--spec variable_key_replace(string(), string()) -> string().
-variable_key_replace(Key, Sub) ->
-    KeyTokens = string:tokens(Key, "."), 
-    string:join([ begin 
+-spec variable_match_replace([string()], string()) -> [string()].
+variable_match_replace(Variable, Sub) ->
+    [ begin 
         case hd(Tok) of
             $$ -> Sub;
             _ -> Tok
         end
-    end || Tok <- KeyTokens], "."). 
+    end || Tok <- Variable]. 
 
 %% @doc could this fixed Key be a match for the variable key KeyDef?
 %% e.g. could a.b.$var.d =:= a.b.c.d? 
--spec variable_key_match(string(), string()) -> boolean().
-variable_key_match(Key, KeyDef) ->
-    KeyTokens = tokenize_variable_key(Key),
-    KeyDefTokens = string:tokens(KeyDef, "."),
-
-    case length(KeyTokens) =:= length(KeyDefTokens) of
+-spec fuzzy_variable_match([string()], [string()]) -> boolean().
+fuzzy_variable_match(Variable, VariableDef) ->
+    case length(Variable) =:= length(VariableDef) of
         true ->
-            Zipped = lists:zip(KeyTokens, KeyDefTokens),
+            Zipped = lists:zip(Variable, VariableDef),
             lists:all(
                 fun({X,Y}) ->
                     X =:= Y orelse hd(Y) =:= $$
@@ -121,17 +130,13 @@ tokenize_variable_key([Char|Rest], Part, Acc) ->
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
--spec variables_for_mapping(string(), [{string(), any()}]) -> [string()].
-variables_for_mapping(KeyDef, Conf) ->
+-spec matches_for_variable_def([string()], [{[string()], any()}]) -> [string()].
+matches_for_variable_def(VariableDef, Conf) ->
     lists:foldl(
-        fun({Key, _}, Acc) ->
-            KeyTokens = tokenize_variable_key(Key),
-            KeyDefTokens = string:tokens(KeyDef, "."),
-
-
-            case length(KeyTokens) =:= length(KeyDefTokens) of
+        fun({Variable, _}, Acc) ->
+            case length(Variable) =:= length(VariableDef) of
                 true ->
-                    Zipped = lists:zip(KeyDefTokens, KeyTokens),
+                    Zipped = lists:zip(VariableDef, Variable),
                     Match = lists:all(
                         fun({X,Y}) ->
                             X =:= Y orelse hd(X) =:= $$
@@ -211,43 +216,71 @@ replace_proplist_value_when_undefined_test() ->
         ),
     ok.
 
-key_starts_with_test() ->
+variable_starts_with_test() ->
+    ?assert(variable_starts_with([], [])),
+    ?assert(variable_starts_with(["a","b","c"], ["a", "b"])),
+    ?assert(not(variable_starts_with(["a", "b", "c"], ["a", "q"]))),
+    ok.
+
+filter_by_variable_starts_with_test() ->
     Proplist = [
-        {"regular.key", 1},
-        {"other.normal.key", 2},
-        {"prefixed.key1", 3},
-        {"prefixed.key2", 4},
-        {"interleaved.key", 5},
-        {"prefixed.key3", 6}
+        {["regular","key"], 1},
+        {["other","normal","key"], 2},
+        {["prefixed","key1"], 3},
+        {["prefixed","key2"], 4},
+        {["interleaved","key"], 5},
+        {["prefixed","key3"], 6}
     ],
 
-    Filtered = key_starts_with("prefixed", Proplist),
+    FilteredByList = filter_by_variable_starts_with(["prefixed"], Proplist),
     ?assertEqual([
-            {"prefixed.key1", 3},
-            {"prefixed.key2", 4},
-            {"prefixed.key3", 6}
+            {["prefixed","key1"], 3},
+            {["prefixed","key2"], 4},
+            {["prefixed","key3"], 6}
         ],
-        Filtered),
+        FilteredByList),
+
+    FilteredByString = filter_by_variable_starts_with("prefixed", Proplist),
+    ?assertEqual([
+            {["prefixed","key1"], 3},
+            {["prefixed","key2"], 4},
+            {["prefixed","key3"], 6}
+        ],
+        FilteredByString),
     ok.
 
-variable_key_match_test() ->
-    ?assert(variable_key_match("alpha.bravo.charlie.delta", "alpha.bravo.charlie.delta")),
-    ?assert(variable_key_match("alpha.bravo.anything.delta", "alpha.bravo.$charlie.delta")),
-    ?assertNot(variable_key_match("alpha.bravo.anything.delta", "alpha.bravo.charlie.delta")),
-    ?assert(variable_key_match("alpha.bravo.any\\.thing.delta", "alpha.bravo.$charlie.delta")),
-    ?assert(variable_key_match("alpha.bravo.any\\.thing\\.you\\.need.delta", "alpha.bravo.$charlie.delta")),
+split_variable_on_match_test() ->
+    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, split_variable_on_match(["a", "b", "$c", "d", "e"])),
+    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, split_variable_on_match(["a", "b", "c", "d", "e"])),
+    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, split_variable_on_match(["$a", "b", "c", "d", "e"])),
     ok.
 
-variables_for_mapping_test() ->
+variable_match_replace_test() ->
+    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "d")),
+    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "e")),
+    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "f")),
+    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "g")),
+    ?assertEqual(["a", "g", "c"], variable_match_replace(["a", "$b", "c"], "g")),
+    ok.
+
+fuzzy_variable_match_test() ->
+    ?assert(fuzzy_variable_match(["alpha","bravo","charlie","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(fuzzy_variable_match(["alpha","bravo","anything","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assertNot(fuzzy_variable_match(["alpha","bravo.anything","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(fuzzy_variable_match(["alpha","bravo","any.thing","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assert(fuzzy_variable_match(["alpha","bravo","any.thing.you.need","delta"], ["alpha","bravo","$charlie","delta"])),
+    ok.
+
+matches_for_variable_def_test() ->
     Conf = [
-        {"multi_backend.backend1.storage_backend", 1},
-        {"multi_backend.backend2.storage_backend", 2},
-        {"multi_backend.backend\\.3.storage_backend", 3},
-        {"multi_backend.backend4.storage_backend", 4}
+        {["multi_backend","backend1","storage_backend"], 1},
+        {["multi_backend","backend2","storage_backend"], 2},
+        {["multi_backend","backend.3","storage_backend"], 3},
+        {["multi_backend","backend4","storage_backend"], 4}
     ],
 
     Vars = proplists:get_all_values("$name", 
-            variables_for_mapping("multi_backend.$name.storage_backend", Conf)
+            matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf)
     ),
     
     ?assertEqual(4, length(Vars)),

@@ -70,7 +70,7 @@ map(Translations, Mappings, Config) ->
     %% we write that to the `app.config` that lives in the accumutator.
     lists:foldl(
         fun(TranslationRecord, Acc) ->
-            Mapping = cuttlefish_translation:mapping(TranslationRecord), 
+            Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
@@ -123,13 +123,13 @@ add_defaults(Conf, Mappings) ->
     lists:foldl(
         fun(MappingRecord, Acc) ->
             Default = cuttlefish_mapping:default(MappingRecord),
-            KeyDef = cuttlefish_mapping:key(MappingRecord),
+            VariableDef = cuttlefish_mapping:key(MappingRecord),
 
-            IsFuzzyMatch = lists:member($$, KeyDef),
+            IsFuzzyMatch =  lists:any(fun(X) -> hd(X) =:= $$ end, VariableDef),
 
             IsStrictMatch = lists:any(
                 fun({K, _V}) ->
-                    K =:= KeyDef
+                    K =:= VariableDef
                 end, 
                 Conf),
 
@@ -142,17 +142,17 @@ add_defaults(Conf, Mappings) ->
                 {false, true} ->
                     lists:foldl(
                         fun({Prefix, List}, SubAcc) -> 
-                            case string:str(KeyDef, Prefix) =:= 1 of
+                            case cuttlefish_util:variable_starts_with(VariableDef, Prefix) of 
                                 true ->
                                     ToAdd = [ begin
-                                        KeyToAdd = cuttlefish_util:variable_key_replace(KeyDef, K),
-                                        case proplists:is_defined(KeyToAdd, Acc) of
+                                        VariableToAdd = cuttlefish_util:variable_match_replace(VariableDef, V),
+                                        case proplists:is_defined(VariableToAdd, Acc) of
                                             true ->
                                                 no;
                                             _ ->
-                                                {KeyToAdd, Default}
+                                                {VariableToAdd, Default}
                                         end 
-                                    end || K <- List],
+                                    end || V <- List],
                                     ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd), 
                                     SubAcc ++ ToAdd2;
                                 _ -> SubAcc
@@ -161,7 +161,7 @@ add_defaults(Conf, Mappings) ->
                         Acc, 
                         Prefixes);
                 %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
-                {false, false} -> [{KeyDef, Default}|Acc];
+                {false, false} -> [{VariableDef, Default}|Acc];
                 %% If Match =:= true, do nothing, the value is set in the .conf file
                 _ -> 
                     %% TODO: Handle with more style and grace
@@ -187,25 +187,23 @@ add_defaults(Conf, Mappings) ->
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
     %% that involve a pattern match
-    FuzzyKeyDefs = lists:filter(
-        fun(Key) -> lists:member($$, Key) end, 
-        [ cuttlefish_mapping:key(M) || M <- Mappings]
-    ),
+    FuzzyVariableDefs = 
+        [ cuttlefish_mapping:key(M) || M <- Mappings, lists:any(fun(X) -> hd(X) =:= $$ end, cuttlefish_mapping:key(M))],
 
     %% Now, get all the Keys athat could match them
-    FuzzyKeys = lists:foldl(
-        fun({Key, _}, FuzzyMatches) ->
+    FuzzyVariables = lists:foldl(
+        fun({Variable, _}, FuzzyMatches) ->
             Fuzz = lists:filter(
-                fun(KeyDef) -> 
-                    cuttlefish_util:variable_key_match(Key, KeyDef)
+                fun(VariableDef) -> 
+                    cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)
                 end, 
-                FuzzyKeyDefs), 
+                FuzzyVariableDefs), 
             case length(Fuzz) of
                 0 -> FuzzyMatches;
                 _ -> 
-                    KD = hd(Fuzz),
-                    ListOfVars = [ Var || {_, Var } <- cuttlefish_util:variables_for_mapping(KD, [{Key, 0}])],
-                    orddict:append_list(KD, ListOfVars, FuzzyMatches)
+                    VD = hd(Fuzz),
+                    ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, [{Variable, 0}])],
+                    orddict:append_list(VD, ListOfVars, FuzzyMatches)
             end
         end, 
         orddict:new(), 
@@ -214,12 +212,12 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% PrefixesWithoutDefaults are all the names it found referenced in the Conf 
     %% proplist. It may look something like this: [{"n",["ck","ak","bk"]}]
     PrefixesWithoutDefaults = orddict:fold(
-        fun(KeyDef, NameList, Acc) -> 
-            {Prefix, _, _} = cuttlefish_util:split_variable(KeyDef), 
+        fun(VariableDef, NameList, Acc) -> 
+            {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VariableDef), 
             orddict:append_list(Prefix, NameList, Acc)
         end, 
         orddict:new(), 
-        FuzzyKeys),
+        FuzzyVariables),
 
     %% We're almost done, we need to go through the FuzzyKeyDefs again.
     %% make sure that each one starts with a Prefix. 
@@ -229,14 +227,14 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% For each FuzzyKeyDef, if it is not covered by a prefix in
     %% PrefixesWithoutDefaults, add it to DefaultsNeeded.
     DefaultsNeeded = lists:filter(
-        fun(FKD) -> 
+        fun(FVD) -> 
             lists:all(
                 fun(P) -> 
-                    string:str(FKD, P) =/= 1 
+                    string:str(FVD, P) =/= 1 
                 end, 
                 orddict:fetch_keys(PrefixesWithoutDefaults))
         end, 
-        FuzzyKeyDefs), 
+        FuzzyVariableDefs), 
 
     %% This fold is our end result.
     %% For each DefaultNeeded, add the default if the schema has an "include_default"
@@ -249,7 +247,7 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                 undefined ->
                     Acc;
                 _ ->
-                    {Prefix, _Var, _} = cuttlefish_util:split_variable(Needed), 
+                    {Prefix, _Var, _} = cuttlefish_util:split_variable_on_match(Needed), 
                     DefaultVar = cuttlefish_mapping:include_default(M),
                     orddict:append(Prefix, DefaultVar, Acc) 
             end
@@ -265,7 +263,8 @@ transform_datatypes(Conf, Mappings) ->
             case find_mapping(Key, Mappings) of
                 {error, _} ->
                     %% TODO: Revisit this log message
-                    lager:warning("No setting defined for ~s", [Key]),
+                    %% this log message is also called recursively doh!
+                    %%lager:warning("No setting defined for ~s", [Key]),
                     Acc;
                 MappingRecord ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
@@ -281,11 +280,11 @@ transform_datatypes(Conf, Mappings) ->
 %% 2. The mapping is not there -> error
 %% 3. The mapping is there, but the key in the schema contains a $.
 %%      (fuzzy match)
-find_mapping(Key, Mappings) ->
+find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
         fun(Mapping, {HM, FM}) ->
-            K = cuttlefish_mapping:key(Mapping), 
-            case {Key =:= K, cuttlefish_util:variable_key_match(Key, K)} of
+            VariableDef = cuttlefish_mapping:key(Mapping), 
+            case {Variable =:= VariableDef, cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)} of
                 {true, _} -> {[Mapping|HM], FM};
                 {_, true} -> {HM, [Mapping|FM]};
                 _ -> {HM, FM}
@@ -297,24 +296,26 @@ find_mapping(Key, Mappings) ->
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, lists:flatten(io_lib:format("~s not_found", [Key]))};
-        {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Key])}
-    end.
+        {0, 0} -> {error, lists:flatten(io_lib:format("~s not_found", [string:join(Variable, ".")]))};
+        {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Variable])}
+    end;
+find_mapping(Variable, Mappings) ->
+    find_mapping(cuttlefish_util:tokenize_variable_key(Variable), Mappings).
 
 -ifdef(TEST).
 
 add_defaults_test() ->
     %%lager:start(),
     Conf = [
-        %%{"a.b.c", "override"}, %% Specifically left out. Uncomment line to break test,
-        {"a.c.d", "override"},
-        {"no.match", "unchanged"},
+        %%{["a","b","c"], "override"}, %% Specifically left out. Uncomment line to break test,
+        {["a","c","d"], "override"},
+        {["no","match"], "unchanged"},
         %%{"m.rk.x", "defined"}, %% since this is undefined no defaults should be created for "m",
         
         %% two matches on a name "ak" and "bk"
-        {"n.ak.x", "set_n_name_x"},
-        {"n.bk.x", "set_n_name_x2"},
-        {"n.ck.y", "set_n_name_y3"}
+        {["n","ak","x"], "set_n_name_x"},
+        {["n","bk","x"], "set_n_name_x2"},
+        {["n","ck","y"], "set_n_name_y3"}
           
     ],
 
@@ -345,25 +346,27 @@ add_defaults_test() ->
     DConf = add_defaults(Conf, Mappings),
     io:format("DConf: ~p~n", [DConf]),
     ?assertEqual(10, length(DConf)),
-    ?assertEqual("q", proplists:get_value("a.b.c", DConf)),
-    ?assertNotEqual("l", proplists:get_value("a.c.d", DConf)),
-    ?assertEqual("override", proplists:get_value("a.c.d", DConf)),
-    ?assertEqual("unchanged", proplists:get_value("no.match", DConf)),
-    ?assertEqual("set_n_name_x", proplists:get_value("n.ak.x", DConf)),
-    ?assertEqual("set_n_name_x2", proplists:get_value("n.bk.x", DConf)),
-    ?assertEqual("n_name_x", proplists:get_value("n.ck.x", DConf)),
-    ?assertEqual("n_name_y", proplists:get_value("n.ak.y", DConf)),
-    ?assertEqual("n_name_y", proplists:get_value("n.bk.y", DConf)),
-    ?assertEqual("set_n_name_y3", proplists:get_value("n.ck.y", DConf)),
-    ?assertEqual("o_name_z", proplists:get_value("o.blue.z", DConf)),
+    ?assertEqual("q",               proplists:get_value(["a","b","c"], DConf)),
+    ?assertNotEqual("l",            proplists:get_value(["a","c","d"], DConf)),
+    ?assertEqual("override",        proplists:get_value(["a","c","d"], DConf)),
+    ?assertEqual("unchanged",       proplists:get_value(["no","match"], DConf)),
+    ?assertEqual("set_n_name_x",    proplists:get_value(["n","ak","x"], DConf)),
+    ?assertEqual("set_n_name_x2",   proplists:get_value(["n","bk","x"], DConf)),
+    ?assertEqual("n_name_x",        proplists:get_value(["n","ck","x"], DConf)),
+    ?assertEqual("n_name_y",        proplists:get_value(["n","ak","y"], DConf)),
+    ?assertEqual("n_name_y",        proplists:get_value(["n","bk","y"], DConf)),
+    ?assertEqual("set_n_name_y3",   proplists:get_value(["n","ck","y"], DConf)),
+    ?assertEqual("o_name_z",        proplists:get_value(["o","blue","z"], DConf)),
     ok.
 
 map_test() ->
     lager:start(),
     {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    
     Conf = conf_parse:file("../test/riak.conf"),
+
     NewConfig = map(Translations, Schema, Conf),
- 
+    
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
 
@@ -374,7 +377,7 @@ map_test() ->
     ?assertEqual(false, NewSASL),
 
     NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)), 
-    ?assertEqual([{"127.0.0.1", 8098}, {"10.0.0.1", 80}], NewHTTP),
+    ?assertEqual([{"10.0.0.1", 80}, {"127.0.0.1", 8098}], NewHTTP),
 
     NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)), 
     ?assertEqual([{"127.0.0.1", 8087}], NewPB),
@@ -384,80 +387,82 @@ map_test() ->
     ok.
 
 find_mapping_test() ->
+    lager:start(),
     Mappings = [
-        cuttlefish_mapping:parse({mapping, "key.with.fixed.name", "", [{ default, 0}]}),
-        cuttlefish_mapping:parse({mapping, "key.with.$variable.name", "",  [{ default, 1}]})
+        cuttlefish_mapping:parse({mapping, "variable.with.fixed.name", "", [{ default, 0}]}),
+        cuttlefish_mapping:parse({mapping, "variable.with.$matched.name", "",  [{ default, 1}]})
     ],
-
+    io:format("Mappings: ~p~n", [Mappings]),
+    
     ?assertEqual(
-        "key.with.fixed.name",
-        cuttlefish_mapping:key(find_mapping("key.with.fixed.name", Mappings))
+        ["variable","with","fixed","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","fixed","name"], Mappings))
         ),
 
     ?assertEqual(
         0,
-        cuttlefish_mapping:default(find_mapping("key.with.fixed.name", Mappings))
+        cuttlefish_mapping:default(find_mapping(["variable","with","fixed","name"], Mappings))
         ),
 
     ?assertEqual(
-        "key.with.$variable.name",
-        cuttlefish_mapping:key(find_mapping("key.with.A.name", Mappings))
-        ),
-
-    ?assertEqual(
-        1,
-        cuttlefish_mapping:default(find_mapping("key.with.A.name", Mappings))
-        ),
-
-    ?assertEqual(
-        "key.with.$variable.name",
-        cuttlefish_mapping:key(find_mapping("key.with.B.name", Mappings))
+        ["variable","with","$matched","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","A","name"], Mappings))
         ),
 
     ?assertEqual(
         1,
-        cuttlefish_mapping:default(find_mapping("key.with.B.name", Mappings))
+        cuttlefish_mapping:default(find_mapping(["variable","with","A","name"], Mappings))
         ),
 
     ?assertEqual(
-        "key.with.$variable.name",
-        cuttlefish_mapping:key(find_mapping("key.with.C.name", Mappings))
-        ),
-
-    ?assertEqual(
-        1,
-        cuttlefish_mapping:default(find_mapping("key.with.C.name", Mappings))
-        ),
-
-    ?assertEqual(
-        "key.with.$variable.name",
-        cuttlefish_mapping:key(find_mapping("key.with.D.name", Mappings))
+        ["variable","with","$matched","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","B","name"], Mappings))
         ),
 
     ?assertEqual(
         1,
-        cuttlefish_mapping:default(find_mapping("key.with.D.name", Mappings))
+        cuttlefish_mapping:default(find_mapping(["variable","with","B","name"], Mappings))
         ),
 
     ?assertEqual(
-        "key.with.$variable.name",
-        cuttlefish_mapping:key(find_mapping("key.with.E.name", Mappings))
+        ["variable","with","$matched","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","C","name"], Mappings))
         ),
 
     ?assertEqual(
         1,
-        cuttlefish_mapping:default(find_mapping("key.with.E.name", Mappings))
+        cuttlefish_mapping:default(find_mapping(["variable","with","C","name"], Mappings))
+        ),
+
+    ?assertEqual(
+        ["variable","with","$matched","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","D","name"], Mappings))
+        ),
+
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping(["variable","with","D","name"], Mappings))
+        ),
+
+    ?assertEqual(
+        ["variable","with","$matched","name"],
+        cuttlefish_mapping:key(find_mapping(["variable","with","E","name"], Mappings))
+        ),
+
+    ?assertEqual(
+        1,
+        cuttlefish_mapping:default(find_mapping(["variable","with","E","name"], Mappings))
         ),
 
     %% Test variable name with dot
     ?assertEqual(
-        {error, "key.with.E.F.name not_found"},
-        find_mapping("key.with.E.F.name", Mappings)
+        {error, "variable.with.E.F.name not_found"},
+        find_mapping(["variable","with","E","F","name"], Mappings)
         ),
     %% Test variable name with escaped dot
     ?assertEqual(
         1,
-        cuttlefish_mapping:default(find_mapping("key.with.E\\.F.name", Mappings))
+        cuttlefish_mapping:default(find_mapping(["variable","with","E.F","name"], Mappings))
         ),
 
     ok.

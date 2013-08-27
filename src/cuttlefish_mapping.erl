@@ -27,7 +27,7 @@
 -endif.
 
 -record(mapping, {
-        key::string(),
+        key::[string()],
         mapping::string(),
         default::term(),
         commented::term(),
@@ -60,7 +60,7 @@
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
 parse({mapping, Key, Mapping, Proplist}) ->
     #mapping{
-        key = Key,
+        key = cuttlefish_util:tokenize_variable_key(Key),
         default = proplists:get_value(default, Proplist),
         commented = proplists:get_value(commented, Proplist),
         mapping = Mapping,
@@ -138,7 +138,7 @@ mapping_test() ->
 
     Record = parse(SampleMapping),
 
-    ?assertEqual("conf.key", Record#mapping.key),
+    ?assertEqual(["conf","key"], Record#mapping.key),
     ?assertEqual("default value", Record#mapping.default),
     ?assertEqual("erlang.key", Record#mapping.mapping),
     ?assertEqual(advanced, Record#mapping.level),
@@ -148,7 +148,7 @@ mapping_test() ->
     ?assertEqual("default_substitution", Record#mapping.include_default),
 
     %% funciton tests
-    ?assertEqual("conf.key", key(Record)),
+    ?assertEqual(["conf","key"], key(Record)),
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
     ?assertEqual(advanced, level(Record)),
