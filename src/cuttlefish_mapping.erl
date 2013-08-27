@@ -27,7 +27,7 @@
 -endif.
 
 -record(mapping, {
-        key::[string()],
+        variable::[string()],
         mapping::string(),
         default::term(),
         commented::term(),
@@ -44,7 +44,7 @@
 -export([
     parse/1,
     is_mapping/1,
-    key/1,
+    variable/1,
     mapping/1,
     default/1,
     commented/1,
@@ -58,9 +58,9 @@
     ]).
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
-parse({mapping, Key, Mapping, Proplist}) ->
+parse({mapping, Variable, Mapping, Proplist}) ->
     #mapping{
-        key = cuttlefish_util:tokenize_variable_key(Key),
+        variable = cuttlefish_util:tokenize_variable_key(Variable),
         default = proplists:get_value(default, Proplist),
         commented = proplists:get_value(commented, Proplist),
         mapping = Mapping,
@@ -76,8 +76,8 @@ parse(_) -> error.
 is_mapping(M) ->
     is_tuple(M) andalso element(1, M) =:= mapping. 
 
--spec key(mapping()) -> string().
-key(M) -> M#mapping.key.
+-spec variable(mapping()) -> string().
+variable(M) -> M#mapping.variable.
 
 -spec mapping(mapping()) -> string().
 mapping(M) -> M#mapping.mapping.
@@ -105,7 +105,7 @@ include_default(M) -> M#mapping.include_default.
 
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->
-    Removed = lists:filter(fun(M) -> key(M) =/= key(Mapping) end, ListOfMappings), 
+    Removed = lists:filter(fun(M) -> variable(M) =/= variable(Mapping) end, ListOfMappings), 
     Removed ++ [Mapping].
 
 -spec remove_duplicates([mapping()]) -> [mapping()].
@@ -138,7 +138,7 @@ mapping_test() ->
 
     Record = parse(SampleMapping),
 
-    ?assertEqual(["conf","key"], Record#mapping.key),
+    ?assertEqual(["conf","key"], Record#mapping.variable),
     ?assertEqual("default value", Record#mapping.default),
     ?assertEqual("erlang.key", Record#mapping.mapping),
     ?assertEqual(advanced, Record#mapping.level),
@@ -148,7 +148,7 @@ mapping_test() ->
     ?assertEqual("default_substitution", Record#mapping.include_default),
 
     %% funciton tests
-    ?assertEqual(["conf","key"], key(Record)),
+    ?assertEqual(["conf","key"], variable(Record)),
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
     ?assertEqual(advanced, level(Record)),

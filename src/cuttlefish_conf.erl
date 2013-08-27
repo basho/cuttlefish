@@ -76,7 +76,7 @@ generate_file(Schema, Filename) ->
 
 generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
-    Key = cuttlefish_mapping:key(MappingRecord),
+    Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),

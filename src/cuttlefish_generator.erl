@@ -49,7 +49,7 @@ map(Translations, Mappings, Config) ->
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
-            Key = cuttlefish_mapping:key(MappingRecord),
+            Key = cuttlefish_mapping:variable(MappingRecord),
             case {
                 Default =/= undefined orelse proplists:is_defined(Key, Conf), 
                 proplists:is_defined(Mapping, Translations)
@@ -123,7 +123,7 @@ add_defaults(Conf, Mappings) ->
     lists:foldl(
         fun(MappingRecord, Acc) ->
             Default = cuttlefish_mapping:default(MappingRecord),
-            VariableDef = cuttlefish_mapping:key(MappingRecord),
+            VariableDef = cuttlefish_mapping:variable(MappingRecord),
 
             IsFuzzyMatch =  lists:any(fun(X) -> hd(X) =:= $$ end, VariableDef),
 
@@ -188,7 +188,7 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
     %% that involve a pattern match
     FuzzyVariableDefs = 
-        [ cuttlefish_mapping:key(M) || M <- Mappings, lists:any(fun(X) -> hd(X) =:= $$ end, cuttlefish_mapping:key(M))],
+        [ cuttlefish_mapping:variable(M) || M <- Mappings, lists:any(fun(X) -> hd(X) =:= $$ end, cuttlefish_mapping:variable(M))],
 
     %% Now, get all the Keys athat could match them
     FuzzyVariables = lists:foldl(
@@ -283,7 +283,7 @@ transform_datatypes(Conf, Mappings) ->
 find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
         fun(Mapping, {HM, FM}) ->
-            VariableDef = cuttlefish_mapping:key(Mapping), 
+            VariableDef = cuttlefish_mapping:variable(Mapping), 
             case {Variable =:= VariableDef, cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)} of
                 {true, _} -> {[Mapping|HM], FM};
                 {_, true} -> {HM, [Mapping|FM]};
@@ -396,7 +396,7 @@ find_mapping_test() ->
     
     ?assertEqual(
         ["variable","with","fixed","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","fixed","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","fixed","name"], Mappings))
         ),
 
     ?assertEqual(
@@ -406,7 +406,7 @@ find_mapping_test() ->
 
     ?assertEqual(
         ["variable","with","$matched","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","A","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","A","name"], Mappings))
         ),
 
     ?assertEqual(
@@ -416,7 +416,7 @@ find_mapping_test() ->
 
     ?assertEqual(
         ["variable","with","$matched","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","B","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","B","name"], Mappings))
         ),
 
     ?assertEqual(
@@ -426,7 +426,7 @@ find_mapping_test() ->
 
     ?assertEqual(
         ["variable","with","$matched","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","C","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","C","name"], Mappings))
         ),
 
     ?assertEqual(
@@ -436,7 +436,7 @@ find_mapping_test() ->
 
     ?assertEqual(
         ["variable","with","$matched","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","D","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","D","name"], Mappings))
         ),
 
     ?assertEqual(
@@ -446,7 +446,7 @@ find_mapping_test() ->
 
     ?assertEqual(
         ["variable","with","$matched","name"],
-        cuttlefish_mapping:key(find_mapping(["variable","with","E","name"], Mappings))
+        cuttlefish_mapping:variable(find_mapping(["variable","with","E","name"], Mappings))
         ),
 
     ?assertEqual(
