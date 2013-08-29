@@ -22,11 +22,11 @@
 -module(cuttlefish_duration).
 
 -define(FORTNIGHT, 1209600000).
--define(WEEK,   604800000).
--define(DAY,    86400000).
--define(HOUR,   3600000).
--define(MINUTE, 60000).
--define(SECOND, 1000).
+-define(WEEK,      604800000).
+-define(DAY,       86400000).
+-define(HOUR,      3600000).
+-define(MINUTE,    60000).
+-define(SECOND,    1000).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

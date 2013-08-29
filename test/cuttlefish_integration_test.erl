@@ -100,8 +100,7 @@ multibackend_test() ->
     ?assertEqual(86400, proplists:get_value(ttl, MemProps)),
     ?assertEqual(4096, proplists:get_value(max_memory, MemProps)),
 
-    ok. 
-
+    ok.
 
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),

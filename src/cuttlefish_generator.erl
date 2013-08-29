@@ -258,9 +258,9 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
 
 transform_datatypes(Conf, Mappings) ->
     lists:foldl(
-        fun({Key, Value}, Acc) ->
+        fun({Variable, Value}, Acc) ->
             %% Look up mapping from schema
-            case find_mapping(Key, Mappings) of
+            case find_mapping(Variable, Mappings) of
                 {error, _} ->
                     %% TODO: Revisit this log message
                     %% this log message is also called recursively doh!
@@ -268,7 +268,19 @@ transform_datatypes(Conf, Mappings) ->
                     Acc;
                 MappingRecord ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
-                    [{Key, cuttlefish_datatypes:from_string(Value, DT)}|Acc]
+                    case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
+                        {_, {error, Message}} ->
+                            cuttlefish_message_handler:error("Bad datatype: ~s ~s", [Variable, Message]),
+                            Acc;
+                        {enum, NewValue} ->
+                            case lists:member(NewValue, cuttlefish_mapping:enum(MappingRecord)) of
+                                true -> [{Variable, NewValue}|Acc];
+                                false ->  
+                                    cuttlefish_message_handler:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
+                                    Acc
+                            end;
+                        {_, NewValue} -> [{Variable, NewValue}|Acc]
+                    end
             end
         end, 
         [], 
@@ -303,6 +315,36 @@ find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_util:tokenize_variable_key(Variable), Mappings).
 
 -ifdef(TEST).
+
+bad_conf_test() ->
+    Conf = [
+        {["integer_thing"], "thirty_two"},
+        {["enum_thing"], "bad_enum_value"},
+        {["ip_thing"], "not an IP address"}
+    ],
+
+    Mappings = [
+        cuttlefish_mapping:parse({mapping, "integer_thing", "to.int", [
+            {datatype, integer}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "enum_thing", "to.enum", [
+            {datatype, enum},
+            {enum, [on, off]}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "ip_thing", "to.ip", [
+            {datatype, ip}
+        ]})
+    ],
+
+    Translations = [
+        cuttlefish_translation:parse({translation, "to.enum", fun(_ConfConf) -> whatev end}) 
+    ],
+
+    NewConfig = map(Translations, Mappings, Conf),
+    io:format("NewConf: ~p~n", [NewConfig]),
+
+    ?assertEqual([], NewConfig), 
+    ok.
 
 add_defaults_test() ->
     %%lager:start(),

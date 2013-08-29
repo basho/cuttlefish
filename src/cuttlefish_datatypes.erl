@@ -73,13 +73,24 @@ from_string(Atom, enum) when is_atom(Atom) -> Atom;
 from_string(String, enum) -> list_to_atom(String);
 
 from_string(Integer, integer) when is_integer(Integer) -> Integer; 
-from_string(String, integer) when is_list(String) -> list_to_integer(String);
+from_string(String, integer) when is_list(String) ->
+    try list_to_integer(String) of
+        X -> X
+    catch
+        _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to an integer", [String]))}
+    end;
 
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port}; 
-from_string(X, ip) ->
-    Parts = string:tokens(X, ":"),
-    [Port|BackwardsIP] = lists:reverse(Parts),
-    {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
+from_string(String, ip) ->
+    try begin
+        Parts = string:tokens(String, ":"),
+        [Port|BackwardsIP] = lists:reverse(Parts),
+        {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)}
+    end of
+        X -> X
+    catch
+        _:_ -> {error, lists:flatten(io_lib:format("~p cannot be converted into an IP", [String]))}
+    end;
 
 from_string(Duration, duration) when is_integer(Duration) -> Duration;
 from_string(Duration, duration) when is_list(Duration) -> cuttlefish_duration:parse(Duration); 
@@ -116,13 +127,20 @@ to_string_string_test() ->
 
 from_string_integer_test() ->
     ?assertEqual(32, from_string(32, integer)),
-    ?assertEqual(32, from_string("32", integer)).
+    ?assertEqual(32, from_string("32", integer)),
+    ?assertEqual({error, "\"thirty_two\" can't be converted to an integer"}, from_string("thirty_two", integer)),
+    ok.
 
 from_string_ip_test() ->
     ?assertEqual({"127.0.0.1", 8098}, from_string("127.0.0.1:8098", ip)),
     ?assertEqual(
         {"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, 
         from_string("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
+
+    ?assertEqual(
+        {error, "\"This is not an IP\" cannot be converted into an IP"},
+        from_string("This is not an IP", ip)
+        ),
     ok.
 
 from_string_enum_test() ->
