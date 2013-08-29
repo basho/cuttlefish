@@ -7,6 +7,12 @@
 generated_conf_file_test() ->
     {_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
     cuttlefish_conf:generate_file(Schema, "../generated.conf"),
+
+    %% Schema generated a conf file, let's parse it!
+    Conf = cuttlefish_conf:file("../generated.conf"),
+
+    ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
+
     ok.
 
 
@@ -26,11 +32,13 @@ all_the_marbles_test() ->
     NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
     ?assert(is_proplist(NewConfig)),
 
+    NewConfigWithoutVmargs = proplists:delete(vm_args, NewConfig),
+
     {ok, [AppConfig]} = file:consult("../test/default.config"),
     
     ?assert(is_proplist(AppConfig)),
 
-    proplist_equals(AppConfig, NewConfig),
+    proplist_equals(AppConfig, NewConfigWithoutVmargs),
     ok.
 
 multibackend_test() ->

@@ -115,18 +115,13 @@ main(Args) ->
              proplists:get_value(dest_dir, ParsedArgs)
     end,
 
-    {{Y, M, D}, {HH, MM, SS}} = calendar:local_time(),
-    DestinationFilename = 
-        io_lib:format("~s.~p.~s.~s.~s.~s.~s.config", 
-            [proplists:get_value(dest_file, ParsedArgs), 
-            Y,
-            zero_pad(M), 
-            zero_pad(D),
-            zero_pad(HH), 
-            zero_pad(MM), 
-            zero_pad(SS)
-        ]),
+    Date = calendar:local_time(),
+
+    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), Date, "config"),
     Destination = filename:join(DestinationPath, DestinationFilename),
+
+    DestinationVMArgsFilename = filename_maker("vm", Date, "args"),
+    DestinationVMArgs = filename:join(DestinationPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
     lager:debug("ConfFiles: ~p", [ConfFiles]),
@@ -147,10 +142,28 @@ main(Args) ->
             NewConfig
     end, 
 
+    FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
+    FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-    file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalConfig])),
-    ?STDOUT("~s", [Destination]),
+
+    file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
+    file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
+    ?STDOUT(" -config ~s -args_file ~s ", [Destination, DestinationVMArgs]),
     ok.
+
+filename_maker(Filename, Date, Extension) ->
+    {{Y, M, D}, {HH, MM, SS}} = Date,
+    _DestinationFilename = 
+        io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s", 
+            [Filename, 
+            Y,
+            zero_pad(M), 
+            zero_pad(D),
+            zero_pad(HH), 
+            zero_pad(MM), 
+            zero_pad(SS),
+            Extension
+        ]).
 
 zero_pad(Integer) ->
     S = integer_to_list(Integer),

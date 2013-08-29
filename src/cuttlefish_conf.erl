@@ -87,7 +87,7 @@ generate_element(MappingRecord) ->
     %%    e.g. {include_default, "internal"}
     %%         listener.http.$name -> listener.http.internal 
 
-    Field = cuttlefish_util:variable_match_replace(Key, IncDef),
+    Field = string:join(cuttlefish_util:variable_match_replace(Key, IncDef), "."),
 
     case generate_element(Level, Default, Commented) of
         no ->
