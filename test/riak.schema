@@ -254,7 +254,7 @@ end}.
 %% threshold has been reached the data is transformed
 %% into a segment file which resides on disk.
 {mapping, "merge_index.buffer_rollover_size", "merge_index.buffer_rollover_size", [
-  {default, "1MB"},
+  {default, "1mb"},
   {datatype, bytesize}
 ]}.
 
@@ -279,14 +279,14 @@ end}.
 %% @datatype integer
 %% @mapping 
 {mapping, "log.crash.msg_size", "lager.crash_log_msg_size", [
-  {default, "64KB"},
+  {default, "64kb"},
   {datatype, bytesize}
 ]}.
 
 %% @doc Maximum size of the crash log in bytes, before its rotated, set
 %% to 0 to disable rotation - default is 0
 {mapping, "log.crash.size", "lager.crash_log_size", [
-  {default, "10MB"},
+  {default, "10mb"},
   {datatype, bytesize}
 ]}.
 
@@ -416,7 +416,7 @@ end}.
 %% @doc The LevelDB options used by AAE to generate the LevelDB-backed
 %% on-disk hashtrees.
 {mapping, "anti_entropy.write_buffer_size", "riak_kv.anti_entropy_leveldb_opts.write_buffer_size", [
-  {default, "4MB"},
+  {default, "4mb"},
   {datatype, bytesize}
 ]}.
 
@@ -471,14 +471,14 @@ end}.
 
 %% @doc js_max_vm_mem is the maximum amount of memory, in megabytes,
 %% allocated to the Javascript VMs. If unset, the default is
-%% 8MB.
+%% 8mb.
 {mapping, "javascript_vm.max_vm_mem", "riak_kv.js_max_vm_mem", [
   {default, 8},
   {datatype, integer}
 ]}.
 
 %% @doc js_thread_stack is the maximum amount of thread stack, in megabyes,
-%% allocate to the Javascript VMs. If unset, the default is 16MB.
+%% allocate to the Javascript VMs. If unset, the default is 16mb.
 %% NOTE: This is not the same as the C thread stack.
 {mapping, "javascript_vm.thread_stack", "riak_kv.js_thread_stack", [
   {default, 16},
@@ -754,7 +754,7 @@ end}.
 %% file to exceed this size threshold then that file is closed, and a new file
 %% is opened for writes.
 {mapping, "bitcask.max_file_size", "bitcask.max_file_size", [
-  {default, "2GB"},
+  {default, "2gb"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -832,11 +832,11 @@ end}.
 %% When either of these constraints are met by any file in the directory,
 %% Bitcask will attempt to merge files.
 %% 
-%% Default is: 512MB in bytes
+%% Default is: 512mb in bytes
 {mapping, "bitcask.dead_bytes_merge_trigger", "bitcask.dead_bytes_merge_trigger", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "512MB"}
+  {default, "512mb"}
 ]}.
 
 %% @doc `frag_threshold` setting describes what ratio of
@@ -859,11 +859,11 @@ end}.
 %% in the merge. Increasing the value will cause fewer files to be merged,
 %% decreasing the value will cause more files to be merged.
 %% 
-%% Default is: 128MB in bytes
+%% Default is: 128mb in bytes
 {mapping, "bitcask.dead_bytes_threshold", "bitcask.dead_bytes_threshold", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "128MB"}
+  {default, "128mb"}
 ]}.
 
 %% @doc `small_file_threshold` setting describes the minimum
@@ -872,11 +872,11 @@ end}.
 %% _more_ files to be merged, decreasing the value will cause _fewer_ files
 %% to be merged.
 %% 
-%% Default is: 10MB in bytes
+%% Default is: 10mb in bytes
 {mapping, "bitcask.small_file_threshold", "bitcask.small_file_threshold", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "10MB"}
+  {default, "10mb"}
 ]}.
 
 %% @doc Fold keys thresholds will reuse the keydir if another fold was started less
@@ -973,7 +973,7 @@ end}.
 %% access to adjacent keys.
 {mapping, "leveldb.cache_size", "eleveldb.cache_size", [
   {datatype, bytesize},
-  {default, "8MB"},
+  {default, "8mb"},
   {level, advanced}
 ]}.
 
@@ -997,13 +997,13 @@ end}.
 %% write buffer for performance reasons. The random size is somewhere 
 %% between write_buffer_size_min and write_buffer_size_max.
 {mapping, "leveldb.write_buffer_size_min", "eleveldb.write_buffer_size_min", [
-  {default, "30MB"},
+  {default, "30mb"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
 
 {mapping, "leveldb.write_buffer_size_max", "eleveldb.write_buffer_size_max", [
-  {default, "60MB"},
+  {default, "60mb"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -1034,7 +1034,7 @@ end}.
 %% within one .sst table file. Each new block gets an index entry in the .sst
 %% table file's master index.
 {mapping, "leveldb.block_size", "eleveldb.sst_block_size", [
-  {default, "4KB"},
+  {default, "4kb"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -1070,7 +1070,7 @@ end}.
 
 {mapping, "memory_backend.max_memory", "riak_kv.memory_backend.max_memory", [
   {datatype, bytesize},
-  {default, "4GB"},
+  {default, "4gb"},
   {level, advanced}
 ]}.
 
@@ -1157,7 +1157,7 @@ end}.
 
 %% @doc For nodes with many busy_dist_port events, Basho recommends
 %% raising the sender-side network distribution buffer size.
-%% 32MB may not be sufficient for some workloads and is a suggested
+%% 32mb may not be sufficient for some workloads and is a suggested
 %% starting point.
 %% The Erlang/OTP default is 1024 (1 megabyte).
 %% See: http://www.erlang.org/doc/man/erl.html#%2bzdbbl

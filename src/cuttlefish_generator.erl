@@ -270,7 +270,7 @@ transform_datatypes(Conf, Mappings) ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
                     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
                         {_, {error, Message}} ->
-                            cuttlefish_message_handler:error("Bad datatype: ~s ~s", [Variable, Message]),
+                            cuttlefish_message_handler:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
                             Acc;
                         {enum, NewValue} ->
                             case lists:member(NewValue, cuttlefish_mapping:enum(MappingRecord)) of
