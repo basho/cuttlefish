@@ -7,6 +7,8 @@
 -compile(export_all).
 -endif.
 
+%% @doc turns a proplist into a list of strings suitable for vm.args files
+-spec stringify([{any(), string()}]) -> [string()].
 stringify(VMArgsProplist) ->
     [ lists:flatten(io_lib:format("~s ~s", [K, V]))  || {K, V} <- VMArgsProplist ].
 
