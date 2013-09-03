@@ -31,7 +31,7 @@
 -compile([{parse_transform, lager_transform}]).
 -endif.
 
--include("deps/lager/include/lager.hrl").
+-include_lib("lager/include/lager.hrl").
 -define(TERSE_FORMAT,[time, " ", color, "[", severity,"] ", message]).
 
 %% @private
