@@ -26,9 +26,9 @@
 -compile(export_all).
 -endif.
 
--export([map/3, find_mapping/2]).
+-export([map/2, find_mapping/2]).
 
-map(Translations, Mappings, Config) ->
+map({Translations, Mappings, _Validators} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
@@ -80,10 +80,10 @@ map(Translations, Mappings, Config) ->
                     NewValue = case Arity of 
                         1 ->
                             Xlat(Conf);
-                        3 -> 
-                            Xlat(Conf, Mappings, Translations);
+                        2 -> 
+                            Xlat(Conf, Schema);
                         Other -> 
-                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 3.", [Other, Mapping]),
+                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
                     set_value(Tokens, Acc, NewValue);
@@ -340,7 +340,7 @@ bad_conf_test() ->
         cuttlefish_translation:parse({translation, "to.enum", fun(_ConfConf) -> whatev end}) 
     ],
 
-    NewConfig = map(Translations, Mappings, Conf),
+    NewConfig = map({Translations, Mappings, []}, Conf),
     io:format("NewConf: ~p~n", [NewConfig]),
 
     ?assertEqual([], NewConfig), 
@@ -403,11 +403,11 @@ add_defaults_test() ->
 
 map_test() ->
     lager:start(),
-    {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
     
     Conf = conf_parse:file("../test/riak.conf"),
 
-    NewConfig = map(Translations, Schema, Conf),
+    NewConfig = map(Schema, Conf),
     
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),

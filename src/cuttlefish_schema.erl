@@ -33,8 +33,8 @@
 
 files(ListOfSchemaFiles) ->
     lists:foldl(
-        fun(SchemaFile, {TranslationAcc, MappingAcc}) ->
-            {Translations, Mappings} = cuttlefish_schema:file(SchemaFile),
+        fun(SchemaFile, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+            {Translations, Mappings, Validators} = cuttlefish_schema:file(SchemaFile),
             
             NewMappings = lists:foldl(
                 fun(Mapping, NewMappingAcc) -> 
@@ -43,7 +43,6 @@ files(ListOfSchemaFiles) ->
                 MappingAcc, 
                 Mappings), 
 
-            %% TODO: this!
             NewTranslations = lists:foldl(
                 fun(Translation, NewTranslationAcc) -> 
                     cuttlefish_translation:replace(Translation, NewTranslationAcc)
@@ -51,14 +50,22 @@ files(ListOfSchemaFiles) ->
                 TranslationAcc, 
                 Translations), 
 
-            {NewTranslations, NewMappings} 
+            NewValidators = lists:foldl(
+                fun(Validator, NewValidatorAcc) -> 
+                    cuttlefish_validator:replace(Validator, NewValidatorAcc)
+                end, 
+                ValidatorAcc, 
+                Validators),
+
+            {NewTranslations, NewMappings, NewValidators} 
         end, 
-        {[], []}, 
+        {[], [], []}, 
         ListOfSchemaFiles).
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
-    [cuttlefish_mapping:mapping()]
+    [cuttlefish_mapping:mapping()],
+    [cuttlefish_mapping:validator()]
 } | error.
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
@@ -74,7 +81,8 @@ file(Filename) ->
 
 -spec string(string()) -> {
     [cuttlefish_translation:translation()], 
-    [cuttlefish_mapping:mapping()]
+    [cuttlefish_mapping:mapping()],
+    [cuttlefish_mapping:validator()]
 } | {error, [errorlist()]}.
 string(S) -> 
     case erl_scan:string(S) of
@@ -86,9 +94,25 @@ string(S) ->
 
             case length(Errors) of
                 0 ->
-                    {Translations, Mappings} = lists:partition(fun cuttlefish_translation:is_translation/1, Schemas),
+                    {Translations, Mappings, Validators} = 
+                        lists:foldl(
+                            fun(Item, {Ts, Ms, Vs}) -> 
+                                case element(1, Item) of
+                                    translation ->
+                                        {[Item|Ts], Ms, Vs};
+                                    mapping ->
+                                        {Ts, [Item|Ms], Vs};
+                                    validators ->
+                                        {Ts, Ms, [Item|Vs]};
+                                    _ ->
+                                        {Ts, Ms, Vs}
+                                end 
+                            end, 
+                            {[],[],[]}, 
+                            Schemas),
                     {cuttlefish_translation:remove_duplicates(Translations),
-                     cuttlefish_mapping:remove_duplicates(Mappings)};
+                     cuttlefish_mapping:remove_duplicates(Mappings),
+                     cuttlefish_validator:remove_duplicates(Validators)};
                 _ ->
                     [ [ lager:error(Str) || Str <- Strings] || {error, Strings} <- Errors],
                     {error, Errors}
@@ -275,7 +299,7 @@ parse_bad_datatype_test() ->
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
 
 files_test() ->
-    {Translations, Mappings} = files(["../test/multi1.schema", "../test/multi2.schema"]),
+    {Translations, Mappings, _Validations} = files(["../test/multi1.schema", "../test/multi2.schema"]),
     ?assertEqual(2, length(Mappings)),
     [M1, M2] = Mappings,
     ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M1)),
