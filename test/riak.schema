@@ -3,8 +3,15 @@
 %% e.g. 16, 32, 64, 128, 256, 512 etc
 {mapping, "ring_size", "riak_core.ring_creation_size", [
   {datatype, integer},
-  {commented, 64}
+  {default, 64},
+  {commented, 64},
+  {validators, ["ring_size"]}
 ]}.
+
+{validator, "ring_size", "not a power of 2 greater than 1",
+ fun(Size) -> 
+  Size > 1 andalso (Size band (Size-1) =:= 0)
+ end}.
 
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem

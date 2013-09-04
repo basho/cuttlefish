@@ -28,7 +28,7 @@
 
 -export([map/2, find_mapping/2]).
 
-map({Translations, Mappings, _Validators} = Schema, Config) ->
+map({Translations, Mappings, Validators} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
@@ -36,7 +36,29 @@ map({Translations, Mappings, _Validators} = Schema, Config) ->
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    Conf =  transform_datatypes(DConfig, Mappings),
+    Conf = transform_datatypes(DConfig, Mappings),
+            
+    %% Any more advanced validators
+    [ begin
+        Vs = cuttlefish_mapping:validators(M, Validators),
+        [ begin
+            Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
+            Validator = cuttlefish_validator:func(V),
+            case {Value, Validator(Value)} of
+                {undefined, _} -> ok;
+                {_, true} -> 
+                    true;
+                _ -> 
+                    cuttlefish_message_handler:error(
+                        "~s invalid, ~s", 
+                        [
+                            cuttlefish_mapping:variable(M), 
+                            cuttlefish_validator:description(V) 
+                        ]) 
+            end
+        end || V <- Vs]
+
+     end || M <- Mappings, cuttlefish_mapping:validators(M) =/= []],
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from

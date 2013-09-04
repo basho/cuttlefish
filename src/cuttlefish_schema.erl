@@ -102,7 +102,7 @@ string(S) ->
                                         {[Item|Ts], Ms, Vs};
                                     mapping ->
                                         {Ts, [Item|Ms], Vs};
-                                    validators ->
+                                    validator ->
                                         {Ts, Ms, [Item|Vs]};
                                     _ ->
                                         {Ts, Ms, Vs}
@@ -130,9 +130,9 @@ parse_schema(Tokens, Comments) ->
 -spec parse_schema(
     [any()],
     [any()],
-    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping()]
+    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator()]
     ) -> 
-        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping()].
+        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator()].
 parse_schema([], _LeftoverComments, Acc) ->
     lists:reverse(Acc);
 parse_schema(ScannedTokens, CommentTokens, Acc) ->
@@ -157,6 +157,8 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
             cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
         {translation, Return} ->
             cuttlefish_translation:parse(Return);
+        {validator, Return} ->
+            cuttlefish_validator:parse(Return);
         Other ->
             {error, io_lib:format("Unknown parse return: ~p", [Other])}
     end,
@@ -299,7 +301,7 @@ parse_bad_datatype_test() ->
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
 
 files_test() ->
-    {Translations, Mappings, _Validations} = files(["../test/multi1.schema", "../test/multi2.schema"]),
+    {Translations, Mappings, Validations} = files(["../test/multi1.schema", "../test/multi2.schema"]),
     ?assertEqual(2, length(Mappings)),
     [M1, M2] = Mappings,
     ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M1)),
@@ -317,6 +319,11 @@ files_test() ->
     ?assertEqual("what.ev1", cuttlefish_translation:mapping(T2)),
     F2 = cuttlefish_translation:func(T2),
     ?assertEqual(4, F2(x)),
+
+    ?assertEqual(1, length(Validations)),
+    [V1] = Validations,
+    ?assertEqual("my.little.validator", cuttlefish_validator:name(V1)),
+    
     ok.
 
 -endif.

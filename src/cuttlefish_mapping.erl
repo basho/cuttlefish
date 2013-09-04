@@ -35,7 +35,8 @@
         enum::[atom()],
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
-        include_default::string()
+        include_default::string(),
+        validators = [] :: [string()]
     }).
 
 -opaque mapping() :: #mapping{}.
@@ -54,7 +55,9 @@
     doc/1,
     include_default/1,
     replace/2,
-    remove_duplicates/1
+    remove_duplicates/1,
+    validators/1,
+    validators/2
     ]).
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
@@ -68,7 +71,8 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         datatype = proplists:get_value(datatype, Proplist, string),
         enum = proplists:get_value(enum, Proplist),
         doc = proplists:get_value(doc, Proplist, []),
-        include_default = proplists:get_value(include_default, Proplist)  
+        include_default = proplists:get_value(include_default, Proplist),
+        validators = proplists:get_value(validators, Proplist, [])
     };
 parse(_) -> error.
 
@@ -103,6 +107,13 @@ doc(M) -> M#mapping.doc.
 -spec include_default(mapping()) -> string().
 include_default(M) -> M#mapping.include_default.
 
+-spec validators(mapping()) -> [string()].
+validators(M) -> M#mapping.validators.
+
+-spec validators(mapping(), [cuttlefish_validator:validator()]) -> [cuttlefish_validator:validator()].
+validators(M, Validators) ->
+    [ lists:keyfind(VName, 2, Validators)  || VName <- M#mapping.validators].
+
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->
     Removed = lists:filter(fun(M) -> variable(M) =/= variable(Mapping) end, ListOfMappings), 
@@ -132,7 +143,8 @@ mapping_test() ->
             {enum, ["on", "off"]},
             {commented, "commented value"},
             {include_default, "default_substitution"},
-            {doc, ["documentation", "for feature"]}
+            {doc, ["documentation", "for feature"]},
+            {validators, ["valid.the.impailer"]}
         ]
     },
 
@@ -146,6 +158,7 @@ mapping_test() ->
     ?assertEqual(["on", "off"], Record#mapping.enum),
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
     ?assertEqual("default_substitution", Record#mapping.include_default),
+    ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
 
     %% funciton tests
     ?assertEqual(["conf","key"], variable(Record)),
@@ -156,6 +169,7 @@ mapping_test() ->
     ?assertEqual(["on", "off"], enum(Record)),
     ?assertEqual(["documentation", "for feature"], doc(Record)),
     ?assertEqual("default_substitution", include_default(Record)),
+    ?assertEqual(["valid.the.impailer"], validators(Record)),
 
     ok.
 
@@ -260,6 +274,34 @@ remove_duplicates_test() ->
     NewMappings = remove_duplicates(SampleMappings),
     [_|Expected] = SampleMappings,
     ?assertEqual(Expected, NewMappings),
+    ok.
+
+validators_test() ->
+    Validators = [
+    cuttlefish_validator:parse({
+        validator, "a", "a desc", fun(_X) -> true end
+        }),
+    cuttlefish_validator:parse({
+        validator, "b", "b desc", fun(_X) -> true end
+        }),
+    cuttlefish_validator:parse({
+        validator, "c", "c desc", fun(_X) -> true end
+        })
+    ],
+
+    Mapping = parse({
+        mapping,
+        "conf.key",
+        "erlang.key1",
+        [
+            {validators, ["a", "b"]}
+        ]
+    }),
+
+    [A, B, _C] = Validators,
+
+    ?assertEqual([A,B], validators(Mapping, Validators)),
+
     ok.
 
 -endif.
