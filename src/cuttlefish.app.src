@@ -7,5 +7,6 @@
                   kernel,
                   stdlib
                  ]},
+  {mod, { cuttlefish_app, []}},
   {env, []}
  ]}.

@@ -102,7 +102,7 @@ generate_element(MappingRecord) ->
 
 generate_element(_, undefined, undefined) -> no;
 generate_element(basic, _Default, undefined) -> default;
-generate_element(basic, undefined, _Comment) -> commented;
+generate_element(basic, _, _Comment) -> commented;
 generate_element(_Level, _Default, _Commented) -> no.
 
 generate_comments(MappingRecord) ->

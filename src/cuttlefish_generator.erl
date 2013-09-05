@@ -29,20 +29,23 @@
 -export([map/2, find_mapping/2]).
 
 map({Translations, Mappings, Validators} = Schema, Config) ->
+    application:start(cuttlefish), 
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
 
+    cuttlefish_message_handler:check("Adding Defaults"),
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     Conf = transform_datatypes(DConfig, Mappings),
+    cuttlefish_message_handler:check("Applying Datatypes"),
             
     %% Any more advanced validators
     [ begin
         Vs = cuttlefish_mapping:validators(M, Validators),
+        Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
         [ begin
-            Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
             Validator = cuttlefish_validator:func(V),
             case {Value, Validator(Value)} of
                 {undefined, _} -> ok;
@@ -58,7 +61,11 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
             end
         end || V <- Vs]
 
-     end || M <- Mappings, cuttlefish_mapping:validators(M) =/= []],
+     end || M <- Mappings, 
+            cuttlefish_mapping:validators(M) =/= [], 
+            cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
+            ],
+    cuttlefish_message_handler:check("Validation"),
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -86,6 +93,8 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
         end, 
         {[], {[],[]}},
         Mappings),
+    cuttlefish_message_handler:check("Applying 1:1 Mappings"),
+
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
@@ -115,7 +124,8 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
             end
         end, 
         DirectMappings, 
-        Translations). 
+        Translations),
+        cuttlefish_message_handler:check("Translations"). 
 
 %for each token, is it special?
 %
@@ -339,6 +349,7 @@ find_mapping(Variable, Mappings) ->
 -ifdef(TEST).
 
 bad_conf_test() ->
+    application:start(cuttlefish), 
     Conf = [
         {["integer_thing"], "thirty_two"},
         {["enum_thing"], "bad_enum_value"},
@@ -530,4 +541,36 @@ find_mapping_test() ->
         ),
 
     ok.
+
+validation_test() ->
+
+    Pid = self(),
+
+    Mappings = [cuttlefish_mapping:parse(
+        {mapping, "a", "b.c", [{validators, ["a"]}, {datatype, enum}, {enum, [true, false]}]}
+        )
+    ],
+
+    Validators = [cuttlefish_validator:parse(
+        {validator, "a", "error msg", fun(X) -> Pid ! X end}
+        ) 
+    ],
+
+    Conf = [
+        {["a"], true}
+    ],
+
+    AppConf = map({[], Mappings, Validators}, Conf),
+
+    receive
+        X ->
+            ?assert(X)
+    after
+        1000 ->
+            ?assert(false)
+    end,
+
+    ?assertEqual([{b, [{c, true}]}], AppConf),
+    ok.
+
 -endif.

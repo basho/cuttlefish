@@ -34,30 +34,38 @@
 files(ListOfSchemaFiles) ->
     lists:foldl(
         fun(SchemaFile, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
-            {Translations, Mappings, Validators} = cuttlefish_schema:file(SchemaFile),
-            
-            NewMappings = lists:foldl(
-                fun(Mapping, NewMappingAcc) -> 
-                    cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
-                end, 
-                MappingAcc, 
-                Mappings), 
 
-            NewTranslations = lists:foldl(
-                fun(Translation, NewTranslationAcc) -> 
-                    cuttlefish_translation:replace(Translation, NewTranslationAcc)
-                end, 
-                TranslationAcc, 
-                Translations), 
+            case cuttlefish_schema:file(SchemaFile) of
+                {error, _Errors} ->
+                    %% These have already been logged. Were' not moving forward with this
+                    erlang:halt(1); 
+                {Translations, Mappings, Validators} ->
+                    
+                    NewMappings = lists:foldl(
+                        fun(Mapping, NewMappingAcc) -> 
+                            cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
+                        end, 
+                        MappingAcc, 
+                        Mappings), 
 
-            NewValidators = lists:foldl(
-                fun(Validator, NewValidatorAcc) -> 
-                    cuttlefish_validator:replace(Validator, NewValidatorAcc)
-                end, 
-                ValidatorAcc, 
-                Validators),
+                    NewTranslations = lists:foldl(
+                        fun(Translation, NewTranslationAcc) -> 
+                            cuttlefish_translation:replace(Translation, NewTranslationAcc)
+                        end, 
+                        TranslationAcc, 
+                        Translations), 
 
-            {NewTranslations, NewMappings, NewValidators} 
+                    NewValidators = lists:foldl(
+                        fun(Validator, NewValidatorAcc) -> 
+                            cuttlefish_validator:replace(Validator, NewValidatorAcc)
+                        end, 
+                        ValidatorAcc, 
+                        Validators),
+
+                    {NewTranslations, NewMappings, NewValidators};
+                _ ->
+                    cuttlefish_message_handler:error("Unknown error parsing schema file: ~p", [SchemaFile])
+            end 
         end, 
         {[], [], []}, 
         ListOfSchemaFiles).
@@ -95,7 +103,7 @@ string(S) ->
             case length(Errors) of
                 0 ->
                     {Translations, Mappings, Validators} = 
-                        lists:foldl(
+                        lists:foldr(
                             fun(Item, {Ts, Ms, Vs}) -> 
                                 case element(1, Item) of
                                     translation ->
@@ -114,7 +122,14 @@ string(S) ->
                      cuttlefish_mapping:remove_duplicates(Mappings),
                      cuttlefish_validator:remove_duplicates(Validators)};
                 _ ->
-                    [ [ lager:error(Str) || Str <- Strings] || {error, Strings} <- Errors],
+                    [begin
+                        case Desc of
+                            [H|_] when is_list(H) ->
+                                [ lager:error(D) || D <- Desc];
+                            _ ->
+                                lager:error(lists:flatten(Desc)) 
+                        end
+                    end || {error, Desc} <- Errors],
                     {error, Errors}
             end;
         {error, {Line, erl_scan, _}, _} ->
@@ -294,6 +309,7 @@ parse_bad_datatype_test() ->
             "%% @doc some doc\n",
             "%% the doc continues!\n",
             "{mapping, \"ring_size\", \"riak_core.ring_creation_size\", [\n",
+            "  {default, \"blue\"}, ",
             "  {datatype, penguin}"
             "]}.\n"
         ]),

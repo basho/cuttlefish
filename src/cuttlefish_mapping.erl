@@ -60,7 +60,7 @@
     validators/2
     ]).
 
--spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping().
+-spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
     #mapping{
         variable = cuttlefish_util:tokenize_variable_key(Variable),
@@ -74,7 +74,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         include_default = proplists:get_value(include_default, Proplist),
         validators = proplists:get_value(validators, Proplist, [])
     };
-parse(_) -> error.
+parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:parse/1 : ~p", [X])}.
 
 -spec is_mapping(any()) -> boolean().
 is_mapping(M) ->

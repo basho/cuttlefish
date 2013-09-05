@@ -43,15 +43,15 @@
     replace/2,
     remove_duplicates/1]).
 
--spec parse({validator, string(), fun()}) -> validator() | error.
+-spec parse({validator, string(), fun()}) -> validator() | {error, list()}.
 parse({validator, Name, Description, Fun}) ->
     #validator{
         name = Name,
         description = Description,
         func = Fun
     };
-parse(_) ->
-    error.
+parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_validator:parse/1 : ~p", [X])}.
+
 
 -spec is_validator(any()) -> boolean().
 is_validator(V) -> is_tuple(V) andalso element(1, V) =:= validator.

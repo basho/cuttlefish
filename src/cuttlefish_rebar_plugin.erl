@@ -53,12 +53,12 @@ generate(Config0, ReltoolFile) ->
 
                     io:format("Schema: ~p~n", [Schemas]),
 
-                    {_, Schema} = cuttlefish_schema:files(Schemas),
+                    {_Translations, Mappings, _Validators} = cuttlefish_schema:files(Schemas),
                     
                     %% TODO: output file configurable
                     Filename = filename:join([TargetDir, "etc", "riak.conf"]),
                     
-                    cuttlefish_conf:generate_file(Schema, Filename),
+                    cuttlefish_conf:generate_file(Mappings, Filename),
                     ok;
                 false ->
                     %%io:format("No {overlay, [...]} found in reltool.config.\n", []);
