@@ -29,17 +29,16 @@
 -export([map/2, find_mapping/2]).
 
 map({Translations, Mappings, Validators} = Schema, Config) ->
-    application:start(cuttlefish), 
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
 
-    cuttlefish_message_handler:check("Adding Defaults"),
+    lager:info("Adding Defaults"),
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     Conf = transform_datatypes(DConfig, Mappings),
-    cuttlefish_message_handler:check("Applying Datatypes"),
+    lager:info("Applying Datatypes"),
             
     %% Any more advanced validators
     [ begin
@@ -52,7 +51,8 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
                 {_, true} -> 
                     true;
                 _ -> 
-                    cuttlefish_message_handler:error(
+                    lager
+                    :error(
                         "~s invalid, ~s", 
                         [
                             cuttlefish_mapping:variable(M), 
@@ -65,7 +65,7 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
             cuttlefish_mapping:validators(M) =/= [], 
             cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
             ],
-    cuttlefish_message_handler:check("Validation"),
+    lager:info("Validation"),
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -93,7 +93,7 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
         end, 
         {[], {[],[]}},
         Mappings),
-    cuttlefish_message_handler:check("Applying 1:1 Mappings"),
+    lager:info("Applying 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
@@ -124,8 +124,7 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
             end
         end, 
         DirectMappings, 
-        Translations),
-        cuttlefish_message_handler:check("Translations"). 
+        Translations). 
 
 %for each token, is it special?
 %
@@ -302,13 +301,13 @@ transform_datatypes(Conf, Mappings) ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
                     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
                         {_, {error, Message}} ->
-                            cuttlefish_message_handler:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
+                            lager:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
                             Acc;
                         {enum, NewValue} ->
                             case lists:member(NewValue, cuttlefish_mapping:enum(MappingRecord)) of
                                 true -> [{Variable, NewValue}|Acc];
                                 false ->  
-                                    cuttlefish_message_handler:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
+                                    lager:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
                                     Acc
                             end;
                         {_, NewValue} -> [{Variable, NewValue}|Acc]
@@ -349,7 +348,6 @@ find_mapping(Variable, Mappings) ->
 -ifdef(TEST).
 
 bad_conf_test() ->
-    application:start(cuttlefish), 
     Conf = [
         {["integer_thing"], "thirty_two"},
         {["enum_thing"], "bad_enum_value"},

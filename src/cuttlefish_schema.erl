@@ -64,7 +64,7 @@ files(ListOfSchemaFiles) ->
 
                     {NewTranslations, NewMappings, NewValidators};
                 _ ->
-                    cuttlefish_message_handler:error("Unknown error parsing schema file: ~p", [SchemaFile])
+                    lager:error("Unknown error parsing schema file: ~p", [SchemaFile])
             end 
         end, 
         {[], [], []}, 
