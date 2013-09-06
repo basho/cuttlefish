@@ -92,8 +92,9 @@ split_variable_on_match(Variable) ->
 -spec variable_match_replace([string()], string()) -> [string()].
 variable_match_replace(Variable, Sub) ->
     [ begin 
-        case hd(Tok) of
-            $$ -> Sub;
+        case {hd(Tok), Sub} of
+            {$$, undefined} -> Tok;
+            {$$, Sub} -> Sub;
             _ -> Tok
         end
     end || Tok <- Variable]. 
