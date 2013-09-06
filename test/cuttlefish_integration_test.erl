@@ -5,8 +5,8 @@
 
 %% This test generates a default .conf file from the riak.schema. view it at ../generated.conf
 generated_conf_file_test() ->
-    {_, Schema} = cuttlefish_schema:file("../test/riak.schema"),
-    cuttlefish_conf:generate_file(Schema, "../generated.conf"),
+    {_, Mappings, _} = cuttlefish_schema:file("../test/riak.schema"),
+    cuttlefish_conf:generate_file(Mappings, "../generated.conf"),
 
     %% Schema generated a conf file, let's parse it!
     Conf = cuttlefish_conf:file("../generated.conf"),
@@ -18,18 +18,18 @@ generated_conf_file_test() ->
 
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
 generated_config_file_test() ->
-    {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [], %% conf_parse:file("../test/riak.conf"),
-    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
     
     file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 %% Tests that the schema can generate a default app.config from nothing
 all_the_marbles_test() ->
-    {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [], %conf_parse:file("../test/riak.conf"),
-    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
     ?assert(is_proplist(NewConfig)),
 
     NewConfigWithoutVmargs = proplists:delete(vm_args, NewConfig),
@@ -43,7 +43,7 @@ all_the_marbles_test() ->
 
 multibackend_test() ->
     lager:start(),
-    {Translations, Schema} = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
+    Schema = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
     Conf = [
         {["storage_backend"], "multi"},
         {["multi_backend","bitcask_mult","storage_backend"], "bitcask"},
@@ -56,7 +56,7 @@ multibackend_test() ->
         {["multi_backend","leveldb_mult2","leveldb","data_root"], "/path/to/dat/level2"}
     ],
 
-    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
     KV = proplists:get_value(riak_kv, NewConfig),
     Multi = proplists:get_value(multi_backend, KV), 
 
@@ -82,7 +82,8 @@ multibackend_test() ->
     {<<"leveldb_mult">>, riak_kv_eleveldb_backend, Level1Props} = lists:keyfind(<<"leveldb_mult">>, 1, Multi),
     ?assertEqual("/path/to/dat/level", proplists:get_value(data_root, Level1Props)),
     ?assertEqual(30, proplists:get_value(max_open_files, Level1Props)),
-    ?assertEqual(false, proplists:get_value(cache_size, Level1Props)),
+    ?assertEqual(8388608, proplists:get_value(cache_size, Level1Props)),
+    ?assertEqual(false, proplists:get_value(sync, Level1Props)),
     ?assertEqual(15728640, proplists:get_value(write_buffer_size_min, Level1Props)),
     ?assertEqual(31457280, proplists:get_value(write_buffer_size_max, Level1Props)),
     ?assertEqual(4096, proplists:get_value(sst_block_size, Level1Props)),
@@ -95,7 +96,8 @@ multibackend_test() ->
    
     ?assertEqual("/path/to/dat/level2", proplists:get_value(data_root, Level2Props)),
     ?assertEqual(30, proplists:get_value(max_open_files, Level2Props)),
-    ?assertEqual(false, proplists:get_value(cache_size, Level2Props)),
+    ?assertEqual(8388608, proplists:get_value(cache_size, Level2Props)),
+    ?assertEqual(false, proplists:get_value(sync, Level2Props)),
     ?assertEqual(15728640, proplists:get_value(write_buffer_size_min, Level2Props)),
     ?assertEqual(31457280, proplists:get_value(write_buffer_size_max, Level2Props)),
     ?assertEqual(4096, proplists:get_value(sst_block_size, Level2Props)),
@@ -121,7 +123,7 @@ proplist_equals(Expected, Actual) ->
             {true, true} ->
                 proplist_equals(ExpectedValue, ActualValue);
             {false, false} ->
-                ?assertEqual(ExpectedValue, ActualValue);
+                ?assertEqual({EKey, ExpectedValue}, {EKey, ActualValue});
             _ ->
                 ?assert(false)
         end
