@@ -13,7 +13,7 @@
 
 {translation,
  "riak_kv.multi_backend",
- fun(Conf, Mappings, Translations) ->
+ fun(Conf, Schema) ->
   %% group by $name into list, also cut the "multi_backend.$name" off every key
   BackendNames = cuttlefish_util:matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf),
   %% for each in list, case statement on backend type
@@ -26,7 +26,7 @@
           {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
 
-        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Schema, SubConf),
 
         {riak_kv_bitcask_backend, proplists:get_value(bitcask, BackendProplist)};
       leveldb ->
@@ -35,7 +35,7 @@
           {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
 
-        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Schema, SubConf),
 
         {riak_kv_eleveldb_backend, proplists:get_value(eleveldb, BackendProplist)};
       memory ->
@@ -43,7 +43,7 @@
         SubConf = [ begin
           {Key -- BackendConfigName, Value}
         end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
-        BackendProplist = cuttlefish_generator:map(Translations, Mappings, SubConf),
+        BackendProplist = cuttlefish_generator:map(Schema, SubConf),
         {riak_kv_memory_backend, proplists:get_value(memory_backend, proplists:get_value(riak_kv, BackendProplist))};
       _ -> oops_all_berries
     end,
@@ -323,7 +323,7 @@
 %% before leveldb responded with “write good”. The reality in modern servers 
 %% is that many layers of data caching exist between the database program and 
 %% the physical disks. This flag influences only one of the layers.
-{mapping, "multi_backend.$name.leveldb.cache_size", "riak_kv.multi_backend", [
+{mapping, "multi_backend.$name.leveldb.sync", "riak_kv.multi_backend", [
   {default, false},
   {datatype, enum},
   {enum, [true, false]},

@@ -8,3 +8,4 @@
 {translation, "what.ev2", fun(X) -> 1 end}.
 {translation, "what.ev1", fun(X) -> 3 end}.
 
+{validator, "my.little.validator", "has the sweetest... smile", fun(_AlwaysTrue) -> true end}.

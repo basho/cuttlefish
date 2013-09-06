@@ -127,9 +127,9 @@ main(Args) ->
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     lager:debug("SchemaFiles: ~p", [SortedSchemaFiles]),
 
-    {Translations, Schema} = cuttlefish_schema:files(SortedSchemaFiles),
+    Schema = cuttlefish_schema:files(SortedSchemaFiles),
     Conf = cuttlefish_conf:files(ConfFiles),  
-    NewConfig = cuttlefish_generator:map(Translations, Schema, Conf),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of

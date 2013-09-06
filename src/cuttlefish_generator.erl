@@ -26,17 +26,46 @@
 -compile(export_all).
 -endif.
 
--export([map/3, find_mapping/2]).
+-export([map/2, find_mapping/2]).
 
-map(Translations, Mappings, Config) ->
+map({Translations, Mappings, Validators} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     DConfig = add_defaults(Config, Mappings),
 
+    lager:info("Adding Defaults"),
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    Conf =  transform_datatypes(DConfig, Mappings),
+    Conf = transform_datatypes(DConfig, Mappings),
+    lager:info("Applying Datatypes"),
+            
+    %% Any more advanced validators
+    [ begin
+        Vs = cuttlefish_mapping:validators(M, Validators),
+        Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
+        [ begin
+            Validator = cuttlefish_validator:func(V),
+            case {Value, Validator(Value)} of
+                {undefined, _} -> ok;
+                {_, true} -> 
+                    true;
+                _ -> 
+                    lager
+                    :error(
+                        "~s invalid, ~s", 
+                        [
+                            cuttlefish_mapping:variable(M), 
+                            cuttlefish_validator:description(V) 
+                        ]) 
+            end
+        end || V <- Vs]
+
+     end || M <- Mappings, 
+            cuttlefish_mapping:validators(M) =/= [], 
+            cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
+            ],
+    lager:info("Validation"),
 
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -64,6 +93,8 @@ map(Translations, Mappings, Config) ->
         end, 
         {[], {[],[]}},
         Mappings),
+    lager:info("Applying 1:1 Mappings"),
+
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
@@ -80,10 +111,10 @@ map(Translations, Mappings, Config) ->
                     NewValue = case Arity of 
                         1 ->
                             Xlat(Conf);
-                        3 -> 
-                            Xlat(Conf, Mappings, Translations);
+                        2 -> 
+                            Xlat(Conf, Schema);
                         Other -> 
-                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 3.", [Other, Mapping]),
+                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
                     set_value(Tokens, Acc, NewValue);
@@ -270,13 +301,13 @@ transform_datatypes(Conf, Mappings) ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
                     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
                         {_, {error, Message}} ->
-                            cuttlefish_message_handler:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
+                            lager:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
                             Acc;
                         {enum, NewValue} ->
                             case lists:member(NewValue, cuttlefish_mapping:enum(MappingRecord)) of
                                 true -> [{Variable, NewValue}|Acc];
                                 false ->  
-                                    cuttlefish_message_handler:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
+                                    lager:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
                                     Acc
                             end;
                         {_, NewValue} -> [{Variable, NewValue}|Acc]
@@ -340,7 +371,7 @@ bad_conf_test() ->
         cuttlefish_translation:parse({translation, "to.enum", fun(_ConfConf) -> whatev end}) 
     ],
 
-    NewConfig = map(Translations, Mappings, Conf),
+    NewConfig = map({Translations, Mappings, []}, Conf),
     io:format("NewConf: ~p~n", [NewConfig]),
 
     ?assertEqual([], NewConfig), 
@@ -403,11 +434,11 @@ add_defaults_test() ->
 
 map_test() ->
     lager:start(),
-    {Translations, Schema} = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
     
     Conf = conf_parse:file("../test/riak.conf"),
 
-    NewConfig = map(Translations, Schema, Conf),
+    NewConfig = map(Schema, Conf),
     
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
@@ -508,4 +539,36 @@ find_mapping_test() ->
         ),
 
     ok.
+
+validation_test() ->
+
+    Pid = self(),
+
+    Mappings = [cuttlefish_mapping:parse(
+        {mapping, "a", "b.c", [{validators, ["a"]}, {datatype, enum}, {enum, [true, false]}]}
+        )
+    ],
+
+    Validators = [cuttlefish_validator:parse(
+        {validator, "a", "error msg", fun(X) -> Pid ! X end}
+        ) 
+    ],
+
+    Conf = [
+        {["a"], true}
+    ],
+
+    AppConf = map({[], Mappings, Validators}, Conf),
+
+    receive
+        X ->
+            ?assert(X)
+    after
+        1000 ->
+            ?assert(false)
+    end,
+
+    ?assertEqual([{b, [{c, true}]}], AppConf),
+    ok.
+
 -endif.
