@@ -78,14 +78,14 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
-            Key = cuttlefish_mapping:variable(MappingRecord),
+            Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
-                Default =/= undefined orelse proplists:is_defined(Key, Conf), 
+                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
                 proplists:is_defined(Mapping, Translations)
                 } of
                 {true, false} -> 
                     Tokens = string:tokens(Mapping, "."),
-                    NewValue = proplists:get_value(Key, Conf),
+                    NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
                 {true, true} -> {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
                 _ -> {ConfAcc, {[Mapping|MaybeDrop], Keep}}
