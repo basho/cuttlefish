@@ -107,7 +107,7 @@
 %% file to exceed this size threshold then that file is closed, and a new file
 %% is opened for writes.
 {mapping, "multi_backend.$name.bitcask.max_file_size", "riak_kv.multi_backend", [
-  {default, "2gb"},
+  {default, "2GB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -172,7 +172,7 @@
 {mapping, "multi_backend.$name.bitcask.dead_bytes_merge_trigger", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "512mb"}
+  {default, "512MB"}
 ]}.
 
 %% @doc `frag_threshold` setting describes what ratio of
@@ -199,7 +199,7 @@
 {mapping, "multi_backend.$name.bitcask.dead_bytes_threshold", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "128mb"}
+  {default, "128MB"}
 ]}.
 
 %% @doc `small_file_threshold` setting describes the minimum
@@ -212,7 +212,7 @@
 {mapping, "multi_backend.$name.bitcask.small_file_threshold", "riak_kv.multi_backend", [
   {datatype, bytesize},
   {level, advanced},
-  {default, "10mb"}
+  {default, "10MB"}
 ]}.
 
 %% @doc Fold keys thresholds will reuse the keydir if another fold was started less
@@ -307,7 +307,7 @@
 %% access to adjacent keys.
 {mapping, "multi_backend.$name.leveldb.cache_size", "riak_kv.multi_backend", [
   {datatype, bytesize},
-  {default, "8mb"},
+  {default, "8MB"},
   {level, advanced}
 ]}.
 
@@ -330,13 +330,13 @@
 %% write buffer for performance reasons. The random size is somewhere 
 %% between write_buffer_size_min and write_buffer_size_max.
 {mapping, "multi_backend.$name.leveldb.write_buffer_size_min", "riak_kv.multi_backend", [
-  {default, "15mb"},
+  {default, "15MB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
 
 {mapping, "multi_backend.$name.leveldb.write_buffer_size_max", "riak_kv.multi_backend", [
-  {default, "30mb"},
+  {default, "30MB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -355,7 +355,7 @@
 %% within one .sst table file. Each new block gets an index entry in the .sst
 %% table file's master index.
 {mapping, "multi_backend.$name.leveldb.block_size", "riak_kv.multi_backend", [
-  {default, "4kb"},
+  {default, "4KB"},
   {datatype, bytesize},
   {level, advanced}
 ]}.
@@ -389,7 +389,7 @@
 
 {mapping, "multi_backend.$name.memory_backend.max_memory", "riak_kv.multi_backend", [
   {datatype, bytesize},
-  {default, "4gb"},
+  {default, "4GB"},
   {level, advanced}
 ]}.
 
