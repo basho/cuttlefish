@@ -303,8 +303,8 @@ transform_datatypes(Conf, Mappings) ->
                         {_, {error, Message}} ->
                             lager:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
                             Acc;
-                        {enum, NewValue} ->
-                            case lists:member(NewValue, cuttlefish_mapping:enum(MappingRecord)) of
+                        {{enum, PossibleValues}, NewValue} ->
+                            case lists:member(NewValue, PossibleValues) of
                                 true -> [{Variable, NewValue}|Acc];
                                 false ->  
                                     lager:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
