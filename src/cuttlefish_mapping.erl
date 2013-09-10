@@ -32,7 +32,7 @@
         default::term(),
         commented::term(),
         datatype = string :: cuttlefish_datatypes:datatype(),
-        enum::[atom()],
+        datatype_options :: any(),
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default::string(),
@@ -50,7 +50,6 @@
     default/1,
     commented/1,
     datatype/1,
-    enum/1,
     level/1,
     doc/1,
     include_default/1,
@@ -62,14 +61,26 @@
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
+
+    Datatype = case proplists:get_value(datatype, Proplist, string) of
+        {enum, Enums} ->
+            AtomEnums = [ begin
+                case is_list(E) of
+                    true -> list_to_atom(E);
+                    _ -> E 
+                end
+            end || E <- Enums ],
+            {enum, AtomEnums};
+        D -> D
+    end,
+    
     #mapping{
         variable = cuttlefish_util:tokenize_variable_key(Variable),
         default = proplists:get_value(default, Proplist),
         commented = proplists:get_value(commented, Proplist),
         mapping = Mapping,
         level = proplists:get_value(level, Proplist, basic),
-        datatype = proplists:get_value(datatype, Proplist, string),
-        enum = proplists:get_value(enum, Proplist),
+        datatype = Datatype,
         doc = proplists:get_value(doc, Proplist, []),
         include_default = proplists:get_value(include_default, Proplist),
         validators = proplists:get_value(validators, Proplist, [])
@@ -94,9 +105,6 @@ commented(M)        -> M#mapping.commented.
 
 -spec datatype(mapping()) -> cuttlefish_datatypes:datatype().
 datatype(M) -> M#mapping.datatype.
-
--spec enum(mapping()) -> [atom()].
-enum(M) -> M#mapping.enum.
 
 -spec level(mapping()) -> basic | intermediate | advanced.
 level(M) -> M#mapping.level.
@@ -139,8 +147,7 @@ mapping_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]},
@@ -154,8 +161,7 @@ mapping_test() ->
     ?assertEqual("default value", Record#mapping.default),
     ?assertEqual("erlang.key", Record#mapping.mapping),
     ?assertEqual(advanced, Record#mapping.level),
-    ?assertEqual(enum, Record#mapping.datatype),
-    ?assertEqual(["on", "off"], Record#mapping.enum),
+    ?assertEqual({enum, [on, off]}, Record#mapping.datatype),
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
     ?assertEqual("default_substitution", Record#mapping.include_default),
     ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
@@ -165,8 +171,7 @@ mapping_test() ->
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
     ?assertEqual(advanced, level(Record)),
-    ?assertEqual(enum, datatype(Record)),
-    ?assertEqual(["on", "off"], enum(Record)),
+    ?assertEqual({enum, [on, off]}, datatype(Record)),
     ?assertEqual(["documentation", "for feature"], doc(Record)),
     ?assertEqual("default_substitution", include_default(Record)),
     ?assertEqual(["valid.the.impailer"], validators(Record)),
@@ -181,8 +186,7 @@ replace_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}
@@ -197,8 +201,7 @@ replace_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}
@@ -211,8 +214,7 @@ replace_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}
@@ -227,8 +229,7 @@ replace_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}
@@ -248,8 +249,7 @@ remove_duplicates_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}
@@ -262,8 +262,7 @@ remove_duplicates_test() ->
         [
             {level, advanced},
             {default, "default value"},
-            {datatype, enum}, 
-            {enum, ["on", "off"]},
+            {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]}

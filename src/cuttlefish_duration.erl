@@ -21,6 +21,9 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_duration).
 
+-opaque time_unit() :: f | w | d | h | m | s | ms.
+-export_type([time_unit/0]).
+
 -define(FORTNIGHT, 1209600000).
 -define(WEEK,      604800000).
 -define(DAY,       86400000).
@@ -33,7 +36,16 @@
 -compile(export_all).
 -endif.
 
--export([parse/1, milliseconds/1, seconds/1]).
+-export([parse/1, parse/2, to_string/2]).
+
+-spec to_string(integer(), time_unit()) -> string().
+to_string(Fortnights, f) -> milliseconds(Fortnights * ?FORTNIGHT);
+to_string(Weeks, w)      -> milliseconds(Weeks * ?WEEK);
+to_string(Days, d)       -> milliseconds(Days * ?DAY);
+to_string(Hours, h)      -> milliseconds(Hours * ?HOUR);
+to_string(Minutes, m)    -> milliseconds(Minutes * ?MINUTE);
+to_string(Seconds, s)    -> milliseconds(Seconds * ?SECOND);
+to_string(Millis, ms)    -> milliseconds(Millis).
 
 milliseconds(Millis) ->
     Units = lists:filter(fun({N, _Unit}) -> N =/= 0 end, [
@@ -48,9 +60,16 @@ milliseconds(Millis) ->
         integer_to_list(N) ++ Unit 
     || {N, Unit} <- Units]).
 
-seconds(Seconds) ->
-    milliseconds(Seconds * 1000).
+-spec parse(string(), time_unit()) -> integer().
+parse(DurationString, f) -> cuttlefish_util:ceiling(parse(DurationString) / ?FORTNIGHT); 
+parse(DurationString, w) -> cuttlefish_util:ceiling(parse(DurationString) / ?WEEK); 
+parse(DurationString, d) -> cuttlefish_util:ceiling(parse(DurationString) / ?DAY); 
+parse(DurationString, h) -> cuttlefish_util:ceiling(parse(DurationString) / ?HOUR); 
+parse(DurationString, m) -> cuttlefish_util:ceiling(parse(DurationString) / ?MINUTE); 
+parse(DurationString, s) -> cuttlefish_util:ceiling(parse(DurationString) / ?SECOND); 
+parse(DurationString, ms) -> parse(DurationString).
 
+-spec parse(string()) -> integer().
 parse(InputDurationString) ->
     DurationString = string:to_lower(InputDurationString),
     DurationTokens = tokens(DurationString),
@@ -122,10 +141,10 @@ milliseconds_test() ->
     ok.
 
 seconds_test() ->
-    ?assertEqual("50s", seconds(50)),
-    ?assertEqual("1m1s", seconds(61)),
-    ?assertEqual("30m", seconds(1800)),
-    ?assertEqual("1w1d1h1m1s", seconds(694861)),
+    ?assertEqual("50s", to_string(50, s)),
+    ?assertEqual("1m1s", to_string(61, s)),
+    ?assertEqual("30m", to_string(1800, s)),
+    ?assertEqual("1w1d1h1m1s", to_string(694861, s)),
     ok.
 
 
@@ -174,5 +193,15 @@ parse_test() ->
 
 test_parse(ExpectedMillis, StringToParse) ->
     ?assertEqual(ExpectedMillis, parse(StringToParse)).
+
+parse_2_test() ->
+    ?assertEqual(1, parse("1ms", ms)),
+    ?assertEqual(1, parse("1ms", s)),
+    ?assertEqual(1, parse("1ms", m)),
+    ?assertEqual(1, parse("1ms", h)),
+    ?assertEqual(1, parse("1ms", d)),
+    ?assertEqual(1, parse("1ms", w)),
+    ?assertEqual(1, parse("1ms", f)),
+    ok.
 
 -endif.
