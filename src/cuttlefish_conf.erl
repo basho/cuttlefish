@@ -25,7 +25,11 @@
     generate/1,
     generate_file/2,
     file/1,
-    files/1]).
+    files/1,
+    is_variable_defined/2]).
+
+is_variable_defined(VariableDef, Conf) ->
+    lists:any(fun({X, _}) -> cuttlefish_util:fuzzy_variable_match(X, VariableDef) end, Conf). 
 
 files(ListOfConfFiles) ->
     lists:foldl(
