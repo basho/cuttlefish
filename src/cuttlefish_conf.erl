@@ -53,15 +53,6 @@ file(Filename) ->
             remove_duplicates(Conf)
     end.
 
-%%validate(Schema, Config) ->
-%%    %% For each config item, find the mapping and try converting that datertype
-%%    [ begin
-%%        Mapping = cuttlefish_generator:find_mapping(Key, Schema),
-%%        cuttlefish_mapping:datatype(Mapping),
-%%        ok 
-%%    end || {Key, _Value} <- Config],
-%%    ok.
-
 generate(Schema) ->
     lists:foldl(
         fun(SchemaElement, ConfFile) ->

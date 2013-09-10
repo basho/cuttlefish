@@ -16,8 +16,7 @@
 %% Slightly more complex mapping with translation layer
 %% @doc enable active anti-entropy subsystem
 {mapping, "anti_entropy", "riak_kv.anti_entropy", [
-  {datatype, enum},
-  {enum, [on, off, debug]},
+  {datatype, {enum, [on, off, debug]}},
   {default, on}
 ]}.
 
@@ -50,8 +49,7 @@
 %% @doc turn on syslog
 {mapping, "log.syslog", "lager.handlers", [
   {default, off},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -77,8 +75,7 @@
 %% We should never care about this
 {mapping, "sasl", "sasl.sasl_error_logger", [
   {default, off},
-  {datatype, enum},
-  {enum, [on, off]},
+  {datatype, {enum, [on, off]}},
   {level, advanced}
 ]}.
 
@@ -195,8 +192,7 @@
 %% source repository & branch.
 {mapping, "dtrace", "riak_core.dtrace_support", [
   {default, off},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 %% consistent on/off (in lieu of enabled/disabled, true/false)
@@ -237,8 +233,7 @@
 %% @datatype enum on, off
 {mapping, "search", "riak_search.enabled", [
   {default, off},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -314,8 +309,7 @@ end}.
 %% @doc Whether to redirect error_logger messages into lager - defaults to true
 {mapping, "log.error.redirect", "lager.error_logger_redirect", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -340,8 +334,7 @@ end}.
 %% mechanism that will be used on this node.
 {mapping, "storage_backend", "riak_kv.storage_backend", [
   {default, bitcask},
-  {datatype, enum},
-  {enum, [bitcask, leveldb, memory, multi]}
+  {datatype, {enum, [bitcask, leveldb, memory, multi]}}
 ]}.
 
 { translation,
@@ -377,7 +370,7 @@ end}.
 
 {mapping, "anti_entropy.build_limit.per_timespan", "riak_kv.anti_entropy_build_limit", [
   {default, "1h"},
-  {datatype, duration}
+  {datatype, {duration, ms}}
 ]}.
 
 {translation,
@@ -396,7 +389,7 @@ end}.
 %% milliseconds. The default is 1 week.
 {mapping, "anti_entropy.expire", "riak_kv.anti_entropy_expire", [
   {default, "1w"},
-  {datatype, duration}
+  {datatype, {duration, ms}}
 ]}.
 
 %% @doc Limit how many AAE exchanges/builds can happen concurrently.
@@ -412,7 +405,7 @@ end}.
 %% Increasing the value is not recommended.
 {mapping, "anti_entropy.tick", "riak_kv.anti_entropy_tick", [
   {default, "15s"},
-  {datatype, duration}
+  {datatype, {duration, ms}}
 ]}.
 
 %% @doc The directory where AAE hash trees are stored.
@@ -444,8 +437,7 @@ end}.
 %% undefined during a rolling upgrade from 1.0.
 {mapping, "mapred_2i_pipe", "riak_kv.mapred_2i_pipe", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -507,8 +499,7 @@ end}.
 %% mode will be removed in a future release.
 {mapping, "http_url_encoding", "riak_kv.http_url_encoding", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 %% @doc Switch to vnode-based vclocks rather than client ids.  This
@@ -516,8 +507,7 @@ end}.
 %% Only set on if *all* nodes in the cluster are upgraded to 1.0
 {mapping, "vnode_vclocks", "riak_kv.vnode_vclocks", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}  
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -538,8 +528,7 @@ end}.
 %% operations
 {mapping, "listkeys_backpressure", "riak_kv.listkeys_backpressure", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]} 
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -570,8 +559,7 @@ end}.
 %% v1: New format for more compact storage of small values.
 {mapping, "object_format", "riak_kv.object_format", [
   {default, v1},
-  {datatype, enum},
-  {enum, [v0, v1]}
+  {datatype, {enum, [v0, v1]}}
 ]}.
 
 %% riak_sysmon config
@@ -608,14 +596,12 @@ end}.
 %% of that event type.
 {mapping, "riak_sysmon.busy_port", "riak_sysmon.busy_port", [
   {default, true},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 {mapping, "riak_sysmon.busy_dist_port", "riak_sysmon.busy_dist_port", [
   {default, true},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 
@@ -623,9 +609,9 @@ end}.
 %% @doc Set to false to disable the admin panel.
 {mapping, "riak_control", "riak_control.enabled", [
   {default, off},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
+
 {translation,
  "riak_control.enabled",
  fun(Conf) ->
@@ -641,8 +627,7 @@ end}.
 %% panel. Valid styles are 'userlist' <TODO>.
 {mapping, "riak_control.auth", "riak_control.auth", [
   {default, userlist},
-  {datatype, enum},
-  {enum, [userlist]}
+  {datatype, {enum, [userlist]}}
 ]}.
 
 %% @doc If auth is set to 'userlist' then this is the
@@ -673,8 +658,7 @@ end}.
 %% by one of these settings.
 {mapping, "riak_control.admin", "riak_control.admin", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 {translation,
@@ -732,13 +716,12 @@ end}.
 %%  * `interval` - Riak will force Bitcask to sync every `bitcask.sync_interval` seconds.
 {mapping, "bitcask.sync_strategy", "bitcask.sync_strategy", [
   {default, none},
-  {datatype, enum},
-  {enum, [none, o_sync, interval]},
+  {datatype, {enum, [none, o_sync, interval]}},
   {level, advanced}
 ]}.
 
 {mapping, "bitcask.sync_interval", "bitcask.sync_strategy", [
-  {datatype, duration_secs},
+  {datatype, {duration, s}},
   {level, advanced}
 ]}.
 
@@ -781,8 +764,7 @@ end}.
 %% want to change this setting from the default.
 {mapping, "bitcask.merge_window", "bitcask.merge_window", [
   {default, always},
-  {datatype, enum},
-  {enum, [always, never, window]},
+  {datatype, {enum, [always, never, window]}},
   {level, advanced}
 ]}.
 
@@ -910,7 +892,7 @@ end}.
 %% 
 %% Default is: `-1` which disables automatic expiration
 {mapping, "bitcask.expiry", "bitcask.expiry_secs", [
-  {datatype, duration_secs},
+  {datatype, {duration, s}},
   {level, advanced},
   {default, -1}
 ]}.
@@ -923,8 +905,7 @@ end}.
 %% become the default setting in a future release.
 {mapping, "bitcask.require_hint_crc", "bitcask.require_hint_crc", [
   {default, true},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 
@@ -937,7 +918,7 @@ end}.
 %%
 %% Default is: `0`
 {mapping, "bitcask.expiry_grace_time", "bitcask.expiry_grace_time", [
-  {datatype, duration_secs},
+  {datatype, {duration, s}},
   {level, advanced},
   {default, 0}
 ]}.
@@ -952,8 +933,7 @@ end}.
 %% and possible throughput collapse.
 {mapping, "bitcask.io_mode", "bitcask.io_mode", [
   {default, erlang},
-  {datatype, enum},
-  {enum, [erlang, nif]}
+  {datatype, {enum, [erlang, nif]}}
 ]}.
 
 %%%% This is the leveldb section
@@ -993,8 +973,7 @@ end}.
 %% the physical disks. This flag influences only one of the layers.
 {mapping, "leveldb.sync", "eleveldb.sync", [
   {default, false},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 
@@ -1022,8 +1001,7 @@ end}.
 %% in the riak.conf to take effect.
 {mapping, "leveldb.bloomfilter", "eleveldb.use_bloomfilter", [
   {default, on},
-  {datatype, enum},
-  {enum, [on, off]}
+  {datatype, {enum, [on, off]}}
 ]}.
 
 { translation,
@@ -1059,8 +1037,7 @@ end}.
 %% requests data from the leveldb database on behalf of the user.
 {mapping, "leveldb.verify_checksums", "eleveldb.verify_checksums", [
   {default, true},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 
@@ -1068,8 +1045,7 @@ end}.
 %% leveldb reads data as part of its background compaction operations.
 {mapping, "leveldb.verify_compaction", "eleveldb.verify_compaction", [
   {default, true},
-  {datatype, enum},
-  {enum, [true, false]},
+  {datatype, {enum, [true, false]}},
   {level, advanced}
 ]}.
 
@@ -1090,7 +1066,7 @@ end}.
 }.
 
 {mapping, "memory_backend.ttl", "riak_kv.memory_backend.ttl", [
-  {datatype, duration_secs},
+  {datatype, {duration, s}},
   {commented, "1d"}, %% no default, it's undefined.
   {level, advanced}
 ]}.

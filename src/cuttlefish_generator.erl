@@ -350,7 +350,7 @@ find_mapping(Variable, Mappings) ->
 bad_conf_test() ->
     Conf = [
         {["integer_thing"], "thirty_two"},
-        {["enum_thing"], "bad_enum_value"},
+        {["enum_thing"], bad_enum_value},
         {["ip_thing"], "not an IP address"}
     ],
 
@@ -359,8 +359,7 @@ bad_conf_test() ->
             {datatype, integer}
         ]}),
         cuttlefish_mapping:parse({mapping, "enum_thing", "to.enum", [
-            {datatype, enum},
-            {enum, [on, off]}
+            {datatype, {enum, [on, off]}}
         ]}),
         cuttlefish_mapping:parse({mapping, "ip_thing", "to.ip", [
             {datatype, ip}
@@ -545,7 +544,7 @@ validation_test() ->
     Pid = self(),
 
     Mappings = [cuttlefish_mapping:parse(
-        {mapping, "a", "b.c", [{validators, ["a"]}, {datatype, enum}, {enum, [true, false]}]}
+        {mapping, "a", "b.c", [{validators, ["a"]}, {datatype, {enum, [true, false]}}]}
         )
     ],
 
