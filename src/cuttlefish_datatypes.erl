@@ -26,21 +26,27 @@
 -compile(export_all).
 -endif.
 
--opaque datatype() :: integer | string | enum | ip | duration | duration_secs | bytesize.
+-opaque datatype() :: integer | string | {enum, [atom()]} | ip | {duration, cuttlefish_duration:time_unit() } | bytesize.
 -export_type([datatype/0]).
 
--export([supported/0, from_string/2, to_string/2]).
+-export([is_supported/1, from_string/2, to_string/2]).
 
-supported() ->
-    [
-        integer,
-        string,
-        enum,
-        ip,
-        duration,
-        duration_secs,
-        bytesize
-    ].
+
+-spec is_supported(any()) -> boolean().
+is_supported(integer) -> true;
+is_supported(string) -> true;
+is_supported({enum, E}) when is_list(E) -> true;
+is_supported(ip) -> true;
+is_supported({duration, f}) -> true;
+is_supported({duration, w}) -> true;
+is_supported({duration, d}) -> true;
+is_supported({duration, h}) -> true;
+is_supported({duration, m}) -> true;
+is_supported({duration, s}) -> true;
+is_supported({duration, ms}) -> true;
+is_supported(bytesize) -> true;
+is_supported(_) -> false.
+
 
 -spec to_string(term(), datatype()) -> string().
 to_string(Integer, integer) when is_integer(Integer) -> integer_to_list(Integer);
@@ -49,14 +55,11 @@ to_string(Integer, integer) when is_list(Integer) -> Integer;
 to_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> IP ++ ":" ++ integer_to_list(Port);
 to_string(IPString, ip) when is_list(IPString) -> IPString;
 
-to_string(Enum, enum) when is_list(Enum) -> Enum; 
-to_string(Enum, enum) when is_atom(Enum) -> atom_to_list(Enum);
+to_string(Enum, {enum, _}) when is_list(Enum) -> Enum; 
+to_string(Enum, {enum, _}) when is_atom(Enum) -> atom_to_list(Enum);
 
-to_string(Duration, duration) when is_list(Duration) -> Duration;
-to_string(Duration, duration) when is_integer(Duration) -> cuttlefish_duration:milliseconds(Duration);
-
-to_string(Duration, duration_secs) when is_list(Duration) -> Duration;
-to_string(Duration, duration_secs) when is_integer(Duration) -> cuttlefish_duration:seconds(Duration);
+to_string(Duration, {duration, _}) when is_list(Duration) -> Duration;
+to_string(Duration, {duration, Unit}) when is_integer(Duration) -> cuttlefish_duration:to_string(Duration, Unit);
 
 to_string(Bytesize, bytesize) when is_list(Bytesize) -> Bytesize;
 to_string(Bytesize, bytesize) when is_integer(Bytesize) -> cuttlefish_bytesize:to_string(Bytesize);
@@ -69,8 +72,12 @@ to_string(X, InvalidDatatype) ->
     error. 
 
 -spec from_string(term(), datatype()) -> term().
-from_string(Atom, enum) when is_atom(Atom) -> Atom;
-from_string(String, enum) -> list_to_atom(String);
+from_string(Atom, {enum, Enum}) when is_atom(Atom) -> 
+    case lists:member(Atom, Enum) of
+        true -> Atom;
+        _ -> {error, lists:flatten(io_lib:format("~p is not a valid enum value, acceptable values are ~p.", [Atom, Enum]))}
+    end;
+from_string(String, {enum, Enum}) -> from_string(list_to_atom(String), {enum, Enum});
 
 from_string(Integer, integer) when is_integer(Integer) -> Integer; 
 from_string(String, integer) when is_list(String) ->
@@ -92,11 +99,8 @@ from_string(String, ip) ->
         _:_ -> {error, lists:flatten(io_lib:format("~p cannot be converted into an IP", [String]))}
     end;
 
-from_string(Duration, duration) when is_integer(Duration) -> Duration;
-from_string(Duration, duration) when is_list(Duration) -> cuttlefish_duration:parse(Duration); 
-
-from_string(Duration, duration_secs) when is_integer(Duration) -> Duration;
-from_string(Duration, duration_secs) when is_list(Duration) -> cuttlefish_util:ceiling(cuttlefish_duration:parse(Duration) / 1000); 
+from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
+from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit); 
 
 from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
 from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize); 
@@ -105,8 +109,6 @@ from_string(String, string) when is_list(String) -> String;
 from_string(Thing, InvalidDatatype) ->
    lager:error("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]),
    error.
-
-
 
 -ifdef(TEST).
 
@@ -119,8 +121,8 @@ to_string_ip_test() ->
     ?assertEqual("127.0.0.1:8098", to_string({"127.0.0.1", 8098}, ip)).
 
 to_string_enum_test() ->
-    ?assertEqual("true", to_string("true", enum)),
-    ?assertEqual("true", to_string(true, enum)).
+    ?assertEqual("true", to_string("true", {enum, [true, false]})),
+    ?assertEqual("true", to_string(true, {enum, [true, false]})).
 
 to_string_string_test() ->
     ?assertEqual("string", to_string("string", string)).
@@ -144,20 +146,21 @@ from_string_ip_test() ->
     ok.
 
 from_string_enum_test() ->
-    ?assertEqual(true, from_string("true", enum)),
-    ?assertEqual(true, from_string(true, enum)).
+    ?assertEqual({error, "a is not a valid enum value, acceptable values are [b,c]."}, from_string(a, {enum, [b, c]})),
+    ?assertEqual(true, from_string("true", {enum, [true, false]})),
+    ?assertEqual(true, from_string(true, {enum, [true, false]})).
 
 from_string_duration_test() ->
     %% more examples in the the cuttlefish_duration tests
-    ?assertEqual(1100, from_string("1s100ms", duration)),
-    ?assertEqual(1100, from_string(1100, duration)),
+    ?assertEqual(1100, from_string("1s100ms", {duration, ms})),
+    ?assertEqual(1100, from_string(1100, {duration, ms})),
     ok.
 
 from_string_duration_secs_test() ->
     %% more examples in the the cuttlefish_duration tests
     %% also rounds up for smaller units
-    ?assertEqual(2, from_string("1s100ms", duration_secs)),
-    ?assertEqual(2, from_string(2, duration_secs)),
+    ?assertEqual(2, from_string("1s100ms", {duration, s})),
+    ?assertEqual(2, from_string(2, {duration, s})),
     ok.
 
 from_string_string_test() ->

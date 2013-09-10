@@ -73,7 +73,7 @@ files(ListOfSchemaFiles) ->
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
     [cuttlefish_mapping:mapping()],
-    [cuttlefish_mapping:validator()]
+    [cuttlefish_validator:validator()]
 } | error.
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
@@ -90,7 +90,7 @@ file(Filename) ->
 -spec string(string()) -> {
     [cuttlefish_translation:translation()], 
     [cuttlefish_mapping:mapping()],
-    [cuttlefish_mapping:validator()]
+    [cuttlefish_validator:validator()]
 } | {error, [errorlist()]}.
 string(S) -> 
     case erl_scan:string(S) of
