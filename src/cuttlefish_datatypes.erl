@@ -26,7 +26,7 @@
 -compile(export_all).
 -endif.
 
--opaque datatype() :: integer | string | {enum, [atom()]} | ip | {duration, cuttlefish_duration:time_unit() } | bytesize.
+-type datatype() :: integer | string | {enum, [atom()]} | ip | {duration, cuttlefish_duration:time_unit() } | bytesize.
 -export_type([datatype/0]).
 
 -export([is_supported/1, from_string/2, to_string/2]).

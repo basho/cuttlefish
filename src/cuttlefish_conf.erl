@@ -21,6 +21,9 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_conf).
 
+-type conf() :: [{ [string()], any() }].
+-export_type([conf/0]).
+
 -export([
     generate/1,
     generate_file/2,
@@ -59,6 +62,7 @@ generate(Schema) ->
             ConfFile ++ generate_element(SchemaElement)
         end, [], Schema).
 
+-spec generate_file(cuttlefish_schema:schema(), string()) -> ok.
 generate_file(Schema, Filename) ->
     ConfFileLines = generate(Schema),
     

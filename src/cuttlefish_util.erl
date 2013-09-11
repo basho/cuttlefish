@@ -48,7 +48,7 @@ conf_get_value(Variable, ConfigProplist) ->
     conf_get_value(tokenize_variable_key(Variable), ConfigProplist). 
 
 %% @doc replace the element in a proplist
--spec replace_proplist_value(string(), any(), [{string(), any()}]) -> [{string(), any()}].
+-spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
 

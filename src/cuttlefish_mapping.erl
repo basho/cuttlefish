@@ -35,11 +35,11 @@
         datatype_options :: any(),
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
-        include_default::string(),
+        include_default = undefined :: string() | undefined,
         validators = [] :: [string()]
     }).
 
--opaque mapping() :: #mapping{}.
+-type mapping() :: #mapping{}.
 -export_type([mapping/0]).
 
 -export([
@@ -112,7 +112,7 @@ level(M) -> M#mapping.level.
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
 
--spec include_default(mapping()) -> string().
+-spec include_default(mapping()) -> string() | undefined.
 include_default(M) -> M#mapping.include_default.
 
 -spec validators(mapping()) -> [string()].

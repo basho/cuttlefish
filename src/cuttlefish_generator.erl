@@ -217,6 +217,7 @@ add_defaults(Conf, Mappings) ->
 %%     {"multi_backend",
 %%      ["bitcask_mult","leveldb_mult","leveldb_mult2","memory_mult"}]
 %%%%%%%%%%%%%%%%%%%%%%%%
+-spec get_possible_values_for_fuzzy_matches(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> [{string(), [string()]}].
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
     %% that involve a pattern match
@@ -231,10 +232,9 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                     cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)
                 end, 
                 FuzzyVariableDefs), 
-            case length(Fuzz) of
-                0 -> FuzzyMatches;
-                _ -> 
-                    VD = hd(Fuzz),
+            case Fuzz of
+                [] -> FuzzyMatches;
+                [VD|_] -> 
                     ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, [{Variable, 0}])],
                     orddict:append_list(VD, ListOfVars, FuzzyMatches)
             end
@@ -289,6 +289,7 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
         PrefixesWithoutDefaults, 
         DefaultsNeeded).
 
+-spec transform_datatypes(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> cuttlefish_conf:conf().
 transform_datatypes(Conf, Mappings) ->
     lists:foldl(
         fun({Variable, Value}, Acc) ->
