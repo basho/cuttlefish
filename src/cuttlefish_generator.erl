@@ -93,13 +93,13 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
         end, 
         {[], {[],[]}},
         Mappings),
-    lager:info("Applying 1:1 Mappings"),
+    lager:info("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
-    lists:foldl(
+    Return = lists:foldl(
         fun(TranslationRecord, Acc) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
@@ -124,7 +124,9 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
             end
         end, 
         DirectMappings, 
-        Translations). 
+        Translations),
+    lager:info("Applied Translations"),
+    Return.
 
 %for each token, is it special?
 %

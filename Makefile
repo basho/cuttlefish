@@ -10,9 +10,6 @@ all: deps compile
 deps:
 	./rebar get-deps
 
-docs:
-	./rebar skip_deps=true doc
-
 docsclean:
 	@rm -rf doc/*.png doc/*.html doc/*.css edoc-info
 
