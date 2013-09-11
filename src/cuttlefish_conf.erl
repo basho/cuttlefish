@@ -56,6 +56,7 @@ file(Filename) ->
             remove_duplicates(Conf)
     end.
 
+-spec generate(cuttlefish_schema:schema()) -> [string()].
 generate(Schema) ->
     lists:foldl(
         fun(SchemaElement, ConfFile) ->
@@ -66,7 +67,7 @@ generate(Schema) ->
 generate_file(Schema, Filename) ->
     ConfFileLines = generate(Schema),
     
-    {ok, S} = file:open(Filename, write),
+    {ok, S} = file:open(Filename, [write]),
     [ begin
         io:format(S, "~s~n", [lists:flatten(Line)]) 
     end || Line <- ConfFileLines],
