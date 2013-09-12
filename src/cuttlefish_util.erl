@@ -48,7 +48,7 @@ conf_get_value(Variable, ConfigProplist) ->
     conf_get_value(tokenize_variable_key(Variable), ConfigProplist). 
 
 %% @doc replace the element in a proplist
--spec replace_proplist_value(string(), any(), [{string(), any()}]) -> [{string(), any()}].
+-spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
 
@@ -131,7 +131,7 @@ tokenize_variable_key([Char|Rest], Part, Acc) ->
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
--spec matches_for_variable_def([string()], [{[string()], any()}]) -> [string()].
+-spec matches_for_variable_def([string()], [{[string()], any()}]) -> [{string(), any()}].
 matches_for_variable_def(VariableDef, Conf) ->
     lists:foldl(
         fun({Variable, _}, Acc) ->

@@ -29,7 +29,9 @@
 -compile(export_all).
 -endif.
 
--type errorlist() :: {error, [string()]}.
+-type errorlist() :: {error, string()|[string()]}.
+-type schema() :: {[cuttlefish_translation:translation()], [cuttlefish_mapping:mapping()], [cuttlefish_validator:validator()]}.
+-export_type([schema/0]).
 
 files(ListOfSchemaFiles) ->
     lists:foldl(
@@ -62,9 +64,7 @@ files(ListOfSchemaFiles) ->
                         ValidatorAcc, 
                         Validators),
 
-                    {NewTranslations, NewMappings, NewValidators};
-                _ ->
-                    lager:error("Unknown error parsing schema file: ~p", [SchemaFile])
+                    {NewTranslations, NewMappings, NewValidators}
             end 
         end, 
         {[], [], []}, 
@@ -74,7 +74,7 @@ files(ListOfSchemaFiles) ->
     [cuttlefish_translation:translation()], 
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
-} | error.
+} | errorlist().
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
@@ -145,9 +145,9 @@ parse_schema(Tokens, Comments) ->
 -spec parse_schema(
     [any()],
     [any()],
-    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator()]
+    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()]
     ) -> 
-        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator()].
+        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()].
 parse_schema([], _LeftoverComments, Acc) ->
     lists:reverse(Acc);
 parse_schema(ScannedTokens, CommentTokens, Acc) ->
@@ -187,7 +187,7 @@ parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
 parse_schema_tokens([H|Scanned], Acc) ->
     parse_schema_tokens(Scanned, [H|Acc]).
 
--spec parse(list()) -> { mapping | translation, tuple()} | errorlist().
+-spec parse(list()) -> { mapping | translation | validator, tuple()} | errorlist().
 parse(Scanned) ->
     case erl_parse:parse_exprs(Scanned) of
         {ok, Parsed} ->

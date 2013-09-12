@@ -30,7 +30,7 @@
     mapping::string(),
     func::fun()
     }).
--opaque translation() :: #translation{}.
+-type translation() :: #translation{}.
 -export_type([translation/0]).
 
 -export([
