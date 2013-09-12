@@ -21,6 +21,9 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_conf).
 
+-type conf() :: [{ [string()], any() }].
+-export_type([conf/0]).
+
 -export([
     generate/1,
     generate_file/2,
@@ -53,22 +56,25 @@ file(Filename) ->
             remove_duplicates(Conf)
     end.
 
-generate(Schema) ->
+-spec generate([cuttlefish_mapping:mapping()]) -> [string()].
+generate(Mappings) ->
     lists:foldl(
-        fun(SchemaElement, ConfFile) ->
-            ConfFile ++ generate_element(SchemaElement)
-        end, [], Schema).
+        fun(Mapping, ConfFile) ->
+            ConfFile ++ generate_element(Mapping)
+        end, [], Mappings).
 
-generate_file(Schema, Filename) ->
-    ConfFileLines = generate(Schema),
+-spec generate_file([cuttlefish_mapping:mapping()], string()) -> ok.
+generate_file(Mappings, Filename) ->
+    ConfFileLines = generate(Mappings),
     
-    {ok, S} = file:open(Filename, write),
+    {ok, S} = file:open(Filename, [write]),
     [ begin
         io:format(S, "~s~n", [lists:flatten(Line)]) 
     end || Line <- ConfFileLines],
     file:close(S),
     ok.
 
+-spec generate_element(cuttlefish_mapping:mapping()) -> [string()].
 generate_element(MappingRecord) ->
     Default = cuttlefish_mapping:default(MappingRecord),
     Key = cuttlefish_mapping:variable(MappingRecord),
@@ -100,6 +106,7 @@ generate_element(basic, _Default, undefined) -> default;
 generate_element(basic, _, _Comment) -> commented;
 generate_element(_Level, _Default, _Commented) -> no.
 
+-spec generate_comments(cuttlefish_mapping:mapping()) -> [string()].
 generate_comments(MappingRecord) ->
     Doc = cuttlefish_mapping:doc(MappingRecord),
     [ "## " ++ D || D <- Doc].

@@ -35,11 +35,11 @@
         datatype_options :: any(),
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
-        include_default::string(),
+        include_default = undefined :: string() | undefined,
         validators = [] :: [string()]
     }).
 
--opaque mapping() :: #mapping{}.
+-type mapping() :: #mapping{}.
 -export_type([mapping/0]).
 
 -export([
@@ -91,7 +91,7 @@ parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:
 is_mapping(M) ->
     is_tuple(M) andalso element(1, M) =:= mapping. 
 
--spec variable(mapping()) -> string().
+-spec variable(mapping()) -> [string()].
 variable(M) -> M#mapping.variable.
 
 -spec mapping(mapping()) -> string().
@@ -112,7 +112,7 @@ level(M) -> M#mapping.level.
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
 
--spec include_default(mapping()) -> string().
+-spec include_default(mapping()) -> string() | undefined.
 include_default(M) -> M#mapping.include_default.
 
 -spec validators(mapping()) -> [string()].
@@ -120,7 +120,12 @@ validators(M) -> M#mapping.validators.
 
 -spec validators(mapping(), [cuttlefish_validator:validator()]) -> [cuttlefish_validator:validator()].
 validators(M, Validators) ->
-    [ lists:keyfind(VName, 2, Validators)  || VName <- M#mapping.validators].
+    lists:foldr(fun(VName, Vs) ->
+                        case lists:keyfind(VName, 2, Validators) of
+                            false -> Vs;
+                            V -> [V|Vs]
+                        end
+                end, [], M#mapping.validators).
 
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->

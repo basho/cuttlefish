@@ -125,7 +125,7 @@ proplist_equals(Expected, Actual) ->
             {false, false} ->
                 ?assertEqual({EKey, ExpectedValue}, {EKey, ActualValue});
             _ ->
-                ?assert(false)
+                ?assertEqual({EKey, ExpectedValue}, {EKey, ActualValue})
         end
     end || EKey <- ExpectedKeys].
 
