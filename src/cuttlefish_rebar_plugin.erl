@@ -81,4 +81,3 @@ should_i_run(ReltoolConfig) ->
         false ->
             no
     end.
-

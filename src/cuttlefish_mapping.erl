@@ -91,7 +91,7 @@ parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:
 is_mapping(M) ->
     is_tuple(M) andalso element(1, M) =:= mapping. 
 
--spec variable(mapping()) -> string().
+-spec variable(mapping()) -> [string()].
 variable(M) -> M#mapping.variable.
 
 -spec mapping(mapping()) -> string().
@@ -120,7 +120,12 @@ validators(M) -> M#mapping.validators.
 
 -spec validators(mapping(), [cuttlefish_validator:validator()]) -> [cuttlefish_validator:validator()].
 validators(M, Validators) ->
-    [ lists:keyfind(VName, 2, Validators)  || VName <- M#mapping.validators].
+    lists:foldr(fun(VName, Vs) ->
+                        case lists:keyfind(VName, 2, Validators) of
+                            false -> Vs;
+                            V -> [V|Vs]
+                        end
+                end, [], M#mapping.validators).
 
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->
