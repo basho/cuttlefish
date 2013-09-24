@@ -76,10 +76,11 @@ main(Args) ->
     case filelib:is_file(filename:join(EtcDir, "app.config")) of
         true ->
             AppConf = filename:join(EtcDir, "app.config"),
+            AppArgs = filename:join(EtcDir, "vm.args"),
             lager:info("~s exists, disabling cuttlefish.", [AppConf]),
             lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
             lager:info(" or see http://github.com/basho/cuttlefish", []),
-            ?STDOUT("~s", [AppConf]),
+            ?STDOUT("-config ~s -args_file ~s", [AppConf, AppArgs]),
             halt(0);
         _ ->
             %% Just keep going
