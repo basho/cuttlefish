@@ -31,11 +31,8 @@
 %% Public API
 %% ===================================================================
 generate(Config0, ReltoolFile) ->
-    %% Load the reltool configuration from the file
-    {Config, ReltoolConfig} = rebar_rel_utils:load_config(Config0, ReltoolFile),
-
-    case should_i_run(ReltoolConfig) of
-        ok ->
+    case should_i_run(Config0, ReltoolFile) of
+        {ok, Config, ReltoolConfig} ->
             TargetDir = rebar_rel_utils:get_target_dir(Config, ReltoolConfig),
 
             %% Finally, overlay the files specified by the overlay section
@@ -73,11 +70,13 @@ generate(Config0, ReltoolFile) ->
     end,
     ok.
 
-%% Only run for top level project
-should_i_run(ReltoolConfig) ->
-    case lists:keyfind(sys, 1, ReltoolConfig) of
-        {sys, _} = _SysTuple ->
-            ok;
+%% Only run for rel directory
+should_i_run(Config0, ReltoolFile) ->
+    case rebar_rel_utils:is_rel_dir() of
+        {true, _} ->
+            %% Load the reltool configuration from the file
+            {Config, ReltoolConfig} = rebar_rel_utils:load_config(Config0, ReltoolFile),
+            {ok, Config, ReltoolConfig};
         false ->
             no
     end.
