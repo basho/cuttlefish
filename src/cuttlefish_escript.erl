@@ -113,7 +113,15 @@ main(Args) ->
             file:make_dir(DP),
             DP;
         true ->
-             proplists:get_value(dest_dir, ParsedArgs)
+            DP = proplists:get_value(dest_dir, ParsedArgs),
+            case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
+                %% filelib:ensure_dir/1 requires a dummy filename in the argument,
+                %% I think that is weaksauce, hence "weaksauce.dummy" 
+                ok -> DP;
+                {error, E} ->
+                    lager:error("Error (~p) creating ~s", [E, DP]),
+                    halt(1)
+            end 
     end,
 
     Date = calendar:local_time(),
