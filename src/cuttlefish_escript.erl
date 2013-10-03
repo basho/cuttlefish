@@ -48,7 +48,7 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    halt(1).
+    quitter(1).
 
 run_help([]) -> true;
 run_help(ParsedArgs) ->
@@ -102,7 +102,7 @@ main(Args) ->
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
-            halt(1);
+            quitter(1);
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
@@ -117,10 +117,11 @@ main(Args) ->
             case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
                 %% filelib:ensure_dir/1 requires a dummy filename in the argument,
                 %% I think that is weaksauce, hence "weaksauce.dummy" 
-                ok -> DP;
+                ok -> 
+                    DP;
                 {error, E} ->
-                    lager:error("Error (~p) creating ~s", [E, DP]),
-                    halt(1)
+                    lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
+                    quitter(1)
             end 
     end,
 
@@ -173,6 +174,11 @@ filename_maker(Filename, Date, Extension) ->
             zero_pad(SS),
             Extension
         ]).
+
+quitter(RC) ->
+    %% Let's give lager a chance to display some things.
+    timer:sleep(500),
+    halt(RC). 
 
 zero_pad(Integer) ->
     S = integer_to_list(Integer),
