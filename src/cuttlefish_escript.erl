@@ -48,7 +48,7 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    quitter(1).
+    init:stop(1).
 
 run_help([]) -> true;
 run_help(ParsedArgs) ->
@@ -81,7 +81,7 @@ main(Args) ->
             lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
             lager:info(" or see http://github.com/basho/cuttlefish", []),
             ?STDOUT("-config ~s -args_file ~s", [AppConf, AppArgs]),
-            halt(0);
+            init:stop(0);
         _ ->
             %% Just keep going
             lager:info("No app.config detected in ~s, activating cuttlefish", [EtcDir]),
@@ -102,7 +102,7 @@ main(Args) ->
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
-            quitter(1);
+            inti:stop(1);
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
@@ -121,7 +121,7 @@ main(Args) ->
                     DP;
                 {error, E} ->
                     lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
-                    quitter(1)
+                    init:stop(1)
             end 
     end,
 
@@ -174,11 +174,6 @@ filename_maker(Filename, Date, Extension) ->
             zero_pad(SS),
             Extension
         ]).
-
-quitter(RC) ->
-    %% Let's give lager a chance to display some things.
-    timer:sleep(500),
-    halt(RC). 
 
 zero_pad(Integer) ->
     S = integer_to_list(Integer),
