@@ -48,7 +48,7 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    halt(1).
+    init:stop(1).
 
 run_help([]) -> true;
 run_help(ParsedArgs) ->
@@ -81,7 +81,7 @@ main(Args) ->
             lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
             lager:info(" or see http://github.com/basho/cuttlefish", []),
             ?STDOUT("-config ~s -args_file ~s", [AppConf, AppArgs]),
-            halt(0);
+            init:stop(0);
         _ ->
             %% Just keep going
             lager:info("No app.config detected in ~s, activating cuttlefish", [EtcDir]),
@@ -102,7 +102,7 @@ main(Args) ->
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
-            halt(1);
+            inti:stop(1);
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
@@ -113,7 +113,16 @@ main(Args) ->
             file:make_dir(DP),
             DP;
         true ->
-             proplists:get_value(dest_dir, ParsedArgs)
+            DP = proplists:get_value(dest_dir, ParsedArgs),
+            case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
+                %% filelib:ensure_dir/1 requires a dummy filename in the argument,
+                %% I think that is weaksauce, hence "weaksauce.dummy" 
+                ok -> 
+                    DP;
+                {error, E} ->
+                    lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
+                    init:stop(1)
+            end 
     end,
 
     Date = calendar:local_time(),
