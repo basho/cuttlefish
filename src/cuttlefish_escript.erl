@@ -124,14 +124,18 @@ main(Args) ->
                     init:stop(1)
             end 
     end,
+    AbsPath = case DestinationPath of
+                          [$/|_] -> DestinationPath;
+                          _      -> filename:join(element(2,file:get_cwd()), DestinationPath)
+                      end,
 
     Date = calendar:local_time(),
 
     DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), Date, "config"),
-    Destination = filename:join(DestinationPath, DestinationFilename),
+    Destination = filename:join(AbsPath, DestinationFilename),
 
     DestinationVMArgsFilename = filename_maker("vm", Date, "args"),
-    DestinationVMArgs = filename:join(DestinationPath, DestinationVMArgsFilename),
+    DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
     lager:debug("ConfFiles: ~p", [ConfFiles]),
