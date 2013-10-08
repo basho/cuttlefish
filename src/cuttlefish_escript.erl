@@ -69,25 +69,49 @@ main(Args) ->
         true -> print_help();
         _ -> ok
     end,
+
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
+
+    {AppConfigExists, ExistingAppConfigName} = check_existence(EtcDir, "app.config"),
+    {VMArgsExists, ExistingVMArgsName} = check_existence(EtcDir, "vm.args"),
     
     %% If /etc/app.config exists, use it and disable cuttlefish
     %% even though cuttlefish is awesome
-    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
-    case filelib:is_file(filename:join(EtcDir, "app.config")) of
-        true ->
-            AppConf = filename:join(EtcDir, "app.config"),
-            AppArgs = filename:join(EtcDir, "vm.args"),
-            lager:info("~s exists, disabling cuttlefish.", [AppConf]),
+    FilesToUse = case {AppConfigExists, VMArgsExists} of
+        {true, true} ->
+            lager:info("~s and ~s exists, disabling cuttlefish.", [ExistingAppConfigName, ExistingVMArgsName]),
             lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
             lager:info(" or see http://github.com/basho/cuttlefish", []),
-            ?STDOUT("-config ~s -args_file ~s", [AppConf, AppArgs]),
-            init:stop(0);
+            {ExistingAppConfigName, ExistingVMArgsName};
+        {true, false} ->
+            lager:info("~s exists, generating vm.args", [ExistingAppConfigName]),
+            {_, NewVMArgs} = engage_cuttlefish(ParsedArgs),
+            {ExistingAppConfigName, NewVMArgs};
+        {false, true} ->
+            lager:info("~s exists, generating app.config", [ExistingVMArgsName]),
+            {NewAppConfig, _} = engage_cuttlefish(ParsedArgs),
+            {NewAppConfig, ExistingVMArgsName};
         _ ->
-            %% Just keep going
-            lager:info("No app.config detected in ~s, activating cuttlefish", [EtcDir]),
-            ok
-    end, 
+            lager:info("No app.config or vm.args detected in ~s, activating cuttlefish", [EtcDir]),
+            engage_cuttlefish(ParsedArgs)
+    end,
 
+    case FilesToUse of
+        %% this is nice and all, but currently all error paths of engage_cuttlefish end with init:stop(1)
+        %% hopefully factor that to be cleaner.
+        error -> 
+            init:stop(1);
+        {AppConf, VMArgs} ->
+            ?STDOUT("-config ~s -args_file ~s", [AppConf, VMArgs]),
+            init:stop(0);
+        X ->
+            lager:error("Unknown Return from cuttlefish library: ~p", X),
+            init:stop(1)
+    end.
+
+-spec engage_cuttlefish(list()) -> {string(), string()}.
+engage_cuttlefish(ParsedArgs) ->
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
     SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
     
@@ -102,7 +126,7 @@ main(Args) ->
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
-            inti:stop(1);
+            init:stop(1);
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
@@ -122,7 +146,7 @@ main(Args) ->
                 {error, E} ->
                     lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
                     init:stop(1)
-            end 
+            end
     end,
     AbsPath = case DestinationPath of
                           [$/|_] -> DestinationPath;
@@ -162,8 +186,14 @@ main(Args) ->
 
     file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
     file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
-    ?STDOUT(" -config ~s -args_file ~s ", [Destination, DestinationVMArgs]),
-    ok.
+    {Destination, DestinationVMArgs}.
+
+-spec check_existence(string(), string()) -> {boolean(), string()}.
+check_existence(EtcDir, Filename) ->
+    FullName = filename:join(EtcDir, Filename), %% Barfolomew
+    Exists = filelib:is_file(FullName),
+    lager:info("Checking ~s exists... ~p", [FullName, Exists]),
+    {Exists, FullName}.
 
 filename_maker(Filename, Date, Extension) ->
     {{Y, M, D}, {HH, MM, SS}} = Date,
