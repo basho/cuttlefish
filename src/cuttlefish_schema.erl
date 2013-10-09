@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([files/1, file/1]).
+-export([files/1, file/1, string/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
