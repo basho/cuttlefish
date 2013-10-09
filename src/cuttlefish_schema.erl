@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([files/1, file/1, string/1]).
+-export([files/1, file/1, strings/1, string/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -34,13 +34,19 @@
 -export_type([schema/0]).
 
 files(ListOfSchemaFiles) ->
-    lists:foldl(
-        fun(SchemaFile, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+    merger(fun cuttlefish_schema:file/1, ListOfSchemaFiles).
 
-            case cuttlefish_schema:file(SchemaFile) of
+strings(ListOfStrings) ->
+    merger(fun cuttlefish_schema:string/1, ListOfStrings).
+
+merger(Fun, ListOfInputs) ->
+    lists:foldl(
+        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+
+            case Fun(Input) of
                 {error, _Errors} ->
-                    %% These have already been logged. Were' not moving forward with this
-                    erlang:halt(1); 
+                    %% These have already been logged. We're not moving forward with this
+                    init:stop(1); 
                 {Translations, Mappings, Validators} ->
                     
                     NewMappings = lists:foldl(
@@ -68,7 +74,7 @@ files(ListOfSchemaFiles) ->
             end 
         end, 
         {[], [], []}, 
-        ListOfSchemaFiles).
+        ListOfInputs).
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
