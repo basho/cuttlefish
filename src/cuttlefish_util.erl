@@ -28,6 +28,7 @@
 
 -export([
     conf_get_value/2,
+    conf_get_value/3,
     replace_proplist_value/3,
     variable_starts_with/2,
     filter_by_variable_starts_with/2,
@@ -42,10 +43,15 @@
 %% @doc it's a wrapper for proplists:get_value, a convenience function
 %% for schema writers to not have to use [] notation for varibales
 -spec conf_get_value(string()|[string()], [{[string()], any()}]) -> any().
-conf_get_value([H|_T]=Variable, ConfigProplist) when is_list(H) ->
-    proplists:get_value(Variable, ConfigProplist);
 conf_get_value(Variable, ConfigProplist) ->
-    conf_get_value(tokenize_variable_key(Variable), ConfigProplist). 
+    conf_get_value(Variable, ConfigProplist, undefined). 
+
+-spec conf_get_value(string()|[string()], [{[string()], any()}], any()) -> any().
+conf_get_value([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
+    proplists:get_value(Variable, ConfigProplist, Default);
+conf_get_value(Variable, ConfigProplist, Default) ->
+    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default). 
+
 
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
