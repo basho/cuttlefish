@@ -34,7 +34,7 @@
 overlay(GeneratedConfig, AdvancedConfig) ->
     lists:foldl(
         fun({ApplicationName, ApplicationConfig}, OuterAcc) ->
-            GeneratedApplicationConfig = proplists:get_value(ApplicationName, GeneratedConfig),
+            GeneratedApplicationConfig = proplists:get_value(ApplicationName, GeneratedConfig, []),
             Updated = lists:foldl(
                 fun({ConfigElementName, ConfigElement}, Acc) -> 
                     cuttlefish_util:replace_proplist_value(ConfigElementName, ConfigElement, Acc) 
@@ -57,13 +57,15 @@ overlay_test() ->
     ],
 
     AdvancedConfig = [
-        {app3, [{'setting3.1', i_dont_care}]}
+        {app3, [{'setting3.1', i_dont_care}]},
+        {app4, [{'some_unschemad_thing', 'like_a_penguin'}]}
     ],
 
     Expected = [
         {app1, [{'setting1.1', "value1.1"}]},
         {app2, [{'setting2.1', "value2.1"}]},
-        {app3, [{'setting3.1', i_dont_care}]}
+        {app3, [{'setting3.1', i_dont_care}]},
+        {app4, [{'some_unschemad_thing', 'like_a_penguin'}]}
     ],
     NewConfig = overlay(GeneratedConfig, AdvancedConfig),
 
