@@ -39,7 +39,8 @@ cli_options() ->
  {schema_dir,         $s, "schema_dir",  string,           "a directory containing .schema files"},
  {schema_file,        $i, "schema_file", string,           "individual schema file, will be processed in command line order, after -s"},
  {conf_file,          $c, "conf_file",   string,           "a cuttlefish conf file, multiple files allowed"},
- {app_config,         $a, "app_config",  string,           "the advanced erlangy app.config"}
+ {app_config,         $a, "app_config",  string,           "the advanced erlangy app.config"},
+ {log_level,          $l, "log_level",   {string, "info"}, "log level for cuttlefish output"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -57,13 +58,22 @@ run_help(ParsedArgs) ->
 %% @doc main method for generating erlang term config files
 main(Args) ->
     application:load(lager),
-    application:set_env(lager, handlers, [{lager_stderr_backend, info}]),
-    application:start(lager),
-
+    
     {ParsedArgs, _GarbageFile} = case getopt:parse(cli_options(), Args) of
         {ok, {P, H}} -> {P, H};
         _ -> print_help()
     end,
+
+    SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
+    LogLevel = case lists:member(SuggestedLogLevel, [debug, info, notice, warning, error, critical, alert, emergency]) of
+        true -> SuggestedLogLevel;
+        _ -> info
+    end,
+
+    application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
+    application:start(lager),
+
+    lager:debug("Cuttlefish set to debug level logging"),
 
     case run_help(ParsedArgs) of
         true -> print_help();
