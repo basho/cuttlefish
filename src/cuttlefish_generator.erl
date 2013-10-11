@@ -119,7 +119,12 @@ map({Translations, Mappings, Validators} = Schema, Config) ->
                             end;
                         2 -> 
                             lager:debug("Running translation for ~s", [Mapping]),
-                            Xlat(Conf, Schema);
+                            try Xlat(Conf, Schema) of
+                                X -> X
+                            catch
+                                E:R ->
+                                    lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
+                            end;
                         Other -> 
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
