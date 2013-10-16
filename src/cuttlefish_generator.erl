@@ -28,45 +28,49 @@
 
 -export([map/2, find_mapping/2]).
 
-map({Translations, Mappings, Validators} = Schema, Config) ->
+map(Schema, Config) ->
+    map_add_defaults(Schema, Config).
+
+map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
-    DConfig = add_defaults(Config, Mappings),
-
     lager:info("Adding Defaults"),
+    DConfig = add_defaults(Config, Mappings),
+    
+    case contains_error(DConfig) of
+        true ->
+            lager:info("Error adding defaults, aborting"),
+            {error, add_defaults};
+        _ -> 
+            map_transform_datatypes(Schema, Config, DConfig)
+    end.
+
+map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    Conf = transform_datatypes(DConfig, Mappings),
     lager:info("Applying Datatypes"),
-            
+    Conf = transform_datatypes(DConfig, Mappings),
+
+    case contains_error(Conf) of
+        true ->
+            lager:info("Error transforming datatypes, aborting"),
+            {error, transform_datatypes};
+        _ ->
+            map_validate(Schema, Config, Conf)
+    end.
+
+map_validate(Schema, Config, Conf) ->
     %% Any more advanced validators
-    [ begin
-        Vs = cuttlefish_mapping:validators(M, Validators),
-        Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
-        [ begin
-            Validator = cuttlefish_validator:func(V),
-            case {Value, Validator(Value)} of
-                {undefined, _} -> ok;
-                {_, true} -> 
-                    true;
-                _ -> 
-                    lager
-                    :error(
-                        "~s invalid, ~s", 
-                        [
-                            cuttlefish_mapping:variable(M), 
-                            cuttlefish_validator:description(V) 
-                        ]) 
-            end
-        end || V <- Vs]
-
-     end || M <- Mappings, 
-            cuttlefish_mapping:validators(M) =/= [], 
-            cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
-            ],
     lager:info("Validation"),
+    case run_validations(Schema, Conf) of
+        true -> map_translate(Schema, Config, Conf);
+        _ ->
+            lager:error("Some validator failed, aborting"),
+            {error, validation}
+    end.
 
+map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings". 
@@ -210,7 +214,8 @@ add_defaults(Conf, Mappings) ->
                 %% If Match =:= true, do nothing, the value is set in the .conf file
                 _ -> 
                     %% TODO: Handle with more style and grace
-                    lager:error("Both fuzzy and strict match! should not happen")
+                    lager:error("Both fuzzy and strict match! should not happen"),
+                    [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
             end 
         end, 
         Conf, 
@@ -317,13 +322,14 @@ transform_datatypes(Conf, Mappings) ->
                     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
                         {_, {error, Message}} ->
                             lager:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
-                            Acc;
+                            [{error, Message}|Acc];
                         {{enum, PossibleValues}, NewValue} ->
                             case lists:member(NewValue, PossibleValues) of
                                 true -> [{Variable, NewValue}|Acc];
                                 false ->  
-                                    lager:error("Bad value: ~s for enum ~s", [NewValue, Variable]),
-                                    Acc
+                                    ErrStr = io_lib:format("Bad value: ~s for enum ~s", [NewValue, Variable]),
+                                    lager:error(ErrStr),
+                                    [{error, ErrStr}|Acc]
                             end;
                         {_, NewValue} -> [{Variable, NewValue}|Acc]
                     end
@@ -360,6 +366,38 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_util:tokenize_variable_key(Variable), Mappings).
 
+run_validations({_, Mappings, Validators}, Conf) ->
+    Validations = [ begin
+        Vs = cuttlefish_mapping:validators(M, Validators),
+        Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
+        [ begin
+            Validator = cuttlefish_validator:func(V),
+            case {Value, Validator(Value)} of
+                {undefined, _} -> true;
+                {_, true} -> 
+                    true;
+                _ -> 
+                    LogString = io_lib:format(
+                        "~s invalid, ~s", 
+                        [
+                            cuttlefish_mapping:variable(M), 
+                            cuttlefish_validator:description(V) 
+                        ]),
+                    lager:error(LogString),
+                    false 
+            end
+        end || V <- Vs]
+
+     end || M <- Mappings, 
+            cuttlefish_mapping:validators(M) =/= [], 
+            cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
+            ],
+    lists:all(fun(X) -> X =:= true end, lists:flatten(Validations)). 
+
+-spec contains_error(list()) -> boolean().
+contains_error(List) ->
+    lists:any(fun({error, _}) -> true; (_) -> false end, List).
+
 -ifdef(TEST).
 
 bad_conf_test() ->
@@ -388,7 +426,7 @@ bad_conf_test() ->
     NewConfig = map({Translations, Mappings, []}, Conf),
     io:format("NewConf: ~p~n", [NewConfig]),
 
-    ?assertEqual([], NewConfig), 
+    ?assertEqual({error,transform_datatypes}, NewConfig), 
     ok.
 
 add_defaults_test() ->
@@ -564,7 +602,7 @@ validation_test() ->
     ],
 
     Validators = [cuttlefish_validator:parse(
-        {validator, "a", "error msg", fun(X) -> Pid ! X end}
+        {validator, "a", "error msg", fun(X) -> Pid ! X, true end}
         ) 
     ],
 

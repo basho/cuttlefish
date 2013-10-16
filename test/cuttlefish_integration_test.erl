@@ -22,7 +22,25 @@ generated_config_file_test() ->
     Conf = [], %% conf_parse:file("../test/riak.conf"),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
     
-    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
+    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),  
+    ok.
+
+breaks_on_fuzzy_and_strict_match_test() ->
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [{["listener", "protobuf", "$name"], "127.0.0.1:8087"}],
+    ?assertEqual({error, add_defaults}, cuttlefish_generator:map(Schema, Conf)),
+    ok.
+
+breaks_on_bad_enum_test() ->
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [{["storage_backend"], penguin}],
+    ?assertEqual({error, transform_datatypes}, cuttlefish_generator:map(Schema, Conf)),
+    ok.
+
+breaks_on_bad_validation_test() ->
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [{["ring_size"], 10}],
+    ?assertEqual({error, validation}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
 %% Tests that the schema can generate a default app.config from nothing
