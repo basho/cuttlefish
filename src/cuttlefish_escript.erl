@@ -112,7 +112,11 @@ main(Args) ->
         error -> 
             init:stop(1);
         {AppConf, VMArgs} ->
-            ?STDOUT("-config ~s -args_file ~s", [AppConf, VMArgs]),
+            %% Note: we have added a parameter '-vm_args' to this. It appears redundant
+            %% but it is not! the erlang vm allows us to access all arguments to the erl
+            %% command EXCEPT '-args_file', so in order to get access to this file location
+            %% from within the vm, we need to pass it in twice.
+            ?STDOUT(" -config ~s -args_file ~s -vm_args ~s ", [AppConf, VMArgs, VMArgs]),
             init:stop(0);
         X ->
             lager:error("Unknown Return from cuttlefish library: ~p", X),
@@ -192,7 +196,6 @@ engage_cuttlefish(ParsedArgs) ->
 
     FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
     FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
-
 
     file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
     file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
