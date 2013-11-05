@@ -40,7 +40,8 @@ cli_options() ->
  {schema_file,        $i, "schema_file", string,           "individual schema file, will be processed in command line order, after -s"},
  {conf_file,          $c, "conf_file",   string,           "a cuttlefish conf file, multiple files allowed"},
  {app_config,         $a, "app_config",  string,           "the advanced erlangy app.config"},
- {log_level,          $l, "log_level",   {string, "info"}, "log level for cuttlefish output"}
+ {log_level,          $l, "log_level",   {string, "info"}, "log level for cuttlefish output"},
+ {print_schema,       $p, "print",       undefined,        "prints schema mappings on stderr"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -180,6 +181,13 @@ engage_cuttlefish(ParsedArgs) ->
     lager:debug("SchemaFiles: ~p", [SortedSchemaFiles]),
 
     Schema = cuttlefish_schema:files(SortedSchemaFiles),
+
+    case proplists:is_defined(print_schema, ParsedArgs) of
+        true ->
+            print_schema(Schema);
+        _ -> ok
+    end,
+
     Conf = cuttlefish_conf:files(ConfFiles),  
     NewConfig = cuttlefish_generator:map(Schema, Conf),
 
@@ -228,6 +236,27 @@ zero_pad(Integer) ->
         true -> S;
         _ -> [$0|S]
     end.
+
+print_schema(Schema) ->
+    lager:info("Printing Schema Mappings"),
+    {_, Mappings, _} = Schema,
+
+    {Max, ListOfMappings} = lists:foldr(
+        fun(M, {OldMax, List}) -> 
+            CandidateMax = length(cuttlefish_mapping:mapping(M)),
+            NewMax = case CandidateMax > OldMax of
+                true -> CandidateMax;
+                _ -> OldMax
+            end,
+            {NewMax, [{cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}|List]}  
+        end,
+        {0, []},
+        Mappings
+        ),
+    [
+        io:format(standard_error, "~s ~s~n", 
+            [string:left(M, Max+2, $\s), V])
+    || {M, V} <- ListOfMappings].
 
 -ifdef(TEST).
 
