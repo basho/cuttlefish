@@ -235,17 +235,25 @@ zero_pad(Integer) ->
     end.
 
 print_schema(Schema) ->
-    lager:info("Outputing Schema Mappings"),
+    lager:info("Printing Schema Mappings"),
     {_, Mappings, _} = Schema,
-    X = [
-        {cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}
-    || M <- Mappings],
 
-    Max = lists:max([ length(Y) || {Y,_} <- X]),
+    {Max, ListOfMappings} = lists:foldr(
+        fun(M, {OldMax, List}) -> 
+            CandidateMax = length(cuttlefish_mapping:mapping(M)),
+            NewMax = case CandidateMax > OldMax of
+                true -> CandidateMax;
+                _ -> OldMax
+            end,
+            {NewMax, [{cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}|List]}  
+        end,
+        {0, []},
+        Mappings
+        ),
     [
         io:format(standard_error, "~s ~s~n", 
             [string:left(M, Max+2, $\s), V])
-    || {M, V} <- X].
+    || {M, V} <- ListOfMappings].
 
 -ifdef(TEST).
 
