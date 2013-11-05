@@ -50,7 +50,13 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    init:stop(1).
+    init:stop(1),
+    %% So, I could just halt(1) here, but I want to make sure all lager messages
+    %% make it to the console. However, I don't want to make it out of this function
+    %% to any code that follows this. So... we'll sleep a little while. Hope the 
+    %% init:stop makes it. If not, we'll drop the halt(1) hammer.
+    timer:sleep(10000),
+    halt(1).
 
 run_help([]) -> true;
 run_help(ParsedArgs) ->
