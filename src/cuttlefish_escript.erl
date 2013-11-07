@@ -50,26 +50,26 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    init:stop(1),
-    %% So, I could just halt(1) here, but I want to make sure all lager messages
-    %% make it to the console. However, I don't want to make it out of this function
-    %% to any code that follows this. So... we'll sleep a little while. Hope the 
-    %% init:stop makes it. If not, we'll drop the halt(1) hammer.
-    timer:sleep(10000),
-    halt(1).
+    init:stop(1).
 
-run_help([]) -> true;
-run_help(ParsedArgs) ->
-    lists:member(help, ParsedArgs).
+parse_and_command(Args) ->
+    {ParsedArgs, Extra} = case getopt:parse(cli_options(), Args) of
+        {ok, {P, H}} -> {P, H};
+        _ -> {[help], []}
+    end,
+    Command = case {lists:member(help, ParsedArgs), Extra} of
+        {true, _} -> help;
+        {false, []} -> generate;
+        {false, [Cmd|_]} -> list_to_atom(Cmd);
+        _ -> help
+    end,
+    {Command, ParsedArgs, Extra}.
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
     application:load(lager),
     
-    {ParsedArgs, _GarbageFile} = case getopt:parse(cli_options(), Args) of
-        {ok, {P, H}} -> {P, H};
-        _ -> print_help()
-    end,
+    {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
     LogLevel = case lists:member(SuggestedLogLevel, [debug, info, notice, warning, error, critical, alert, emergency]) of
@@ -82,11 +82,78 @@ main(Args) ->
 
     lager:debug("Cuttlefish set to debug level logging"),
 
-    case run_help(ParsedArgs) of
-        true -> print_help();
-        _ -> ok
-    end,
+    case Command of
+        help ->
+            print_help();
+        generate -> 
+            generate(ParsedArgs);
+        effective ->
+            effective(ParsedArgs);
+        describe ->
+            describe(ParsedArgs, Extra);
+        Other ->
+            lager:info("Oops! All berries! ~s", [Other]),
+            print_help()
+    end.
 
+%% This shows the effective configuration, including defaults
+effective(ParsedArgs) ->
+    lager:debug("cuttlefish `meffective`", []),
+    {_, Mappings, _} = load_schema(ParsedArgs),
+    Conf = load_conf(ParsedArgs),
+
+    EffectiveConfig = cuttlefish_generator:add_defaults(Conf, Mappings),
+
+    [ begin
+        Variable = string:join(Var, "."),
+        try ?STDOUT("~s = ~s", [Variable, Value]) of
+            _ -> ok
+        catch
+            _:_ ->
+                %% I hate that I had to do this, 'cause you know...
+                %% Erlang and Strings, but actually this is ok because
+                %% sometimes there are going to be weird tuply things 
+                %% in here, so always good to fall back on ~p. 
+                %% honestly, I think this try should be built into io:format
+                ?STDOUT("~s = ~p", [Variable, Value])
+        end
+    end || {Var, Value} <- EffectiveConfig],
+    ok.
+
+%% This is the clause that dumps the docs for a single setting
+describe(ParsedArgs, ["describe"| Query]) ->
+    Q = string:join(Query, "."),
+    QDef = string:tokens(Q, "."),
+
+    lager:debug("cuttlefish describe '~s'", [Q]),
+    {_, Mappings, _} = load_schema(ParsedArgs),
+
+
+     Results = lists:filter(
+        fun(X) -> 
+            cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
+        end, 
+        Mappings),
+
+    case length(Results) of
+        0 -> 
+            ?STDOUT("Varible '~s' not found", [Q]);
+        _X ->
+            Match = hd(Results),
+            ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
+            [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(Match)],
+            ?STDOUT("", []),
+            ?STDOUT("Datatype:      ~p", [cuttlefish_mapping:datatype(Match)]),
+            ?STDOUT("Default Value: ~p", [cuttlefish_mapping:default(Match)]),
+
+            Conf = load_conf(ParsedArgs),
+            ConfiguredValue = proplists:get_value(QDef, Conf, undefined),
+            ?STDOUT("Set Value:     ~s", [ConfiguredValue]),
+            ?STDOUT("Legacy app.config location: ~s", [cuttlefish_mapping:mapping(Match)])
+    end,
+    ok.
+
+generate(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
     {AppConfigExists, ExistingAppConfigName} = check_existence(EtcDir, "app.config"),
@@ -130,12 +197,9 @@ main(Args) ->
             init:stop(1)
     end.
 
--spec engage_cuttlefish(list()) -> {string(), string()}.
-engage_cuttlefish(ParsedArgs) ->
-    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
-    ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
+load_schema(ParsedArgs) ->
     SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
-    
+
     SchemaDirFiles = case SchemaDir of
         undefined -> [];
         _ -> [ filename:join(SchemaDir, Filename)  || Filename <- filelib:wildcard("*.schema", SchemaDir)]
@@ -151,6 +215,18 @@ engage_cuttlefish(ParsedArgs) ->
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
+
+    Schema = cuttlefish_schema:files(SortedSchemaFiles),
+    Schema.
+
+load_conf(ParsedArgs) ->
+    ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
+    lager:debug("ConfFiles: ~p", [ConfFiles]),
+    cuttlefish_conf:files(ConfFiles).
+
+-spec engage_cuttlefish(list()) -> {string(), string()}.
+engage_cuttlefish(ParsedArgs) ->
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
     DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
         false ->
@@ -183,18 +259,9 @@ engage_cuttlefish(ParsedArgs) ->
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
-    lager:debug("ConfFiles: ~p", [ConfFiles]),
-    lager:debug("SchemaFiles: ~p", [SortedSchemaFiles]),
-
-    Schema = cuttlefish_schema:files(SortedSchemaFiles),
-
-    case proplists:is_defined(print_schema, ParsedArgs) of
-        true ->
-            print_schema(Schema);
-        _ -> ok
-    end,
-
-    Conf = cuttlefish_conf:files(ConfFiles),  
+    
+    Schema = load_schema(ParsedArgs),
+    Conf = load_conf(ParsedArgs),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
