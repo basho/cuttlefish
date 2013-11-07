@@ -98,7 +98,7 @@ main(Args) ->
 
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
-    lager:debug("cuttlefish `meffective`", []),
+    lager:debug("cuttlefish `effective`", []),
     {_, Mappings, _} = load_schema(ParsedArgs),
     Conf = load_conf(ParsedArgs),
 
@@ -120,7 +120,11 @@ effective(ParsedArgs) ->
     end || {Var, Value} <- EffectiveConfig],
     ok.
 
-%% This is the clause that dumps the docs for a single setting
+%% This is the function that dumps the docs for a single setting
+describe(_ParsedArgs, ["describe"]) ->
+    %% No query, you get nothing.
+    ?STDOUT("cuttlefish's describe command required a variable to query.", []),
+    ?STDOUT("Try `describe setting.name`", []);
 describe(ParsedArgs, ["describe"| Query]) ->
     Q = string:join(Query, "."),
     QDef = string:tokens(Q, "."),
