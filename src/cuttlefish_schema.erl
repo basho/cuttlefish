@@ -40,30 +40,30 @@ strings(ListOfStrings) ->
     merger(fun cuttlefish_schema:string/1, ListOfStrings).
 
 merger(Fun, ListOfInputs) ->
-    lists:foldl(
+    {T, M, V} = lists:foldl(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
 
             case Fun(Input) of
                 {error, _Errors} ->
                     %% These have already been logged. We're not moving forward with this
-                    init:stop(1); 
+                    error; 
                 {Translations, Mappings, Validators} ->
                     
-                    NewMappings = lists:foldl(
+                    NewMappings = lists:foldr(
                         fun(Mapping, NewMappingAcc) -> 
                             cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
                         end, 
                         MappingAcc, 
                         Mappings), 
 
-                    NewTranslations = lists:foldl(
+                    NewTranslations = lists:foldr(
                         fun(Translation, NewTranslationAcc) -> 
                             cuttlefish_translation:replace(Translation, NewTranslationAcc)
                         end, 
                         TranslationAcc, 
                         Translations), 
 
-                    NewValidators = lists:foldl(
+                    NewValidators = lists:foldr(
                         fun(Validator, NewValidatorAcc) -> 
                             cuttlefish_validator:replace(Validator, NewValidatorAcc)
                         end, 
@@ -74,7 +74,8 @@ merger(Fun, ListOfInputs) ->
             end 
         end, 
         {[], [], []}, 
-        ListOfInputs).
+        ListOfInputs),
+    {lists:reverse(T), lists:reverse(M), lists:reverse(V)}.
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 

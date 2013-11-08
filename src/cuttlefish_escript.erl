@@ -50,20 +50,25 @@ cli_options() ->
 print_help() ->
     getopt:usage(cli_options(),
                  escript:script_name()),
-    init:stop(1).
+    stop_deactivate().
 
-run_help([]) -> true;
-run_help(ParsedArgs) ->
-    lists:member(help, ParsedArgs).
+parse_and_command(Args) ->
+    {ParsedArgs, Extra} = case getopt:parse(cli_options(), Args) of
+        {ok, {P, H}} -> {P, H};
+        _ -> {[help], []}
+    end,
+    {Command, ExtraArgs} = case {lists:member(help, ParsedArgs), Extra} of
+        {false, []} -> {generate, []};
+        {false, [Cmd|E]} -> {list_to_atom(Cmd), E};
+        _ -> {help, []}
+    end,
+    {Command, ParsedArgs, ExtraArgs}.
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
     application:load(lager),
     
-    {ParsedArgs, _GarbageFile} = case getopt:parse(cli_options(), Args) of
-        {ok, {P, H}} -> {P, H};
-        _ -> print_help()
-    end,
+    {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
     LogLevel = case lists:member(SuggestedLogLevel, [debug, info, notice, warning, error, critical, alert, emergency]) of
@@ -76,11 +81,88 @@ main(Args) ->
 
     lager:debug("Cuttlefish set to debug level logging"),
 
-    case run_help(ParsedArgs) of
-        true -> print_help();
-        _ -> ok
-    end,
+    case Command of
+        help ->
+            print_help();
+        generate -> 
+            generate(ParsedArgs);
+        effective ->
+            effective(ParsedArgs);
+        describe ->
+            describe(ParsedArgs, Extra);
+        Other ->
+            lager:info("Oops! All berries! ~s", [Other]),
+            print_help()
+    end.
 
+%% This shows the effective configuration, including defaults
+effective(ParsedArgs) ->
+    lager:debug("cuttlefish `effective`", []),
+    {_, Mappings, _} = load_schema(ParsedArgs),
+    Conf = load_conf(ParsedArgs),
+
+    EffectiveConfig = lists:sort(cuttlefish_generator:add_defaults(Conf, Mappings)),
+
+    [ begin
+        Variable = string:join(Var, "."),
+        try ?STDOUT("~s = ~s", [Variable, Value]) of
+            _ -> ok
+        catch
+            _:_ ->
+                %% I hate that I had to do this, 'cause you know...
+                %% Erlang and Strings, but actually this is ok because
+                %% sometimes there are going to be weird tuply things 
+                %% in here, so always good to fall back on ~p. 
+                %% honestly, I think this try should be built into io:format
+                ?STDOUT("~s = ~p", [Variable, Value])
+        end
+    end || {Var, Value} <- EffectiveConfig],
+    ok.
+
+%% This is the function that dumps the docs for a single setting
+describe(_ParsedArgs, []) ->
+    %% No query, you get nothing.
+    ?STDOUT("cuttlefish's describe command required a variable to query.", []),
+    ?STDOUT("Try `describe setting.name`", []),
+    stop_deactivate();
+describe(ParsedArgs, Query) when is_list(Query) ->
+    Q = string:join(Query, "."),
+    QDef = string:tokens(Q, "."),
+
+    lager:debug("cuttlefish describe '~s'", [Q]),
+    {_, Mappings, _} = load_schema(ParsedArgs),
+
+
+     Results = lists:filter(
+        fun(X) -> 
+            cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
+        end, 
+        Mappings),
+
+    case length(Results) of
+        0 -> 
+            ?STDOUT("Variable '~s' not found", [Q]);
+        _X ->
+            Match = hd(Results),
+            ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
+            [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(Match)],
+            ?STDOUT("", []),
+            ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
+            ?STDOUT("   Default Value: ~p", [cuttlefish_mapping:default(Match)]),
+
+            Conf = load_conf(ParsedArgs),
+            ConfiguredValue = proplists:get_value(QDef, Conf, undefined),
+            ?STDOUT("   Set Value    : ~s", [ConfiguredValue]),
+            ?STDOUT("   app.config   : ~s", [cuttlefish_mapping:mapping(Match)])
+    end,
+    stop_deactivate().
+
+stop_deactivate() ->
+    init:stop(1),
+    timer:sleep(250),
+    stop_deactivate().
+
+generate(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
     {AppConfigExists, ExistingAppConfigName} = check_existence(EtcDir, "app.config"),
@@ -111,7 +193,7 @@ main(Args) ->
         %% this is nice and all, but currently all error paths of engage_cuttlefish end with init:stop(1)
         %% hopefully factor that to be cleaner.
         error -> 
-            init:stop(1);
+            stop_deactivate();
         {AppConf, VMArgs} ->
             %% Note: we have added a parameter '-vm_args' to this. It appears redundant
             %% but it is not! the erlang vm allows us to access all arguments to the erl
@@ -121,15 +203,12 @@ main(Args) ->
             init:stop(0);
         X ->
             lager:error("Unknown Return from cuttlefish library: ~p", X),
-            init:stop(1)
+            stop_deactivate()
     end.
 
--spec engage_cuttlefish(list()) -> {string(), string()}.
-engage_cuttlefish(ParsedArgs) ->
-    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
-    ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
+load_schema(ParsedArgs) ->
     SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
-    
+
     SchemaDirFiles = case SchemaDir of
         undefined -> [];
         _ -> [ filename:join(SchemaDir, Filename)  || Filename <- filelib:wildcard("*.schema", SchemaDir)]
@@ -141,10 +220,27 @@ engage_cuttlefish(ParsedArgs) ->
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
-            init:stop(1);
+            stop_deactivate();
         _ -> 
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
+
+    Schema = cuttlefish_schema:files(SortedSchemaFiles),
+    case proplists:is_defined(print_schema, ParsedArgs) of
+        true ->
+            print_schema(Schema);
+        _ -> ok
+    end,
+    Schema.
+
+load_conf(ParsedArgs) ->
+    ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
+    lager:debug("ConfFiles: ~p", [ConfFiles]),
+    cuttlefish_conf:files(ConfFiles).
+
+-spec engage_cuttlefish([proplists:property()]) -> {string(), string()}.
+engage_cuttlefish(ParsedArgs) ->
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
     DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
         false ->
@@ -160,7 +256,8 @@ engage_cuttlefish(ParsedArgs) ->
                     DP;
                 {error, E} ->
                     lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
-                    init:stop(1)
+                    stop_deactivate(),
+                    error
             end
     end,
     AbsPath = case DestinationPath of
@@ -177,18 +274,10 @@ engage_cuttlefish(ParsedArgs) ->
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
-    lager:debug("ConfFiles: ~p", [ConfFiles]),
-    lager:debug("SchemaFiles: ~p", [SortedSchemaFiles]),
+    
+    Schema = load_schema(ParsedArgs),
 
-    Schema = cuttlefish_schema:files(SortedSchemaFiles),
-
-    case proplists:is_defined(print_schema, ParsedArgs) of
-        true ->
-            print_schema(Schema);
-        _ -> ok
-    end,
-
-    Conf = cuttlefish_conf:files(ConfFiles),  
+    Conf = load_conf(ParsedArgs),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),

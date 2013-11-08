@@ -26,7 +26,7 @@
 -compile(export_all).
 -endif.
 
--export([map/2, find_mapping/2]).
+-export([map/2, find_mapping/2, add_defaults/2]).
 
 map(Schema, Config) ->
     map_add_defaults(Schema, Config).
