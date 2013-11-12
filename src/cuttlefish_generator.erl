@@ -321,7 +321,7 @@ transform_datatypes(Conf, Mappings) ->
                     %% that you're trying to set something that has no effect
                     VarName = string:join(Variable, "."),
                     lager:warning("You've tried to set ~s, but there is no setting with that name.", [VarName]),
-                    lager:warning("  it could be a typo. Did you mean one of these?"),
+                    lager:warning("  Did you mean one of these?"),
 
                     Possibilities = [ begin
                         MapVarName = string:join(cuttlefish_mapping:variable(M), "."),
