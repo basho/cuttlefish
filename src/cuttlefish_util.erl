@@ -38,7 +38,8 @@
     matches_for_variable_def/2,
     tokenize_variable_key/1,
     numerify/1,
-    ceiling/1]).
+    ceiling/1,
+    levenshtein/2]).
 
 %% @doc it's a wrapper for proplists:get_value, a convenience function
 %% for schema writers to not have to use [] notation for varibales
@@ -193,6 +194,37 @@ ceiling(X) ->
         Pos when Pos > 0 -> T + 1;
         _ -> T
     end.
+
+%% Levenshtein code by Adam Lindberg, Fredrik Svensson via
+%% http://www.trapexit.org/String_similar_to_(Levenshtein)
+%%
+%%------------------------------------------------------------------------------
+%% @spec levenshtein(StringA :: string(), StringB :: string()) -> integer()
+%% @doc Calculates the Levenshtein distance between two strings
+%% @end
+%%------------------------------------------------------------------------------
+levenshtein(Samestring, Samestring) -> 0;
+levenshtein(String, []) -> length(String);
+levenshtein([], String) -> length(String);
+levenshtein(Source, Target) ->
+    levenshtein_rec(Source, Target, lists:seq(0, length(Target)), 1).
+
+%% Recurses over every character in the source string and calculates a list of distances
+levenshtein_rec([SrcHead|SrcTail], Target, DistList, Step) ->
+    levenshtein_rec(SrcTail, Target, levenshtein_distlist(Target, DistList, SrcHead, [Step], Step), Step + 1);
+levenshtein_rec([], _, DistList, _) ->
+    lists:last(DistList).
+
+%% Generates a distance list with distance values for every character in the target string
+levenshtein_distlist([TargetHead|TargetTail], [DLH|DLT], SourceChar, NewDistList, LastDist) when length(DLT) > 0 ->
+    Min = lists:min([LastDist + 1, hd(DLT) + 1, DLH + dif(TargetHead, SourceChar)]),
+    levenshtein_distlist(TargetTail, DLT, SourceChar, NewDistList ++ [Min], Min);
+levenshtein_distlist([], _, _, NewDistList, _) ->
+    NewDistList.
+
+% Calculates the difference between two characters or other values
+dif(C, C) -> 0;
+dif(_, _) -> 1.
 
 -ifdef(TEST).
 

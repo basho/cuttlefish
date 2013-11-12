@@ -327,21 +327,22 @@ files_test() ->
     {Translations, Mappings, Validations} = files(["../test/multi1.schema", "../test/multi2.schema"]),
     ?assertEqual(2, length(Mappings)),
     [M1, M2] = Mappings,
-    ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M1)),
-    ?assertEqual("what.ev1", cuttlefish_mapping:mapping(M1)),
+    ?assertEqual(["a","b","c"], cuttlefish_mapping:variable(M1)),
+    ?assertEqual("what.ev4", cuttlefish_mapping:mapping(M1)),
 
-    ?assertEqual(["a","b","c"], cuttlefish_mapping:variable(M2)),
-    ?assertEqual("what.ev4", cuttlefish_mapping:mapping(M2)),
+    ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M2)),
+    ?assertEqual("what.ev1", cuttlefish_mapping:mapping(M2)),
 
     ?assertEqual(2, length(Translations)),
     [T1, T2] = Translations,
-    ?assertEqual("what.ev2", cuttlefish_translation:mapping(T1)),
-    F1 = cuttlefish_translation:func(T1),
-    ?assertEqual(1, F1(x)),
 
-    ?assertEqual("what.ev1", cuttlefish_translation:mapping(T2)),
+    ?assertEqual("what.ev1", cuttlefish_translation:mapping(T1)),
+    F1 = cuttlefish_translation:func(T1),
+    ?assertEqual(4, F1(x)),
+
+    ?assertEqual("what.ev2", cuttlefish_translation:mapping(T2)),
     F2 = cuttlefish_translation:func(T2),
-    ?assertEqual(4, F2(x)),
+    ?assertEqual(1, F2(x)),
 
     ?assertEqual(1, length(Validations)),
     [V1] = Validations,
