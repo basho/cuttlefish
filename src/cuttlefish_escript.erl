@@ -284,8 +284,14 @@ engage_cuttlefish(ParsedArgs) ->
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
         true ->
             lager:info("~s/advanced.config detected, overlaying proplists", [EtcDir]),
-            {ok, [AdvancedConfig]} = file:consult(AdvancedConfigFile), 
-            cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
+            case file:consult(AdvancedConfigFile) of
+                {ok, [AdvancedConfig]} ->
+                    cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
+                {error, Error} ->
+                    lager:error("Error parsing advanced.config: ~p", [Error]),
+                    stop_deactivate()
+            end;
+            
         _ ->
             %% Nothing to see here, these aren't the droids you're looking for.
             NewConfig
