@@ -313,9 +313,29 @@ transform_datatypes(Conf, Mappings) ->
             %% Look up mapping from schema
             case find_mapping(Variable, Mappings) of
                 {error, _} ->
-                    %% TODO: Revisit this log message
-                    %% this log message is also called recursively doh!
-                    %%lager:warning("No setting defined for ~s", [Key]),
+                    %% So, this error message isn't so performant (s/o @argv0)
+                    %% but it shouldn't happen too often, and I think it's important
+                    %% to give users this feedback.
+
+                    %% It won't prevent anything from starting, but will let you know
+                    %% that you're trying to set something that has no effect
+                    VarName = string:join(Variable, "."),
+                    lager:warning("You've tried to set ~s, but there is no mapping", [VarName]),
+                    lager:warning("  it could be a typo. Did you mean one of these?"),
+
+                    Possibilities = [ begin
+                        MapVarName = string:join(cuttlefish_mapping:variable(M), "."),
+                        {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
+                    end || M <- Mappings],
+                    Sorted = lists:sort(Possibilities),
+                    NumSuggest = 3,
+                    Top = case length(Sorted) > NumSuggest of
+                        true ->
+                            {S, _} = lists:split(NumSuggest, Sorted),
+                            S;
+                        false -> Sorted
+                    end, 
+                    [ lager:warning("    ~s", [T]) || {_, T} <- Top],
                     Acc;
                 MappingRecord ->
                     DT = cuttlefish_mapping:datatype(MappingRecord),
