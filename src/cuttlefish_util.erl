@@ -131,6 +131,8 @@ tokenize_variable_key([$\\, $.|Rest], Part, Acc) ->
     tokenize_variable_key(Rest, [$.|Part], Acc);
 tokenize_variable_key([$.|Rest], Part, Acc) ->
     tokenize_variable_key(Rest, "", [lists:reverse(Part)|Acc]);
+tokenize_variable_key([], "", Acc) ->
+    lists:reverse(Acc);
 tokenize_variable_key([], Part, Acc) ->
     lists:reverse([lists:reverse(Part)|Acc]);
 tokenize_variable_key([Char|Rest], Part, Acc) ->
@@ -286,6 +288,18 @@ filter_by_variable_starts_with_test() ->
             {["prefixed","key3"], 6}
         ],
         FilteredByString),
+    ok.
+
+tokenize_variable_key_test() ->
+    ?assertEqual(["a", "b", "c", "d"], tokenize_variable_key("a.b.c.d")),
+
+    ?assertEqual(["a", "b.c", "d"], tokenize_variable_key("a.b\\.c.d")),
+    
+    %% Covers GH #22
+    ?assertEqual(
+        ["listener", "http"],
+        cuttlefish_util:tokenize_variable_key("listener.http.")
+    ),
     ok.
 
 split_variable_on_match_test() ->
