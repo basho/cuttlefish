@@ -66,6 +66,8 @@ level.
 You can learn more about the techincal implementation of schemas at:
 https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Erlang-Developers
 
+https://github.com/basho/cuttlefish.wiki.git
+
 ## What's it look like to users?
 
 Riak uses the semantic of `$conf_dir/app.config` for configuration.
@@ -85,7 +87,9 @@ https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Application-Users
 
 ## What's it look like to application packagers?
 
-https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users
+* [node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users)
+* [non node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-non-node_package-users)
+
 
 ## Current Status
 
