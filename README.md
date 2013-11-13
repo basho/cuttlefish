@@ -85,7 +85,9 @@ https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Application-Users
 
 ## What's it look like to application packagers?
 
-https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users
+* [node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users)
+* [non node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-non-node_package-users)
+
 
 ## Current Status
 
