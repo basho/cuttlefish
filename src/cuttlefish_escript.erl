@@ -296,6 +296,12 @@ engage_cuttlefish(ParsedArgs) ->
             NewConfig
     end, 
 
+    case FinalConfig of 
+        {error, _X} ->
+            stop_deactivate();
+        _ ->
+            ok
+    end,
     FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
     FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 

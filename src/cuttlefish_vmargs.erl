@@ -10,7 +10,13 @@
 %% @doc turns a proplist into a list of strings suitable for vm.args files
 -spec stringify([{any(), string()}]) -> [string()].
 stringify(VMArgsProplist) ->
-    [ lists:flatten(io_lib:format("~s ~s", [K, V]))  || {K, V} <- VMArgsProplist ].
+    [ stringify_line(K, V) || {K, V} <- VMArgsProplist ].
+
+
+stringify_line(K, V) when is_list(V) ->
+  lists:flatten(io_lib:format("~s ~s", [K, V]));
+stringify_line(K, V) ->
+  lists:flatten(io_lib:format("~s ~w", [K, V])).
 
 -ifdef(TEST).
 
