@@ -59,7 +59,7 @@ to_string(Integer, integer) when is_list(Integer) -> Integer;
 to_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> IP ++ ":" ++ integer_to_list(Port);
 to_string(IPString, ip) when is_list(IPString) -> IPString;
 
-to_string(Enum, {enum, _}) when is_list(Enum) -> Enum; 
+to_string(Enum, {enum, _}) when is_list(Enum) -> Enum;
 to_string(Enum, {enum, _}) when is_atom(Enum) -> atom_to_list(Enum);
 
 to_string(Duration, {duration, _}) when is_list(Duration) -> Duration;
@@ -73,20 +73,20 @@ to_string(String, string) when is_list(String) -> String;
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(X, InvalidDatatype) ->
     lager:error("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]),
-    error. 
+    error.
 
 -spec from_string(term(), datatype()) -> term().
 from_string(Atom, atom) when is_atom(Atom) -> Atom;
 from_string(String, atom) -> list_to_atom(String);
 
-from_string(Atom, {enum, Enum}) when is_atom(Atom) -> 
+from_string(Atom, {enum, Enum}) when is_atom(Atom) ->
     case lists:member(Atom, Enum) of
         true -> Atom;
         _ -> {error, lists:flatten(io_lib:format("~p is not a valid enum value, acceptable values are ~p.", [Atom, Enum]))}
     end;
 from_string(String, {enum, Enum}) -> from_string(list_to_atom(String), {enum, Enum});
 
-from_string(Integer, integer) when is_integer(Integer) -> Integer; 
+from_string(Integer, integer) when is_integer(Integer) -> Integer;
 from_string(String, integer) when is_list(String) ->
     try list_to_integer(String) of
         X -> X
@@ -94,7 +94,7 @@ from_string(String, integer) when is_list(String) ->
         _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to an integer", [String]))}
     end;
 
-from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port}; 
+from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
 from_string(String, ip) ->
     try begin
         Parts = string:tokens(String, ":"),
@@ -107,10 +107,10 @@ from_string(String, ip) ->
     end;
 
 from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
-from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit); 
+from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit);
 
 from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
-from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize); 
+from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize);
 
 from_string(String, string) when is_list(String) -> String;
 from_string(Thing, InvalidDatatype) ->
@@ -151,7 +151,7 @@ from_string_integer_test() ->
 from_string_ip_test() ->
     ?assertEqual({"127.0.0.1", 8098}, from_string("127.0.0.1:8098", ip)),
     ?assertEqual(
-        {"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098}, 
+        {"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098},
         from_string("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
 
     ?assertEqual(
