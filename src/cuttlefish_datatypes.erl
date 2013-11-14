@@ -35,6 +35,7 @@
 -spec is_supported(any()) -> boolean().
 is_supported(integer) -> true;
 is_supported(string) -> true;
+is_supported(atom) -> true;
 is_supported({enum, E}) when is_list(E) -> true;
 is_supported(ip) -> true;
 is_supported({duration, f}) -> true;
@@ -49,6 +50,9 @@ is_supported(_) -> false.
 
 
 -spec to_string(term(), datatype()) -> string().
+to_string(Atom, atom) when is_list(Atom) -> Atom;
+to_string(Atom, atom) when is_atom(Atom) -> atom_to_list(Atom);
+
 to_string(Integer, integer) when is_integer(Integer) -> integer_to_list(Integer);
 to_string(Integer, integer) when is_list(Integer) -> Integer;
 
@@ -72,6 +76,9 @@ to_string(X, InvalidDatatype) ->
     error. 
 
 -spec from_string(term(), datatype()) -> term().
+from_string(Atom, atom) when is_atom(Atom) -> Atom;
+from_string(String, atom) -> list_to_atom(String);
+
 from_string(Atom, {enum, Enum}) when is_atom(Atom) -> 
     case lists:member(Atom, Enum) of
         true -> Atom;
@@ -112,6 +119,9 @@ from_string(Thing, InvalidDatatype) ->
 
 -ifdef(TEST).
 
+to_string_atom_test() ->
+    ?assertEqual("split_the", to_string(split_the, atom)).
+
 to_string_integer_test() ->
     ?assertEqual("32", to_string(32, integer)),
     ?assertEqual("32", to_string(32, integer)).
@@ -126,6 +136,11 @@ to_string_enum_test() ->
 
 to_string_string_test() ->
     ?assertEqual("string", to_string("string", string)).
+
+
+from_string_atom_test() ->
+    ?assertEqual(split_the, from_string(split_the, atom)),
+    ?assertEqual(split_the, from_string("split_the", atom)).
 
 from_string_integer_test() ->
     ?assertEqual(32, from_string(32, integer)),
