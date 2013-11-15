@@ -50,18 +50,14 @@ generate(Config0, ReltoolFile) ->
 
                     io:format("Schema: ~p~n", [Schemas]),
 
-                    {_Translations, Mappings, _Validators} = cuttlefish_schema:files(Schemas),
+                    case cuttlefish_schema:files(Schemas) of 
+                        {error, _Es} ->
+                            %% These errors were already printed
+                            error;
+                        {_Translations, Mappings, _Validators} ->
+                            make_default_file(Config, TargetDir, Mappings)
+                    end;
 
-                    %% I really wanted this to default to the application name. The problem
-                    %% is that the type of application that uses cuttlefish is also the kind
-                    %% that doesn't have an .app.src file, so rebar doesn't get it.
-                    %% I could have done something with cwd, but I didn't like that because you
-                    %% could be building anywhere. So, cuttlefish it is. he's pretty cool anyway.
-                    File = rebar_config:get_local(Config, cuttlefish_filename, "cuttlefish.conf"),
-                    Filename = filename:join([TargetDir, "etc", File]),
-                    
-                    cuttlefish_conf:generate_file(Mappings, Filename),
-                    ok;
                 false ->
                     %%io:format("No {overlay, [...]} found in reltool.config.\n", []);
                     ok;
@@ -73,6 +69,18 @@ generate(Config0, ReltoolFile) ->
         no ->
             ok
     end,
+    ok.
+
+make_default_file(Config, TargetDir, Mappings) ->
+    %% I really wanted this to default to the application name. The problem
+    %% is that the type of application that uses cuttlefish is also the kind
+    %% that doesn't have an .app.src file, so rebar doesn't get it.
+    %% I could have done something with cwd, but I didn't like that because you
+    %% could be building anywhere. So, cuttlefish it is. he's pretty cool anyway.
+    File = rebar_config:get_local(Config, cuttlefish_filename, "cuttlefish.conf"),
+    Filename = filename:join([TargetDir, "etc", File]),
+    
+    cuttlefish_conf:generate_file(Mappings, Filename),
     ok.
 
 %% Only run for rel directory

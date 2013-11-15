@@ -296,12 +296,17 @@ engage_cuttlefish(ParsedArgs) ->
             NewConfig
     end, 
 
-    FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
-    FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
+    case FinalConfig of 
+        {error, _X} ->
+            error;
+        _ ->
+            FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
+            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-    file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
-    file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
-    {Destination, DestinationVMArgs}.
+            file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
+            file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
+            {Destination, DestinationVMArgs}
+    end.
 
 -spec check_existence(string(), string()) -> {boolean(), string()}.
 check_existence(EtcDir, Filename) ->

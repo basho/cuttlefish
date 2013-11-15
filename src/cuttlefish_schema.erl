@@ -40,33 +40,27 @@ strings(ListOfStrings) ->
     merger(fun cuttlefish_schema:string/1, ListOfStrings).
 
 merger(Fun, ListOfInputs) ->
-    {T, M, V} = lists:foldl(
+    Return = lists:foldl(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
 
             case Fun(Input) of
-                {error, _Errors} ->
+                {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
-                    error; 
+                    {error, Errors}; 
                 {Translations, Mappings, Validators} ->
                     
                     NewMappings = lists:foldr(
-                        fun(Mapping, NewMappingAcc) -> 
-                            cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
-                        end, 
+                        fun cuttlefish_mapping:replace/2, 
                         MappingAcc, 
                         Mappings), 
 
                     NewTranslations = lists:foldr(
-                        fun(Translation, NewTranslationAcc) -> 
-                            cuttlefish_translation:replace(Translation, NewTranslationAcc)
-                        end, 
+                        fun cuttlefish_translation:replace/2, 
                         TranslationAcc, 
                         Translations), 
 
                     NewValidators = lists:foldr(
-                        fun(Validator, NewValidatorAcc) -> 
-                            cuttlefish_validator:replace(Validator, NewValidatorAcc)
-                        end, 
+                        fun cuttlefish_validator:replace/2, 
                         ValidatorAcc, 
                         Validators),
 
@@ -75,7 +69,10 @@ merger(Fun, ListOfInputs) ->
         end, 
         {[], [], []}, 
         ListOfInputs),
-    {lists:reverse(T), lists:reverse(M), lists:reverse(V)}.
+    case Return of
+        {error, Errors} -> {error, Errors};
+        {T, M, V} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
+    end.
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
@@ -88,7 +85,7 @@ file(Filename) ->
     S = unicode:characters_to_list(B, utf8),
     case string(S) of 
         {error, Errors} ->
-            lager:error("Error parsing schema: ~s", [Filename]),
+            cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
             {error, Errors};
         Schema ->
             Schema
@@ -132,9 +129,9 @@ string(S) ->
                     [begin
                         case Desc of
                             [H|_] when is_list(H) ->
-                                [ lager:error(D) || D <- Desc];
+                                [ cuttlefish_util:print_error(D) || D <- Desc];
                             _ ->
-                                lager:error(lists:flatten(Desc)) 
+                                cuttlefish_util:print_error(Desc)
                         end
                     end || {error, Desc} <- Errors],
                     {error, Errors}
@@ -189,6 +186,10 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
 parse_schema_tokens(Scanned) -> 
     parse_schema_tokens(Scanned, []).
 
+parse_schema_tokens([], Acc=[Last|_]) ->
+    %% When you've reached the end of file without encountering a dot,
+    %% return the result anyway and let erl_parse produce the error.
+    {element(2, Last), lists:reverse(Acc), []};
 parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
     {LineNo, lists:reverse(Acc), Scanned};
 parse_schema_tokens([H|Scanned], Acc) ->
