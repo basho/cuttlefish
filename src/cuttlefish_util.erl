@@ -202,7 +202,7 @@ ceiling(X) ->
 print_error(FormatString, Args) ->
     print_error(io_lib:format(FormatString, Args)). 
 print_error(String) ->
-    case lager:error("~s", String) of
+    case lager:error("~s", [String]) of
         {error, lager_not_running} ->
             io:format("~s~n", [String]),
             ok;
