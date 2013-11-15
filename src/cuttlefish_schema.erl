@@ -50,23 +50,17 @@ merger(Fun, ListOfInputs) ->
                 {Translations, Mappings, Validators} ->
                     
                     NewMappings = lists:foldr(
-                        fun(Mapping, NewMappingAcc) -> 
-                            cuttlefish_mapping:replace(Mapping, NewMappingAcc) 
-                        end, 
+                        fun cuttlefish_mapping:replace/2, 
                         MappingAcc, 
                         Mappings), 
 
                     NewTranslations = lists:foldr(
-                        fun(Translation, NewTranslationAcc) -> 
-                            cuttlefish_translation:replace(Translation, NewTranslationAcc)
-                        end, 
+                        fun cuttlefish_translation:replace/2, 
                         TranslationAcc, 
                         Translations), 
 
                     NewValidators = lists:foldr(
-                        fun(Validator, NewValidatorAcc) -> 
-                            cuttlefish_validator:replace(Validator, NewValidatorAcc)
-                        end, 
+                        fun cuttlefish_validator:replace/2, 
                         ValidatorAcc, 
                         Validators),
 
@@ -91,7 +85,11 @@ file(Filename) ->
     S = unicode:characters_to_list(B, utf8),
     case string(S) of 
         {error, Errors} ->
-            lager:error("Error parsing schema: ~s", [Filename]),
+            case lager:error("Error parsing schema: ~s", [Filename]) of
+                 {error, lager_not_running} ->
+                    io:format("Error parsing schema: ~s~n", [Filename]);
+                 ok -> ok
+            end,
             {error, Errors};
         Schema ->
             Schema
@@ -135,9 +133,17 @@ string(S) ->
                     [begin
                         case Desc of
                             [H|_] when is_list(H) ->
-                                [ lager:error(D) || D <- Desc];
+                                [ case lager:error(D) of
+                                    {error, lager_not_running} ->
+                                        io:format(D ++ "~n");
+                                    ok -> ok
+                                end || D <- Desc];
                             _ ->
-                                lager:error(lists:flatten(Desc)) 
+                                case lager:error(lists:flatten(Desc)) of
+                                    {error, lager_not_running} ->
+                                        io:format(lists:flatten(Desc ++ "~n"));
+                                    ok -> ok
+                                end
                         end
                     end || {error, Desc} <- Errors],
                     {error, Errors}

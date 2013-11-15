@@ -51,9 +51,9 @@ generate(Config0, ReltoolFile) ->
                     io:format("Schema: ~p~n", [Schemas]),
 
                     case cuttlefish_schema:files(Schemas) of 
-                        {error, Es} ->
-                            io:format("Error loading schemas: ~n"),
-                            [ io:format("  ~p~n", [E]) || E <- Es];
+                        {error, _Es} ->
+                            %% These errors were already printed
+                            error;
                         {_Translations, Mappings, _Validators} ->
                             make_default_file(Config, TargetDir, Mappings)
                     end;
