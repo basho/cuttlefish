@@ -85,11 +85,7 @@ file(Filename) ->
     S = unicode:characters_to_list(B, utf8),
     case string(S) of 
         {error, Errors} ->
-            case lager:error("Error parsing schema: ~s", [Filename]) of
-                 {error, lager_not_running} ->
-                    io:format("Error parsing schema: ~s~n", [Filename]);
-                 ok -> ok
-            end,
+            cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
             {error, Errors};
         Schema ->
             Schema
@@ -133,17 +129,9 @@ string(S) ->
                     [begin
                         case Desc of
                             [H|_] when is_list(H) ->
-                                [ case lager:error(D) of
-                                    {error, lager_not_running} ->
-                                        io:format(D ++ "~n");
-                                    ok -> ok
-                                end || D <- Desc];
+                                [ cuttlefish_util:print_error(D) || D <- Desc];
                             _ ->
-                                case lager:error(lists:flatten(Desc)) of
-                                    {error, lager_not_running} ->
-                                        io:format(lists:flatten(Desc ++ "~n"));
-                                    ok -> ok
-                                end
+                                cuttlefish_util:print_error(Desc)
                         end
                     end || {error, Desc} <- Errors],
                     {error, Errors}

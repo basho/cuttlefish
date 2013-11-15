@@ -39,7 +39,9 @@
     tokenize_variable_key/1,
     numerify/1,
     ceiling/1,
-    levenshtein/2]).
+    levenshtein/2,
+    print_error/1,
+    print_error/2]).
 
 %% @doc it's a wrapper for proplists:get_value, a convenience function
 %% for schema writers to not have to use [] notation for varibales
@@ -195,6 +197,16 @@ ceiling(X) ->
         Neg when Neg < 0 -> T;
         Pos when Pos > 0 -> T + 1;
         _ -> T
+    end.
+
+print_error(FormatString, Args) ->
+    print_error(io_lib:format(FormatString, Args)). 
+print_error(String) ->
+    case lager:error("~s", String) of
+        {error, lager_not_running} ->
+            io:format("~s~n", [String]),
+            ok;
+        ok -> ok
     end.
 
 %% Levenshtein code by Adam Lindberg, Fredrik Svensson via
