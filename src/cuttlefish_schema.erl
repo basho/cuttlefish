@@ -192,6 +192,10 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
 parse_schema_tokens(Scanned) -> 
     parse_schema_tokens(Scanned, []).
 
+parse_schema_tokens([], Acc=[Last|_]) ->
+    %% When you've reached the end of file without encountering a dot,
+    %% return the result anyway and let erl_parse produce the error.
+    {element(2, Last), lists:reverse(Acc), []};
 parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
     {LineNo, lists:reverse(Acc), Scanned};
 parse_schema_tokens([H|Scanned], Acc) ->
