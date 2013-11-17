@@ -67,7 +67,7 @@ parse_and_command(Args) ->
 %% @doc main method for generating erlang term config files
 main(Args) ->
     application:load(lager),
-    
+
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
@@ -84,7 +84,7 @@ main(Args) ->
     case Command of
         help ->
             print_help();
-        generate -> 
+        generate ->
             generate(ParsedArgs);
         effective ->
             effective(ParsedArgs);
@@ -110,8 +110,8 @@ effective(ParsedArgs) ->
             _:_ ->
                 %% I hate that I had to do this, 'cause you know...
                 %% Erlang and Strings, but actually this is ok because
-                %% sometimes there are going to be weird tuply things 
-                %% in here, so always good to fall back on ~p. 
+                %% sometimes there are going to be weird tuply things
+                %% in here, so always good to fall back on ~p.
                 %% honestly, I think this try should be built into io:format
                 ?STDOUT("~s = ~p", [Variable, Value])
         end
@@ -133,13 +133,13 @@ describe(ParsedArgs, Query) when is_list(Query) ->
 
 
      Results = lists:filter(
-        fun(X) -> 
+        fun(X) ->
             cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
-        end, 
+        end,
         Mappings),
 
     case length(Results) of
-        0 -> 
+        0 ->
             ?STDOUT("Variable '~s' not found", [Q]);
         _X ->
             Match = hd(Results),
@@ -206,7 +206,7 @@ generate(ParsedArgs) ->
     end.
 
 load_schema(ParsedArgs) ->
-    SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
+    SchemaDir = proplists:get_value(schema_dir, ParsedArgs),
 
     SchemaDirFiles = case SchemaDir of
         undefined -> [];
@@ -215,12 +215,12 @@ load_schema(ParsedArgs) ->
     IndividualSchemaFiles = proplists:get_all_values(schema_file, ParsedArgs),
     SchemaFiles = SchemaDirFiles ++ IndividualSchemaFiles,
 
-    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles), 
+    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles),
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
             stop_deactivate();
-        _ -> 
+        _ ->
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
 
@@ -250,8 +250,8 @@ engage_cuttlefish(ParsedArgs) ->
             DP = proplists:get_value(dest_dir, ParsedArgs),
             case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
                 %% filelib:ensure_dir/1 requires a dummy filename in the argument,
-                %% I think that is weaksauce, hence "weaksauce.dummy" 
-                ok -> 
+                %% I think that is weaksauce, hence "weaksauce.dummy"
+                ok ->
                     DP;
                 {error, E} ->
                     lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
@@ -273,7 +273,7 @@ engage_cuttlefish(ParsedArgs) ->
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
-    
+
     Schema = load_schema(ParsedArgs),
 
     Conf = load_conf(ParsedArgs),
@@ -290,17 +290,17 @@ engage_cuttlefish(ParsedArgs) ->
                     lager:error("Error parsing advanced.config: ~p", [Error]),
                     stop_deactivate()
             end;
-            
+
         _ ->
             %% Nothing to see here, these aren't the droids you're looking for.
             NewConfig
-    end, 
+    end,
 
-    case FinalConfig of 
+    case FinalConfig of
         {error, _X} ->
             error;
         _ ->
-            FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
+            FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
             file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
