@@ -1,0 +1,4 @@
+%% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
+%% ex: ft=erlang ts=4 sw=4 et
+{mapping, "00.setting.A", "app.setting.a", []}.
+{mapping, "00.setting.B", "app.setting.b", []}.

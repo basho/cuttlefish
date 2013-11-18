@@ -16,13 +16,45 @@ generated_conf_file_test() ->
     ok.
 
 
+priorities_with_overwriding_translations_test() ->
+    FileBase = "../test/order_test/schema/priorities_with_overwriding_translations/",
+    %% We've to pass in reverse order here
+    Schema = cuttlefish_schema:files([FileBase ++ F ||
+                                         F <- ["01.schema", "00.schema"]]),
+    Conf = [{["00", "setting", "A"], "a0"},
+            {["00", "setting", "B"], "b0"},
+            {["00", "setting", "C"], "c0"},
+            {["01", "setting", "A"], "a1"},
+            {["01", "setting", "B"], "b1"},
+            {["01", "setting", "C"], "c1"}],
+    ExpectedConf = [{app,[{setting,[{a,"a0"},{b,"b0"},{t2,"c0"},{c,"t0.c"},{t1,"t0.1"}]}]}],
+    ActualConf = cuttlefish_generator:map(Schema, Conf),
+    ?assertEqual(ExpectedConf, ActualConf),
+    ok.
+
+priorities_test() ->
+    FileBase = "../test/order_test/schema/priorities/",
+    %% We've to pass in reverse order here
+    Schema = cuttlefish_schema:files([FileBase ++ F ||
+                                         F <- ["01.schema", "00.schema"]]),
+    Conf = [{["00", "setting", "A"], "a0"},
+            {["00", "setting", "B"], "b0"},
+            {["00", "setting", "C"], "c0"},
+            {["01", "setting", "A"], "a1"},
+            {["01", "setting", "B"], "b1"},
+            {["01", "setting", "C"], "c1"}],
+    ExpectedConf = [{app,[{setting,[{a,"a0"},{b,"b0"},{c, "c1"}]}]}],
+    ActualConf = cuttlefish_generator:map(Schema, Conf),
+    ?assertEqual(ExpectedConf, ActualConf),
+    ok.
+
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
 generated_config_file_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [], %% conf_parse:file("../test/riak.conf"),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
-    
-    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),  
+
+    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 breaks_on_fuzzy_and_strict_match_test() ->
