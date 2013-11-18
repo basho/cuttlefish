@@ -1,15 +1,22 @@
 %% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
 %% ex: ft=erlang ts=4 sw=4 et
+
+%% A and B should be overwritten by 00
 {mapping, "01.setting.A", "app.setting.a", []}.
 {mapping, "01.setting.B", "app.setting.b", []}.
+
+%% This should be overwritten by te first translation in 00
 {mapping, "01.setting.C", "app.setting.c", []}.
 
+
+%% This should be overwritten by the second translation
 {translation,
  "app.setting.t1",
  fun(Conf) ->
          "t1.1"
  end}.
 
+%% And just so 01 does not feel all sad it can keep this
 {translation,
  "app.setting.t2",
  fun(Conf) ->

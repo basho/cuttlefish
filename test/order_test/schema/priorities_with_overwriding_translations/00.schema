@@ -1,15 +1,20 @@
 %% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
 %% ex: ft=erlang ts=4 sw=4 et
+
+%% A and B should overwrite the settings from 01
 {mapping, "00.setting.A", "app.setting.a", []}.
 {mapping, "00.setting.B", "app.setting.b", []}.
+%% C should have no impact
 {mapping, "00.setting.C", "app.setting.t2", []}.
 
+%% This translation again should overwrite C from 01
 {translation,
  "app.setting.c",
  fun(Conf) ->
          "t0.c"
  end}.
 
+%% This also should overwrite t1 from 01
 {translation,
  "app.setting.t1",
  fun(Conf) ->
