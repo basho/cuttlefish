@@ -1,55 +1,98 @@
-# Bjorn
-Knows all about your options
+# Cuttlefish
 
-## Motivation
-Born of a desire to make configuraion of Riak easier on the masses, this project strives to help developers merge the idea of a user facing configuration file with that of an erlang app.config.
+Cuttlefish is a library for Erlang applications that wish to walk the
+fine line between Erlang `app.config`s and a sysctl-like syntax.
+The name is a pun on the pronunciation of 'sysctl' and jokes are
+better explained.
 
-## What's it look like to users
+## Riak Disclaimer
 
-Riak uses the semantic of $conf_dir/app.config for configuration. We're going to expand on that.
+While this readme and test suite is Riak-heavy, the fact is that this
+library can be used with any Erlang application that wants a more
+universally accessible configuration syntax. Still, I built this for
+Riak, and it's nice to have a concrete example to work with.
 
-The same directory will ship with a `riak.conf` file, with a syntax that looks something like this:
+## The Vision
 
-```
-anti_entropy = on
+Currently, Riak's `app.config` is **the** definitive place for
+configuring Riak. It's not odd for Erlang applications to be
+configured this way, but it is a struggle for non-Erlang programmers
+and automated deployment tools to manipulate these files. On the other
+hand, the `app.config` is a useful construct for Erlang programmers,
+and it is pretty coupled to OTP applications.
+
+Cuttlefish's goal is to put a layer of abstraction on top of the
+`app.config` that is easier to work with outside of the Erlang world.
+It will allow Erlang programmers to write a schema for their
+application's configuration file, which is independent of the
+applications included in the project. The schema is one of the more
+important parts of Cuttlefish, so we'll go into more detail on it
+below, but it is written in Erlang and defines how the non-Erlang
+configuration file works.
+
+From this schema, you can generate a default `.conf` file for your
+application. This will be the file that is packaged with your
+application as the default configuration.
+
+The schema is also used to generate an `app.config` that will be used
+to start your application. Using the schema alone will generate all
+the proper defaults. Your users can make changes to the `.conf` file
+and those changes will overwrite the schema's defaults.
+
+You an also have an `advanced.config` which looks like the old
+`app.config` for anything that no schema mapping is created for.
+
+What does this look like for an application like Riak?
+
+Well, the authors of Riak maintain a schema for Riak's config. It
+defines all sorts of things we'll get into later. When we build Riak,
+Cuttlefish generates a `riak.conf` file that contains the default
+shipping configuration of Riak. When a script to start Riak is run, a
+Cuttlefish escript is spun up, reads the `riak.conf` file and combines
+that with the Schema to generate an `app.config`. The script then
+exits, and a new Erlang VM (destined to run Riak) is started with that
+generated `app.config`. Down the line somewhere, you may be
+troubleshooting some part of Riak, and the support organization at
+Basho may need you to manipulate a configuration setting that is not
+exposed by the schema because it is so infrequently used. In that
+case, we can set that setting directly in an `advanced.config` which
+sits in the same directory as `riak.conf`.
+
+I hope that gives you a good idea about how this works at a high
+level.
+
+## What's it look like to Erlang Developers?
+
+You can learn more about the techincal implementation of schemas at:
+https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Erlang-Developers
+
+## What's it look like to users?
+
+Riak uses the semantic of `$conf_dir/app.config` for configuration.
+We're going to replace that with a file called `riak.conf`, with a
+syntax that looks like this:
+
+```ini
 ring_size = 32
+anti_entropy = debug
+log.error.file = /var/log/error.log
+log.console.file = /var/log/console.log
+log.syslog = on
 ```
 
-What do those mean? As a Riak developer, you defined them in the config schema like this:
+More information for users here:
+https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Application-Users
 
-```
-%% @doc enable active anti-entropy subsystem
-%% @datatype enum on, off
-%% @mapping riak_kv.anti_entropy{1}
-{ "anti_entropy", on}.
+## What's it look like to application packagers?
 
-%% @doc Default ring creation size.  Make sure it is a power of 2,
-%% @datatype integer
-%% @mapping riak_core.ring_creation_size
-{ "ring_size", 64}.
-```
-
-So far, the `@mapping` annotation supports dot separated proplist nesting, and this `{N}` curly brace syntax which means, "this maps to the Nth element of the tuple stored here"
-
-The above schema is just saying that a riak.conf's "anti_entropy" key maps to the 1st element of the tuple stored in the app.config's [{riak_kv, [{anti_entropy, {on, []}}]}]. It also says that "ring_size" maps to [{riak_core, [{ring_creation_size, 64}]}].
-
-The `@datatype` annotation tells it how to cast values for app.config.
-
-*The values in riak.conf overwrite values in app.config*
-
-## So where's app.config?
-
-Well, there's a couple. The default app.config currently shipped with Riak will be hidden away somewhere Riak knows about. It will contain the default settings. The `riak.conf` file is currently parsed and overlaid on top of this config file.
-
-But right now we only map two values, and some might be too complexly nested to hit in the first phase of this. This is why we are planning on adding the ability to place an `app.config` next to the `riak.conf` file, which will allow you to override the default app.config that ships with Riak, but just the places you need to. I think that multibackend configuration is going to be the poster child for this advanced configuration file.
-
-To avoid confusion, we'll call the file that ships inside Riak as `default.config` and the file that sits next to `riak.conf` `advanced.config`. Anything with the `.config` extention means a standard erlang app.config syntax.
-
-So, these three files are essentially merged into a generated app.config by a little vm before Riak starts. Then the Riak erlang vm will start up using the generated app.config
-
-We'll also eventually be able to source `vm.args` from the `riak.conf` also, but baby steps.
+* [node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users)
+* [non node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-non-node_package-users)
 
 
+## Current Status
 
-### P.S. Names are placeholders. 
-I don't intend to ship bjorn_schema:tyktorp/3; however, it wouldn't be the worst thing ;)
+It's not complete, but it's scheduled for inclusion in the next major
+release of Riak, so this will be fluid for a while, but I wanted to
+get eyes on it sooner than later. I guess you'd call this a "Technical 
+Preview", so please don't get all caremad if something changes about 
+it before "super officiaaaaal" release.

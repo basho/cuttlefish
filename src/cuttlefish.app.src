@@ -1,12 +1,11 @@
-{application, bjorn,
+{application, cuttlefish,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "cuttlefish configuration abstraction"},
+  {vsn, git},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib
                  ]},
-  {mod, { bjorn_app, []}},
   {env, []}
  ]}.
