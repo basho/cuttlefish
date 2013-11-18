@@ -61,8 +61,13 @@ func(T)     -> T#translation.func.
 
 -spec replace(translation(), [translation()]) -> [translation()].
 replace(Translation, ListOfTranslations) ->
-    Removed = lists:filter(fun(T) -> mapping(T) =/= mapping(Translation) end, ListOfTranslations), 
-    Removed ++ [Translation].
+    Exists = lists:keymember(mapping(Translation), #translation.mapping, ListOfTranslations),
+    case Exists of
+        true ->
+            lists:keyreplace(mapping(Translation), #translation.mapping, ListOfTranslations, Translation);
+        _ ->
+            [Translation | ListOfTranslations]
+    end.
 
 -spec remove_duplicates([translation()]) -> [translation()].
 remove_duplicates(Translations) ->
@@ -110,10 +115,6 @@ replace_test() ->
     },
 
     SampleTranslations = [Element1,
-    #translation{
-        mapping = "mapping1",
-        func = fun(X) -> X*3 end
-    },
     #translation{
         mapping = "mapping1",
         func = fun(X) -> X*4 end

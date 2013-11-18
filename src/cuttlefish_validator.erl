@@ -67,8 +67,13 @@ func(V) -> V#validator.func.
 
 -spec replace(validator(), [validator()]) -> [validator()].
 replace(Validator, ListOfValidators) ->
-    Removed = lists:filter(fun(T) -> name(T) =/= name(Validator) end, ListOfValidators), 
-    Removed ++ [Validator].
+    Exists = lists:keymember(name(Validator), #validator.name, ListOfValidators),
+    case Exists of
+        true ->
+            lists:keyreplace(name(Validator), #validator.name, ListOfValidators, Validator);
+        _ ->
+            [Validator | ListOfValidators]
+    end.
 
 -spec remove_duplicates([validator()]) -> [validator()].
 remove_duplicates(Validators) ->
@@ -121,11 +126,6 @@ replace_test() ->
     },
 
     SampleValidators = [Element1,
-    #validator{
-        name = "name1",
-        description = "description1",
-        func = fun(X) -> X*3 end
-    },
     #validator{
         name = "name1",
         description = "description1",
