@@ -1,0 +1,17 @@
+%% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
+%% ex: ft=erlang ts=4 sw=4 et
+{mapping, "00.setting.A", "app.setting.a", []}.
+{mapping, "00.setting.B", "app.setting.b", []}.
+{mapping, "00.setting.C", "app.setting.t2", []}.
+
+{translation,
+ "app.setting.c",
+ fun(Conf) ->
+         "t0.c"
+ end}.
+
+{translation,
+ "app.setting.t1",
+ fun(Conf) ->
+         "t0.1"
+ end}.

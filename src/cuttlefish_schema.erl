@@ -41,41 +41,57 @@ strings(ListOfStrings) ->
 
 merger(Fun, ListOfInputs) ->
     Return = lists:foldl(
-        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc, Prio}) ->
 
             case Fun(Input) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
-                    {error, Errors}; 
+                    {error, Errors};
                 {Translations, Mappings, Validators} ->
-                    
+                    %% We split up priorities of mappings into tuples,
+                    %% the first part is the global priority, this indocates the
+                    %% position the priority of the 'file' it is defined based
+                    %% on the position in the order of the spec file.
+                    %% This is the first element in the tuple and thus takes
+                    %% higher priority. This also can't be changed by the
+                    %% spec 'owner'.
+                    %% The second elements is the spec local priority it
+                    %% shows within the file, it is either specified by the
+                    %% position in the file with the first mapping/translation
+                    %% has the highest priority.
+                    %% The spec owner can alter this by overwriting the prioriy
+                    %% to change how the schema works internally.
+                    Mappings1 = [cuttlefish_mapping:set_global_priority(M, Prio)
+                                 || M <- Mappings],
                     NewMappings = lists:foldr(
-                        fun cuttlefish_mapping:replace/2, 
-                        MappingAcc, 
-                        Mappings), 
+                        fun cuttlefish_mapping:replace/2,
+                        MappingAcc,
+                        Mappings1),
 
+                    Translations1 = [cuttlefish_translation:set_global_priority(T, Prio)
+                                 || T <- Translations],
                     NewTranslations = lists:foldr(
-                        fun cuttlefish_translation:replace/2, 
-                        TranslationAcc, 
-                        Translations), 
+                        fun cuttlefish_translation:replace/2,
+                        TranslationAcc,
+                        Translations1),
 
                     NewValidators = lists:foldr(
-                        fun cuttlefish_validator:replace/2, 
-                        ValidatorAcc, 
+                        fun cuttlefish_validator:replace/2,
+                        ValidatorAcc,
                         Validators),
 
-                    {NewTranslations, NewMappings, NewValidators}
-            end 
-        end, 
-        {[], [], []}, 
+                    {NewTranslations, NewMappings, NewValidators, Prio + 1}
+            end
+        end,
+        {[], [], [], 0},
         ListOfInputs),
     case Return of
         {error, Errors} -> {error, Errors};
-        {T, M, V} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
+        {T, M, V, _} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
     end.
 
 -spec file(string()) -> {
-    [cuttlefish_translation:translation()], 
+    [cuttlefish_translation:translation()],
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
 } | errorlist().
@@ -83,7 +99,7 @@ file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
-    case string(S) of 
+    case string(S) of
         {error, Errors} ->
             cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
             {error, Errors};
@@ -92,11 +108,11 @@ file(Filename) ->
     end.
 
 -spec string(string()) -> {
-    [cuttlefish_translation:translation()], 
+    [cuttlefish_translation:translation()],
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
 } | {error, [errorlist()]}.
-string(S) -> 
+string(S) ->
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
             CommentTokens = erl_comment_scan:string(S),
@@ -106,9 +122,9 @@ string(S) ->
 
             case length(Errors) of
                 0 ->
-                    {Translations, Mappings, Validators} = 
+                    {Translations, Mappings, Validators} =
                         lists:foldr(
-                            fun(Item, {Ts, Ms, Vs}) -> 
+                            fun(Item, {Ts, Ms, Vs}) ->
                                 case element(1, Item) of
                                     translation ->
                                         {[Item|Ts], Ms, Vs};
@@ -118,9 +134,9 @@ string(S) ->
                                         {Ts, Ms, [Item|Vs]};
                                     _ ->
                                         {Ts, Ms, Vs}
-                                end 
-                            end, 
-                            {[],[],[]}, 
+                                end
+                            end,
+                            {[],[],[]},
                             Schemas),
                     {cuttlefish_translation:remove_duplicates(Translations),
                      cuttlefish_mapping:remove_duplicates(Mappings),
@@ -143,36 +159,62 @@ string(S) ->
     end.
 
 parse_schema(Tokens, Comments) ->
-    parse_schema(Tokens, Comments, []).
+    Es = parse_schema(Tokens, Comments, []),
+    Es1 = lists:reverse(Es),
+    {Es2, _} =
+        lists:foldl(
+          fun(E, {Rs, P}) ->
+                  %% We only want to count mappings and translations, no need
+                  %% to look at errlrs
+                  {E1, P1} =
+                      case {cuttlefish_mapping:is_mapping(E),
+                            cuttlefish_translation:is_translation(E)} of
+                          {true, _} ->
+                              %% If it is a mapping we only change the priority
+                              %% if there was no defined yet
+                              case cuttlefish_mapping:priority(E) of
+                                  {_, undefined} ->
+                                      {cuttlefish_mapping:set_file_priority(E, P), P + 1};
+                                  _ ->
+                                      {E, P}
+                              end;
+                          {_, true} ->
+                              {cuttlefish_translation:set_file_priority(E, P), P + 1};
+                          _ ->
+                              {E, P}
+                       end,
+                  {[E1 | Rs], P1}
+          end, {[], 0}, Es1),
+    Es2.
 
 %% We're done! We don't care about any comments after the last schema item
 -spec parse_schema(
     [any()],
     [any()],
     [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()]
-    ) -> 
+    ) ->
         [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()].
 parse_schema([], _LeftoverComments, Acc) ->
     lists:reverse(Acc);
 parse_schema(ScannedTokens, CommentTokens, Acc) ->
     {LineNo, Tokens, TailTokens } = parse_schema_tokens(ScannedTokens),
     {Comments, TailComments} = lists:foldr(
-        fun(X={CommentLineNo, _, _, Comment}, {C, TC}) -> 
+        fun(X={CommentLineNo, _, _, Comment}, {C, TC}) ->
             case CommentLineNo < LineNo of
                 true -> {Comment ++ C, TC};
                 _ -> {C, [X|TC]}
             end
-        end, 
-        {[], []}, 
+        end,
+        {[], []},
         CommentTokens),
-    
+
     Item = case parse(Tokens) of
         {error, Reason} ->
             MoreInfo = "Schema parse error near line number " ++ integer_to_list(LineNo),
             {error, [MoreInfo|Reason]};
         {mapping, {mapping, Key, Mapping, Proplist}} ->
             Attributes = comment_parser(Comments),
-            Doc = proplists:get_value(doc, Attributes, []), 
+            Doc = proplists:get_value(doc, Attributes, []),
             cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
         {translation, Return} ->
             cuttlefish_translation:parse(Return);
@@ -183,7 +225,7 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
     end,
     parse_schema(TailTokens, TailComments, [Item| Acc]).
 
-parse_schema_tokens(Scanned) -> 
+parse_schema_tokens(Scanned) ->
     parse_schema_tokens(Scanned, []).
 
 parse_schema_tokens([], Acc=[Last|_]) ->
@@ -208,8 +250,8 @@ parse(Scanned) ->
     end.
 
 comment_parser(Comments) ->
-    StrippedComments = 
-        lists:filter(fun(X) -> X =/= [] end, 
+    StrippedComments =
+        lists:filter(fun(X) -> X =/= [] end,
             [percent_stripper(C) || C <- Comments]),
     %% now, let's go annotation hunting
 
@@ -224,7 +266,7 @@ comment_parser(Comments) ->
                         [{Annotation, Strings}|T] = Acc,
                         [{Annotation, [String|Strings]}|T]
                 end
-            end, [], StrippedComments), 
+            end, [], StrippedComments),
     SortedList = lists:reverse([ {Attr, lists:reverse(Value)} || {Attr, Value} <- AttrList]),
     CorrectedList = attribute_formatter(SortedList),
     CorrectedList.
@@ -241,7 +283,7 @@ percent_stripper_l([$%|T]) -> percent_stripper_l(T);
 percent_stripper_l([$\s|T]) -> percent_stripper_l(T);
 percent_stripper_l(Line) -> Line.
 
-percent_stripper_r(Line) -> 
+percent_stripper_r(Line) ->
     lists:reverse(
         percent_stripper_l(
             lists:reverse(Line))).

@@ -28,15 +28,19 @@
 
 -record(translation, {
     mapping::string(),
-    func::fun()
+    func::fun(),
+    priority = {0, 0} :: integer()
     }).
 -type translation() :: #translation{}.
 -export_type([translation/0]).
 
 -export([
     parse/1,
+    set_file_priority/2,
+    set_global_priority/2,
+    priority/1,
     is_translation/1,
-    mapping/1, 
+    mapping/1,
     func/1,
     replace/2,
     remove_duplicates/1]).
@@ -50,6 +54,18 @@ parse({translation, Mapping, Fun}) ->
 parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_translation:parse/1 : ~p", [X])}.
 
 
+-spec set_global_priority(translation(), Priority::integer()) -> translation().
+set_global_priority(Translation = #translation{priority = {_, F}}, Prio) ->
+    Translation#translation{priority = {Prio, F}}.
+
+-spec set_file_priority(translation(), Priority::integer()) -> translation().
+set_file_priority(Translation = #translation{priority = {G, _}}, Prio) ->
+    Translation#translation{priority = {G, Prio}}.
+
+-spec priority(translation()) -> integer().
+priority(#translation{priority = P}) ->
+    P.
+
 -spec is_translation(any()) -> boolean().
 is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation.
 
@@ -61,7 +77,7 @@ func(T)     -> T#translation.func.
 
 -spec replace(translation(), [translation()]) -> [translation()].
 replace(Translation, ListOfTranslations) ->
-    Removed = lists:filter(fun(T) -> mapping(T) =/= mapping(Translation) end, ListOfTranslations), 
+    Removed = lists:filter(fun(T) -> mapping(T) =/= mapping(Translation) end, ListOfTranslations),
     Removed ++ [Translation].
 
 -spec remove_duplicates([translation()]) -> [translation()].
@@ -69,9 +85,9 @@ remove_duplicates(Translations) ->
     lists:foldl(
         fun(Translation, Acc) ->
             replace(Translation, Acc)
-        end, 
-        [], 
-        Translations). 
+        end,
+        [],
+        Translations).
 
 -ifdef(TEST).
 
