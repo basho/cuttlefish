@@ -29,14 +29,15 @@
 -record(translation, {
     mapping::string(),
     func::fun(),
-    priority = 0 :: integer()
+    priority = {0, 0} :: integer()
     }).
 -type translation() :: #translation{}.
 -export_type([translation/0]).
 
 -export([
     parse/1,
-    set_priority/2,
+    set_file_priority/2,
+    set_global_priority/2,
     priority/1,
     is_translation/1,
     mapping/1,
@@ -53,9 +54,13 @@ parse({translation, Mapping, Fun}) ->
 parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_translation:parse/1 : ~p", [X])}.
 
 
--spec set_priority(translation(), Priority::integer()) -> translation().
-set_priority(Translation, Prio) ->
-    Translation#translation{priority = Prio}.
+-spec set_global_priority(translation(), Priority::integer()) -> translation().
+set_global_priority(Translation = #translation{priority = {_, F}}, Prio) ->
+    Translation#translation{priority = {Prio, F}}.
+
+-spec set_file_priority(translation(), Priority::integer()) -> translation().
+set_file_priority(Translation = #translation{priority = {G, _}}, Prio) ->
+    Translation#translation{priority = {G, Prio}}.
 
 -spec priority(translation()) -> integer().
 priority(#translation{priority = P}) ->

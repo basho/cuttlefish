@@ -37,7 +37,7 @@
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
         validators = [] :: [string()],
-        priority = 0 :: integer()
+        priority = {0, undefined} :: integer()
     }).
 
 -type mapping() :: #mapping{}.
@@ -46,7 +46,8 @@
 -export([
     parse/1,
     is_mapping/1,
-    set_priority/2,
+    set_file_priority/2,
+    set_global_priority/2,
     priority/1,
     variable/1,
     mapping/1,
@@ -87,14 +88,18 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         datatype = Datatype,
         doc = proplists:get_value(doc, Proplist, []),
         include_default = proplists:get_value(include_default, Proplist),
-        validators = proplists:get_value(validators, Proplist, [])
+        validators = proplists:get_value(validators, Proplist, []),
+        priority = {0, proplists:get_value(priority, Proplist, undefined)}
     };
 parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:parse/1 : ~p", [X])}.
 
+-spec set_global_priority(mapping(), Priority::integer()) -> mapping().
+set_global_priority(Mapping = #mapping{priority = {_, F}}, Prio) ->
+    Mapping#mapping{priority = {Prio, F}}.
 
--spec set_priority(mapping(), Priority::integer()) -> mapping().
-set_priority(Mapping, Prio) ->
-    Mapping#mapping{priority = Prio}.
+-spec set_file_priority(mapping(), Priority::integer()) -> mapping().
+set_file_priority(Mapping = #mapping{priority = {G, _}}, Prio) ->
+    Mapping#mapping{priority = {G, Prio}}.
 
 -spec priority(mapping()) -> integer().
 priority(#mapping{priority = P}) ->
