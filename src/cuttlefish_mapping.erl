@@ -36,7 +36,8 @@
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
-        validators = [] :: [string()]
+        validators = [] :: [string()],
+        priority = 0 :: integer()
     }).
 
 -type mapping() :: #mapping{}.
@@ -45,6 +46,8 @@
 -export([
     parse/1,
     is_mapping/1,
+    set_priority/2,
+    priority/1,
     variable/1,
     mapping/1,
     default/1,
@@ -56,7 +59,8 @@
     replace/2,
     remove_duplicates/1,
     validators/1,
-    validators/2
+    validators/2,
+    print/1
     ]).
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
@@ -67,13 +71,13 @@ parse({mapping, Variable, Mapping, Proplist}) ->
             AtomEnums = [ begin
                 case is_list(E) of
                     true -> list_to_atom(E);
-                    _ -> E 
+                    _ -> E
                 end
             end || E <- Enums ],
             {enum, AtomEnums};
         D -> D
     end,
-    
+
     #mapping{
         variable = cuttlefish_util:tokenize_variable_key(Variable),
         default = proplists:get_value(default, Proplist),
@@ -87,9 +91,18 @@ parse({mapping, Variable, Mapping, Proplist}) ->
     };
 parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:parse/1 : ~p", [X])}.
 
+
+-spec set_priority(mapping(), Priority::integer()) -> mapping().
+set_priority(Mapping, Prio) ->
+    Mapping#mapping{priority = Prio}.
+
+-spec priority(mapping()) -> integer().
+priority(#mapping{priority = P}) ->
+    P.
+
 -spec is_mapping(any()) -> boolean().
 is_mapping(M) ->
-    is_tuple(M) andalso element(1, M) =:= mapping. 
+    is_tuple(M) andalso element(1, M) =:= mapping.
 
 -spec variable(mapping()) -> [string()].
 variable(M) -> M#mapping.variable.
@@ -129,17 +142,24 @@ validators(M, Validators) ->
 
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->
-    Removed = lists:filter(fun(M) -> variable(M) =/= variable(Mapping) end, ListOfMappings), 
-    Removed ++ [Mapping].
+    Removed = lists:filter(fun(M) -> variable(M) =/= variable(Mapping) end, ListOfMappings),
+    Mapping1 = Removed ++ [Mapping],
+    Mapping1.
 
 -spec remove_duplicates([mapping()]) -> [mapping()].
 remove_duplicates(Mappings) ->
     lists:foldl(
         fun(Mapping, Acc) ->
             replace(Mapping, Acc)
-        end, 
-        [], 
-        Mappings). 
+        end,
+        [],
+        Mappings).
+
+print(Mappings) ->
+    [lager:debug("[MAP] ~s.", [to_string(M)]) || M <- Mappings].
+
+to_string(#mapping{variable = V, mapping = M}) ->
+    io_lib:format("~s -> ~s", [string:join(V, "."), M]).
 
 -ifdef(TEST).
 

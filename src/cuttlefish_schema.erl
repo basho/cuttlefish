@@ -41,41 +41,44 @@ strings(ListOfStrings) ->
 
 merger(Fun, ListOfInputs) ->
     Return = lists:foldl(
-        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc, Prio}) ->
 
             case Fun(Input) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
-                    {error, Errors}; 
+                    {error, Errors};
                 {Translations, Mappings, Validators} ->
-                    
+                    Mappings1 = [cuttlefish_mapping:set_priority(M, Prio)
+                                 || M <- Mappings],
                     NewMappings = lists:foldr(
-                        fun cuttlefish_mapping:replace/2, 
-                        MappingAcc, 
-                        Mappings), 
+                        fun cuttlefish_mapping:replace/2,
+                        MappingAcc,
+                        Mappings1),
 
+                    Translations1 = [cuttlefish_translation:set_priority(T, Prio)
+                                 || T <- Translations],
                     NewTranslations = lists:foldr(
-                        fun cuttlefish_translation:replace/2, 
-                        TranslationAcc, 
-                        Translations), 
+                        fun cuttlefish_translation:replace/2,
+                        TranslationAcc,
+                        Translations1),
 
                     NewValidators = lists:foldr(
-                        fun cuttlefish_validator:replace/2, 
-                        ValidatorAcc, 
+                        fun cuttlefish_validator:replace/2,
+                        ValidatorAcc,
                         Validators),
 
-                    {NewTranslations, NewMappings, NewValidators}
-            end 
-        end, 
-        {[], [], []}, 
+                    {NewTranslations, NewMappings, NewValidators, Prio + 1}
+            end
+        end,
+        {[], [], [], 0},
         ListOfInputs),
     case Return of
         {error, Errors} -> {error, Errors};
-        {T, M, V} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
+        {T, M, V, _} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
     end.
 
 -spec file(string()) -> {
-    [cuttlefish_translation:translation()], 
+    [cuttlefish_translation:translation()],
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
 } | errorlist().
@@ -83,7 +86,7 @@ file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
-    case string(S) of 
+    case string(S) of
         {error, Errors} ->
             cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
             {error, Errors};
@@ -92,11 +95,11 @@ file(Filename) ->
     end.
 
 -spec string(string()) -> {
-    [cuttlefish_translation:translation()], 
+    [cuttlefish_translation:translation()],
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
 } | {error, [errorlist()]}.
-string(S) -> 
+string(S) ->
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
             CommentTokens = erl_comment_scan:string(S),
@@ -106,9 +109,9 @@ string(S) ->
 
             case length(Errors) of
                 0 ->
-                    {Translations, Mappings, Validators} = 
+                    {Translations, Mappings, Validators} =
                         lists:foldr(
-                            fun(Item, {Ts, Ms, Vs}) -> 
+                            fun(Item, {Ts, Ms, Vs}) ->
                                 case element(1, Item) of
                                     translation ->
                                         {[Item|Ts], Ms, Vs};
@@ -118,9 +121,9 @@ string(S) ->
                                         {Ts, Ms, [Item|Vs]};
                                     _ ->
                                         {Ts, Ms, Vs}
-                                end 
-                            end, 
-                            {[],[],[]}, 
+                                end
+                            end,
+                            {[],[],[]},
                             Schemas),
                     {cuttlefish_translation:remove_duplicates(Translations),
                      cuttlefish_mapping:remove_duplicates(Mappings),

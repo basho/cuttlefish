@@ -36,17 +36,16 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% add_defaults/2 rolls the default values in from the schema
     lager:info("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
-    
     case contains_error(DConfig) of
         true ->
             lager:info("Error adding defaults, aborting"),
             {error, add_defaults};
-        _ -> 
+        _ ->
             map_transform_datatypes(Schema, Config, DConfig)
     end.
 
 map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
-    %% Everything in DConfig is of datatype "string", 
+    %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     lager:info("Applying Datatypes"),
@@ -73,29 +72,45 @@ map_validate(Schema, Config, Conf) ->
 map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
-    %% these 1:1 mappings, hence the return "DirectMappings". 
+    %% these 1:1 mappings, hence the return "DirectMappings".
     %% It also builds a list of "TranslationsToDrop". It's basically saying that
-    %% if a user didn't actually configure this setting in the .conf file and 
+    %% if a user didn't actually configure this setting in the .conf file and
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
-    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldl(
-        fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
+    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep, Priorities}} = lists:foldl(
+        fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep, Prios}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
             Variable = cuttlefish_mapping:variable(MappingRecord),
+            Priority = cuttlefish_mapping:priority(MappingRecord),
+            {LastPriority, LastVar} = proplists:get_value(Mapping, Prios, {-1, []}),
             case {
-                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
+                LastPriority > Priority,
+                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf),
                 proplists:is_defined(Mapping, Translations)
                 } of
-                {true, false} -> 
+                %% If the variable was already defined with a higher priority
+                %% we igore this entry.
+                {true, _, _} ->
+                    lager:debug("[MAP] ~s -> ~s dropped since it's prio ~p is "
+                                "lower then ~p for ~s.",
+                                [string:join(Variable, "."), Mapping,
+                                 Priority, LastPriority,
+                                 string:join(LastVar, ".")]),
+                    {ConfAcc, {MaybeDrop, Keep, Prios}};
+                {_, true, false} ->
+                    lager:debug("[MAP] ~s -> ~s.",
+                                [string:join(Variable, "."), Mapping]),
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Variable, Conf),
-                    {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
-                {true, true} -> {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
-                _ -> {ConfAcc, {[Mapping|MaybeDrop], Keep}}
+                    Prios1 = proplists:delete(Mapping, Prios),
+                    {set_value(Tokens, ConfAcc, NewValue),
+                     {MaybeDrop, [Mapping|Keep], [{Mapping, {Priority, Variable}} | Prios1]}};
+                {_, true, true} -> {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
+                _ -> {ConfAcc, {[Mapping|MaybeDrop], Keep, Prios}}
             end
-        end, 
-        {[], {[],[]}},
+        end,
+        {[], {[],[], []}},
         Mappings),
     lager:info("Applied 1:1 Mappings"),
 
@@ -103,16 +118,27 @@ map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
-    Return = lists:foldl(
-        fun(TranslationRecord, Acc) ->
+    {Return, _} = lists:foldl(
+       fun(TranslationRecord, {Acc, Prios}) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
-            case lists:member(Mapping, TranslationsToDrop) of
-                false ->
+            Priority = cuttlefish_translation:priority(TranslationRecord),
+            {LastPriority, LastVar} = proplists:get_value(Mapping, Prios, {-1, []}),
+            case {LastPriority > Priority,
+                  lists:member(Mapping, TranslationsToDrop)} of
+                {true, _} ->
+                    lager:debug("[TRANS] ~s dropped since it's prio ~p is "
+                                "lower then ~p for ~s.",
+                                [Mapping,Priority, LastPriority,
+                                 string:join(LastVar, ".")]),
+                    {Acc, Prios};
+                {_, false} ->
+                    lager:debug("[TRANS] ~s applied.",
+                                [Mapping]),
                     Tokens = string:tokens(Mapping, "."),
                     %% get Xlat arity
                     Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    NewValue = case Arity of 
+                    NewValue = case Arity of
                         1 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf) of
@@ -121,7 +147,7 @@ map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        2 -> 
+                        2 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf, Schema) of
                                 X -> X
@@ -129,17 +155,20 @@ map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        Other -> 
+                        Other ->
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
-                    set_value(Tokens, Acc, NewValue);
+                    Prios1 = proplists:delete(Mapping, Prios),
+
+                    {set_value(Tokens, Acc, NewValue),
+                     [{Mapping, {Priority, ["<translation>"]}} | Prios1]};
                 _ ->
                     lager:debug("~p in Translations to drop...", [Mapping]),
-                    Acc
+                    {Acc, Prios}
             end
-        end, 
-        DirectMappings, 
+        end,
+        {DirectMappings, Priorities},
         Translations),
     lager:info("Applied Translations"),
     Return.
