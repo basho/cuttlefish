@@ -129,8 +129,13 @@ validators(M, Validators) ->
 
 -spec replace(mapping(), [mapping()]) -> [mapping()].
 replace(Mapping, ListOfMappings) ->
-    Removed = lists:filter(fun(M) -> variable(M) =/= variable(Mapping) end, ListOfMappings), 
-    Removed ++ [Mapping].
+    Exists = lists:keymember(variable(Mapping), #mapping.variable, ListOfMappings),
+    case Exists of
+        true ->
+            lists:keyreplace(variable(Mapping), #mapping.variable, ListOfMappings, Mapping);
+        _ ->
+            [Mapping | ListOfMappings]
+    end.
 
 -spec remove_duplicates([mapping()]) -> [mapping()].
 remove_duplicates(Mappings) ->
@@ -199,19 +204,6 @@ replace_test() ->
     }),
 
     SampleMappings = [Element1,
-    parse({
-        mapping,
-        "conf.key",
-        "erlang.key1",
-        [
-            {level, advanced},
-            {default, "default value"},
-            {datatype, {enum, [on, off]}},
-            {commented, "commented value"},
-            {include_default, "default_substitution"},
-            {doc, ["documentation", "for feature"]}
-        ]
-    }),
     parse({
         mapping,
         "conf.key",

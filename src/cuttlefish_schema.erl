@@ -40,7 +40,7 @@ strings(ListOfStrings) ->
     merger(fun cuttlefish_schema:string/1, ListOfStrings).
 
 merger(Fun, ListOfInputs) ->
-    Return = lists:foldl(
+    lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
 
             case Fun(Input) of
@@ -49,30 +49,26 @@ merger(Fun, ListOfInputs) ->
                     {error, Errors}; 
                 {Translations, Mappings, Validators} ->
                     
-                    NewMappings = lists:foldr(
-                        fun cuttlefish_mapping:replace/2, 
-                        MappingAcc, 
-                        Mappings), 
+                    NewMappings = lists:foldl(
+                        fun cuttlefish_mapping:replace/2,
+                        MappingAcc,
+                        Mappings),
 
-                    NewTranslations = lists:foldr(
-                        fun cuttlefish_translation:replace/2, 
-                        TranslationAcc, 
-                        Translations), 
+                    NewTranslations = lists:foldl(
+                        fun cuttlefish_translation:replace/2,
+                        TranslationAcc,
+                        Translations),
 
-                    NewValidators = lists:foldr(
-                        fun cuttlefish_validator:replace/2, 
-                        ValidatorAcc, 
+                    NewValidators = lists:foldl(
+                        fun cuttlefish_validator:replace/2,
+                        ValidatorAcc,
                         Validators),
 
                     {NewTranslations, NewMappings, NewValidators}
             end 
         end, 
         {[], [], []}, 
-        ListOfInputs),
-    case Return of
-        {error, Errors} -> {error, Errors};
-        {T, M, V} -> {lists:reverse(T), lists:reverse(M), lists:reverse(V)}
-    end.
+        ListOfInputs).
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()], 
@@ -325,30 +321,76 @@ parse_bad_datatype_test() ->
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
 
 files_test() ->
-    {Translations, Mappings, Validations} = files(["../test/multi1.schema", "../test/multi2.schema"]),
-    ?assertEqual(2, length(Mappings)),
-    [M1, M2] = Mappings,
-    ?assertEqual(["a","b","c"], cuttlefish_mapping:variable(M1)),
-    ?assertEqual("what.ev4", cuttlefish_mapping:mapping(M1)),
 
-    ?assertEqual(["a","b","d"], cuttlefish_mapping:variable(M2)),
-    ?assertEqual("what.ev1", cuttlefish_mapping:mapping(M2)),
+    %% files/1 takes a list of schemas in priority order.
+    %% Loads them in reverse order, as things are overridden
+    {Translations, Mappings, Validators} = files(
+        [
+            "../test/multi1.schema",
+            "../test/multi2.schema",
+            "../test/multi3.schema"
+        ]),
 
-    ?assertEqual(2, length(Translations)),
-    [T1, T2] = Translations,
+    ?assertEqual(6, length(Mappings)),
+    [M1, M2, M3, M4, M5, M6] = Mappings,
 
-    ?assertEqual("what.ev1", cuttlefish_translation:mapping(T1)),
-    F1 = cuttlefish_translation:func(T1),
-    ?assertEqual(4, F1(x)),
+    %% Check mappings in correct order
+    io:format("~p", [Mappings]),
+    ?assertEqual(["top_level", "var1"], cuttlefish_mapping:variable(M1)),
+    ?assertEqual(["a", "some", "var1"], cuttlefish_mapping:variable(M2)),
+    ?assertEqual(["a", "some", "var2"], cuttlefish_mapping:variable(M3)),
+    ?assertEqual(["a", "some", "var3"], cuttlefish_mapping:variable(M4)),
+    ?assertEqual(["b", "some", "var1"], cuttlefish_mapping:variable(M5)),
+    ?assertEqual(["b", "some", "var2"], cuttlefish_mapping:variable(M6)),
 
-    ?assertEqual("what.ev2", cuttlefish_translation:mapping(T2)),
-    F2 = cuttlefish_translation:func(T2),
-    ?assertEqual(1, F2(x)),
 
-    ?assertEqual(1, length(Validations)),
-    [V1] = Validations,
-    ?assertEqual("my.little.validator", cuttlefish_validator:name(V1)),
-    
+    %% Check correct mapping overrides
+    ?assertEqual("app_a.big_var", cuttlefish_mapping:mapping(M1)),
+    ?assertEqual("app_a.some_var1", cuttlefish_mapping:mapping(M2)),
+    ?assertEqual("app_a.some_var", cuttlefish_mapping:mapping(M3)),
+    ?assertEqual("app_a.some_var3", cuttlefish_mapping:mapping(M4)),
+    ?assertEqual("app_b.some_var3", cuttlefish_mapping:mapping(M5)),
+    ?assertEqual("app_b.some_var2", cuttlefish_mapping:mapping(M6)),
+
+    ?assertEqual(6, length(Translations)),
+    [T1, T2, T3, T4, T5, T6] = Translations,
+
+    %% Check translation overrides
+    AssertTran = fun(Mapping, Translation, Expected) ->
+
+        %% Check Order
+        ?assertEqual(Mapping, cuttlefish_translation:mapping(Translation)),
+        %% Check Override
+        F1 = cuttlefish_translation:func(Translation),
+        ?assertEqual(Expected, F1(x))
+    end,
+
+    AssertTran("app_a.big_var",   T1, "tippedy top"),
+    AssertTran("app_a.some_var1", T2, "a1"),
+    AssertTran("app_a.some_var2", T3, "a2"),
+    AssertTran("app_a.some_var3", T4, "toplevel"),
+    AssertTran("app_b.some_var1", T5, "b3"),
+    AssertTran("app_b.some_var2", T6, "b2"),
+
+    %% One more time, for validators!
+    ?assertEqual(5, length(Validators)),
+    [V1, V2, V3, V4, V5] = Validators,
+
+    %% Now check overrides
+    AssertVal = fun(Name, Validator, Expected) ->
+        %% Check Order
+        ?assertEqual(Name, cuttlefish_validator:name(Validator)),
+        %% Check Override
+        F1 = cuttlefish_validator:func(Validator),
+        ?assertEqual(Expected, F1(x))
+    end,
+
+    AssertVal("top.val", V1, false),
+    AssertVal("a.validator1", V2, true),
+    AssertVal("a.validator2", V3, false),
+    AssertVal("b.validator1", V4, false),
+    AssertVal("b.validator2", V5, true),
+
     ok.
 
 -endif.
