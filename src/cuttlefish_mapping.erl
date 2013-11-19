@@ -149,17 +149,12 @@ remove_duplicates(Mappings) ->
 
 -spec remove_all_but_first(string(), [mapping()]) -> [mapping()].
 remove_all_but_first(MappingName, Mappings) ->
-    remove_all_but_first(MappingName, [], Mappings).
-remove_all_but_first(_, AlreadyChecked, []) -> AlreadyChecked;
-remove_all_but_first(MappingName, AlreadyChecked, [M|Mappings]) ->
-    case cuttlefish_mapping:mapping(M) =:= MappingName of
-        true ->
-            AlreadyChecked 
-            ++ [M|lists:keydelete(MappingName, #mapping.mapping, Mappings)];
-        false ->
-            remove_all_but_first(MappingName, AlreadyChecked ++ [M], Mappings)
-    end.
-
+    lists:foldr(
+        fun(#mapping{mapping=MN}=M, Acc) when MN =:= MappingName->
+                [M|lists:keydelete(MN, #mapping.mapping, Acc)];
+            (M, Acc) ->
+                [M|Acc]
+        end, [], Mappings).
 -ifdef(TEST).
 
 mapping_test() ->
