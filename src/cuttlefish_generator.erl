@@ -42,10 +42,10 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
             lager:info("Error adding defaults, aborting"),
             {error, add_defaults};
         _ -> 
-            map_transform_datatypes(Schema, Config, DConfig)
+            map_transform_datatypes(Schema, DConfig)
     end.
 
-map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
+map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
@@ -57,20 +57,20 @@ map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
             lager:info("Error transforming datatypes, aborting"),
             {error, transform_datatypes};
         _ ->
-            map_validate(Schema, Config, Conf)
+            map_validate(Schema, Conf)
     end.
 
-map_validate(Schema, Config, Conf) ->
+map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
-        true -> map_translate(Schema, Config, Conf);
+        true -> map_translate(Schema, Conf);
         _ ->
             lager:error("Some validator failed, aborting"),
             {error, validation}
     end.
 
-map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
+map_translate({Translations, Mappings, _Validators} = Schema, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings". 
