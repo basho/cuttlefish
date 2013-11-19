@@ -57,11 +57,8 @@
     remove_duplicates/1,
     validators/1,
     validators/2,
-    record_index/1
+    remove_all_but_first/2
     ]).
-
-record_index(mapping) -> #mapping.mapping;
-record_index(_Other) -> error.
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
@@ -149,6 +146,19 @@ remove_duplicates(Mappings) ->
         end, 
         [], 
         Mappings). 
+
+-spec remove_all_but_first(string(), [mapping()]) -> [mapping()].
+remove_all_but_first(MappingName, Mappings) ->
+    remove_all_but_first(MappingName, [], Mappings).
+remove_all_but_first(_, AlreadyChecked, []) -> AlreadyChecked;
+remove_all_but_first(MappingName, AlreadyChecked, [M|Mappings]) ->
+    case cuttlefish_mapping:mapping(M) =:= MappingName of
+        true ->
+            AlreadyChecked 
+            ++ [M|lists:keydelete(MappingName, #mapping.mapping, Mappings)];
+        false ->
+            remove_all_but_first(MappingName, AlreadyChecked ++ [M], Mappings)
+    end.
 
 -ifdef(TEST).
 

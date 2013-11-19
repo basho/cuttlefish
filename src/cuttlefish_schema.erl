@@ -80,7 +80,7 @@ filter({Translations, Mappings, Validators}) ->
                 fun(T) -> cuttlefish_translation:mapping(T) =:= MappingName end, 
                 Translations) of
                 false ->
-                    remove_all_but_first(MappingName, Acc);
+                    cuttlefish_mapping:remove_all_but_first(MappingName, Acc);
                 _ -> Acc
             end
         end,
@@ -89,30 +89,12 @@ filter({Translations, Mappings, Validators}) ->
     {Translations, NewMappings, Validators}.
 
 count_mappings(Mappings) ->
-    count_mappings(Mappings, []).
-count_mappings([], Acc) ->
-    Acc;
-count_mappings([M|Mappings], Acc) ->
-    {K, Count, Acc2} = case lists:keyfind(cuttlefish_mapping:mapping(M), 1, Acc) of
-        {Key, C} ->
-            {Key, C, Acc};
-        _ ->
-            {cuttlefish_mapping:mapping(M), 0, Acc ++ [{cuttlefish_mapping:mapping(M), 0}]}
-    end,
-    count_mappings(Mappings, lists:keyreplace(K, 1, Acc2, {K, Count + 1})).
-
-remove_all_but_first(MappingName, Mappings) ->
-    remove_all_but_first(MappingName, [], Mappings).
-remove_all_but_first(_, AlreadyChecked, []) -> AlreadyChecked;
-remove_all_but_first(MappingName, AlreadyChecked, [M|Mappings]) ->
-    case cuttlefish_mapping:mapping(M) =:= MappingName of
-        true ->
-            AlreadyChecked 
-            ++ [M] 
-            ++ lists:keydelete(MappingName, cuttlefish_mapping:record_index(mapping), Mappings);
-        false ->
-            remove_all_but_first(MappingName, AlreadyChecked ++ [M], Mappings)
-    end.
+    lists:foldl(
+        fun(M, Acc) ->
+            orddict:update_counter(cuttlefish_mapping:mapping(M), 1, Acc)
+        end,
+        orddict:new(),
+        Mappings).
 
 -spec file(string()) -> {
     [cuttlefish_translation:translation()],
