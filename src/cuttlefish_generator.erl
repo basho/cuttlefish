@@ -80,7 +80,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% if a user didn't actually configure this setting in the .conf file and 
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
-    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldl(
+    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldr(
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
