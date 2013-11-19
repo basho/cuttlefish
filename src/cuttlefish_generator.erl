@@ -84,7 +84,6 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
-            io:format("Default: ~p~n", [Default]),
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
                 Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 

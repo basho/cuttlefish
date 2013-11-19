@@ -44,7 +44,7 @@ generate(Config0, ReltoolFile) ->
                         end, 
                         Overlays), 
 
-                    Schemas = lists:sort(fun(A,B) -> filename:basename(A) > filename:basename(B) end, [
+                    Schemas = lists:sort([
                         lists:flatten(filename:join(TargetDir, element(3, Schema)))
                     || Schema <- SchemaOverlays]),
 
