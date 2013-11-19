@@ -35,7 +35,7 @@ generate_config(strings, SchemaStrings, Conf) ->
     cuttlefish_generator:map(Schema, Conf);
 
 generate_config(string, SchemaString, Conf) ->
-    Schema = cuttlefish_schema:string(SchemaString),
+    Schema = cuttlefish_schema:strings([SchemaString]),
     cuttlefish_generator:map(Schema, Conf);
 
 generate_config(file, SchemaFile, Conf) ->
