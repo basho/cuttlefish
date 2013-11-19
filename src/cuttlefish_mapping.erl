@@ -56,8 +56,12 @@
     replace/2,
     remove_duplicates/1,
     validators/1,
-    validators/2
+    validators/2,
+    record_index/1
     ]).
+
+record_index(mapping) -> #mapping.mapping;
+record_index(_Other) -> error.
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
