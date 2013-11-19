@@ -42,10 +42,10 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
             lager:info("Error adding defaults, aborting"),
             {error, add_defaults};
         _ -> 
-            map_transform_datatypes(Schema, Config, DConfig)
+            map_transform_datatypes(Schema, DConfig)
     end.
 
-map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
+map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string", 
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
@@ -57,20 +57,22 @@ map_transform_datatypes({_, Mappings, _} = Schema, Config, DConfig) ->
             lager:info("Error transforming datatypes, aborting"),
             {error, transform_datatypes};
         _ ->
-            map_validate(Schema, Config, Conf)
+            map_validate(Schema, Conf)
     end.
 
-map_validate(Schema, Config, Conf) ->
+map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
-        true -> map_translate(Schema, Config, Conf);
+        true -> 
+            {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
+            apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
         _ ->
             lager:error("Some validator failed, aborting"),
             {error, validation}
     end.
 
-map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
+apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings". 
@@ -78,7 +80,7 @@ map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
     %% if a user didn't actually configure this setting in the .conf file and 
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
-    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldl(
+    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldr(
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
@@ -100,7 +102,10 @@ map_translate({Translations, Mappings, _Validators} = Schema, _Config, Conf) ->
     lager:info("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
-    %% The fold handles the translations. After we've build the DirecetMappings,
+    {DirectMappings, TranslationsToDrop}.
+
+apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
+    %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
     Return = lists:foldl(
@@ -522,6 +527,45 @@ map_test() ->
 
     NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(undefined, NewHTTPS),
+    ok.
+
+
+apply_mappings_test() ->
+    %% Two mappings, both alike in dignity, 
+    %% In fair unit test, where we lay our scene, 
+    %% From ancient failure break to new mutiny, 
+    %% Where civil overrides makes civil priority unclean. 
+    %% From forth the fatal loins of these two foes 
+    %% A pair of star-cross'd mappings write one app var; 
+    %% Whose misadventured piteous overthrows 
+    %% Do with their merge behave unexpectedly.
+    
+    %% Assume add_defaults has already run
+    Conf = [
+        {["conf", "key1"], "1"},
+        {["conf", "key2"], "2"}
+    ],
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key1",
+            "erlang.key",
+            [
+                {default, "1"}
+            ]
+        }),
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key2",
+            "erlang.key",
+            [
+                {default, "2"}
+            ]
+        })
+    ],
+
+    {DirectMappings, []} = apply_mappings({[], Mappings, []}, Conf),
+    ?assertEqual("1", kvc:path("erlang.key", DirectMappings)),
     ok.
 
 find_mapping_test() ->

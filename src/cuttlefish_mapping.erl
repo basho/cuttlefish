@@ -56,7 +56,8 @@
     replace/2,
     remove_duplicates/1,
     validators/1,
-    validators/2
+    validators/2,
+    remove_all_but_first/2
     ]).
 
 -spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
@@ -146,6 +147,14 @@ remove_duplicates(Mappings) ->
         [], 
         Mappings). 
 
+-spec remove_all_but_first(string(), [mapping()]) -> [mapping()].
+remove_all_but_first(MappingName, Mappings) ->
+    lists:foldr(
+        fun(#mapping{mapping=MN}=M, Acc) when MN =:= MappingName->
+                [M|lists:keydelete(MN, #mapping.mapping, Acc)];
+            (M, Acc) ->
+                [M|Acc]
+        end, [], Mappings).
 -ifdef(TEST).
 
 mapping_test() ->

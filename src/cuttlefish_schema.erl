@@ -22,7 +22,7 @@
 
 -module(cuttlefish_schema).
 
--export([files/1, file/1, strings/1, string/1]).
+-export([files/1, strings/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -34,13 +34,13 @@
 -export_type([schema/0]).
 
 files(ListOfSchemaFiles) ->
-    merger(fun cuttlefish_schema:file/1, ListOfSchemaFiles).
+    merger(fun file/1, ListOfSchemaFiles).
 
 strings(ListOfStrings) ->
-    merger(fun cuttlefish_schema:string/1, ListOfStrings).
+    merger(fun string/1, ListOfStrings).
 
 merger(Fun, ListOfInputs) ->
-    lists:foldr(
+    Schema = lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
 
             case Fun(Input) of
@@ -68,10 +68,36 @@ merger(Fun, ListOfInputs) ->
             end 
         end, 
         {[], [], []}, 
-        ListOfInputs).
+        ListOfInputs),
+    filter(Schema).
+
+filter({Translations, Mappings, Validators}) ->
+    Counts = count_mappings(Mappings),
+    {MappingsToCheck, _} = lists:unzip(Counts),
+    NewMappings = lists:foldl(
+        fun(MappingName, Acc) ->
+            case lists:any(
+                fun(T) -> cuttlefish_translation:mapping(T) =:= MappingName end, 
+                Translations) of
+                false ->
+                    cuttlefish_mapping:remove_all_but_first(MappingName, Acc);
+                _ -> Acc
+            end
+        end,
+        Mappings, MappingsToCheck),
+
+    {Translations, NewMappings, Validators}.
+
+count_mappings(Mappings) ->
+    lists:foldl(
+        fun(M, Acc) ->
+            orddict:update_counter(cuttlefish_mapping:mapping(M), 1, Acc)
+        end,
+        orddict:new(),
+        Mappings).
 
 -spec file(string()) -> {
-    [cuttlefish_translation:translation()], 
+    [cuttlefish_translation:translation()],
     [cuttlefish_mapping:mapping()],
     [cuttlefish_validator:validator()]
 } | errorlist().
@@ -391,6 +417,24 @@ files_test() ->
     AssertVal("b.validator1", V4, false),
     AssertVal("b.validator2", V5, true),
 
+    ok.
+
+strings_filtration_test() ->
+
+    String = "{mapping, \"a.b\", \"e.k\", []}.\n"
+          ++ "{mapping, \"a.c\", \"e.k\", []}.\n"
+          ++ "{mapping, \"a.d\", \"e.j\", []}.\n"
+          ++ "{mapping, \"a.e\", \"e.j\", []}.\n"
+          ++ "{translation, \"e.j\", fun(X) -> \"1\" end}.\n"
+          ++ "{mapping, \"b.a\", \"e.i\", []}.\n"
+          ++ "{mapping, \"b.b\", \"e.i\", []}.\n"
+          ++ "{mapping, \"b.c\", \"e.i\", []}.\n"
+          ++ "{translation, \"e.i\", fun(X) -> \"1\" end}.\n",
+    {Translations, Mappings, _} = strings([String]),
+    ?assertEqual(2, length(Translations)),
+    ?assertEqual(6, length(Mappings)),
+    ?assertEqual(["a", "b"], cuttlefish_mapping:variable(hd(Mappings))),
+    ?assertEqual(["b", "b"], cuttlefish_mapping:variable(lists:nth(5, Mappings))),
     ok.
 
 -endif.

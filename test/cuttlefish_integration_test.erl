@@ -62,6 +62,7 @@ all_the_marbles_test() ->
 multibackend_test() ->
     lager:start(),
     Schema = cuttlefish_schema:files(["../test/riak.schema", "../test/multi_backend.schema"]),
+
     Conf = [
         {["storage_backend"], "multi"},
         {["multi_backend","bitcask_mult","storage_backend"], "bitcask"},
@@ -79,7 +80,7 @@ multibackend_test() ->
     Multi = proplists:get_value(multi_backend, KV), 
 
     {<<"bitcask_mult">>, riak_kv_bitcask_backend, BitcaskProps} = lists:keyfind(<<"bitcask_mult">>, 1, Multi),
-    io:format("BitcaskProps: ~p~n", [BitcaskProps]), 
+    lager:info("BitcaskProps: ~p", [BitcaskProps]),
     ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)), 
     ?assertEqual(4,                   proplists:get_value(open_timeout, BitcaskProps)),
     ?assertEqual(2147483648,          proplists:get_value(max_file_size, BitcaskProps)),
