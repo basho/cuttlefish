@@ -65,14 +65,14 @@ map_validate(Schema, Conf) ->
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
         true -> 
-            {Schema, Conf, DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
+            {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
         _ ->
             lager:error("Some validator failed, aborting"),
             {error, validation}
     end.
 
-apply_mappings({Translations, Mappings, _Validators} = Schema, Conf) ->
+apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings". 
@@ -84,6 +84,7 @@ apply_mappings({Translations, Mappings, _Validators} = Schema, Conf) ->
         fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
             Mapping = cuttlefish_mapping:mapping(MappingRecord),
             Default = cuttlefish_mapping:default(MappingRecord),
+            io:format("Default: ~p~n", [Default]),
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
                 Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
@@ -102,10 +103,10 @@ apply_mappings({Translations, Mappings, _Validators} = Schema, Conf) ->
     lager:info("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
-    {Schema, Conf, DirectMappings, TranslationsToDrop}.
+    {DirectMappings, TranslationsToDrop}.
 
 apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
-    %% The fold handles the translations. After we've build the DirecetMappings,
+    %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
     Return = lists:foldl(
@@ -527,6 +528,45 @@ map_test() ->
 
     NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(undefined, NewHTTPS),
+    ok.
+
+
+apply_mappings_test() ->
+    %% Two mappings, both alike in dignity, 
+    %% In fair unit test, where we lay our scene, 
+    %% From ancient failure break to new mutiny, 
+    %% Where civil overrides makes civil priority unclean. 
+    %% From forth the fatal loins of these two foes 
+    %% A pair of star-cross'd mappings write one app var; 
+    %% Whose misadventured piteous overthrows 
+    %% Do with their merge behave unexpectedly.
+    
+    %% Assume add_defaults has already run
+    Conf = [
+        {["conf", "key1"], "1"},
+        {["conf", "key2"], "2"}
+    ],
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key1",
+            "erlang.key",
+            [
+                {default, "1"}
+            ]
+        }),
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key2",
+            "erlang.key",
+            [
+                {default, "2"}
+            ]
+        })
+    ],
+
+    {DirectMappings, []} = apply_mappings({[], Mappings, []}, Conf),
+    ?assertEqual("1", kvc:path("erlang.key", DirectMappings)),
     ok.
 
 find_mapping_test() ->
