@@ -64,13 +64,15 @@ map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
-        true -> map_translate(Schema, Conf);
+        true -> 
+            {Schema, Conf, DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
+            apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
         _ ->
             lager:error("Some validator failed, aborting"),
             {error, validation}
     end.
 
-map_translate({Translations, Mappings, _Validators} = Schema, Conf) ->
+apply_mappings({Translations, Mappings, _Validators} = Schema, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings". 
@@ -100,6 +102,9 @@ map_translate({Translations, Mappings, _Validators} = Schema, Conf) ->
     lager:info("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
+    {Schema, Conf, DirectMappings, TranslationsToDrop}.
+
+apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
     %% The fold handles the translations. After we've build the DirecetMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
