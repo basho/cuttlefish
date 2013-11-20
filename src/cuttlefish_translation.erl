@@ -135,4 +135,23 @@ replace_test() ->
     ?assertEqual([Element1, Override], NewTranslations),
     ok.
 
+parse_and_merge_test() ->
+    SampleTranslations = [
+    #translation{
+        mapping = "mapping1",
+        func = fun(X) -> X*3 end
+    },
+    #translation{
+        mapping = "mapping2",
+        func = fun(X) -> X*4 end
+    }
+    ],
+
+    NewTranslations = parse_and_merge(
+        {translation, "mapping1", fun(X) -> X * 10 end}, 
+        SampleTranslations),
+    F = func(hd(NewTranslations)),
+    ?assertEqual(50, F(5)),
+    ok.
+
 -endif.

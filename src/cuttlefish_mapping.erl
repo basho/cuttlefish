@@ -285,7 +285,40 @@ validators_test() ->
     [A, B, _C] = Validators,
 
     ?assertEqual([A,B], validators(Mapping, Validators)),
+    ok.
 
+parse_and_merge_test() ->
+    SampleMappings = [parse({
+        mapping,
+        "conf.key",
+        "erlang.key1",
+        [
+            {level, advanced},
+            {default, "default value"},
+            {datatype, {enum, [on, off]}},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    }),
+    parse({
+        mapping,
+        "conf.key2",
+        "erlang.key2",
+        [
+            {level, advanced},
+            {default, "default value"},
+            {datatype, {enum, [on, off]}},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    })
+    ],
+
+    NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", []}, SampleMappings),
+
+    ?assertEqual("erlang.key3", mapping(hd(NewMappings))),
     ok.
 
 -endif.

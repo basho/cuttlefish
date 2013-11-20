@@ -148,4 +148,28 @@ replace_test() ->
     ?assertEqual([Element1, Override], NewValidators),
     ok.
 
+remove_duplicates_test() ->
+    SampleValidators = [
+    #validator{
+        name = "name1",
+        description = "description1",
+        func = fun(X) -> X*3 end
+    },
+    #validator{
+        name = "name1",
+        description = "description1",
+        func = fun(X) -> X*4 end
+    }
+    ],
+
+    [NewValidator|_] = parse_and_merge(
+        {validator, "name1", "description2", fun(X) -> X*10 end}, 
+        SampleValidators),
+    F = func(NewValidator),
+    ?assertEqual(50, F(5)),
+    ?assertEqual("description2", description(NewValidator)),
+    ?assertEqual("name1", name(NewValidator)),
+
+    ok.
+
 -endif.
