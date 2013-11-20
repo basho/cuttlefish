@@ -21,15 +21,18 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_conf).
 
--type conf() :: [{ [string()], any() }].
--export_type([conf/0]).
-
 -export([
     generate/1,
     generate_file/2,
     file/1,
     files/1,
     is_variable_defined/2]).
+
+-type variable() :: [string()].
+-type conf_pair() :: {variable(), any()}.
+-type conf() :: [conf_pair()].
+-export_type([variable/0, conf_pair/0, conf/0]).
+
 
 is_variable_defined(VariableDef, Conf) ->
     lists:any(fun({X, _}) -> cuttlefish_util:fuzzy_variable_match(X, VariableDef) end, Conf). 

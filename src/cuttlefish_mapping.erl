@@ -40,6 +40,7 @@
     }).
 
 -type mapping() :: #mapping{}.
+-type raw_mapping() :: {mapping, string(), string(), [proplists:property()]}.
 -export_type([mapping/0]).
 
 -export([
@@ -60,7 +61,7 @@
     remove_all_but_first/2
     ]).
 
--spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
+-spec parse(raw_mapping()) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
 
     Datatype = case proplists:get_value(datatype, Proplist, string) of
@@ -99,7 +100,7 @@ parse(X) ->
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
-    {mapping, string(), string(), [proplists:property()]}, [mapping()]) -> [mapping()].
+    raw_mapping(), [mapping()]) -> [mapping()].
 parse_and_merge({mapping, _Variable, _Mapping, _Props} = MappingSource, Mappings) ->
     NewMapping = parse(MappingSource),
     Variable = variable(NewMapping),

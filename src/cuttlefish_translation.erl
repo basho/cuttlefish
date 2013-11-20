@@ -31,6 +31,8 @@
     func::fun()
     }).
 -type translation() :: #translation{}.
+-type translation_fun() :: fun(([proplists:property()]) -> any()).
+-type raw_translation() :: {translation, string(), translation_fun()}.
 -export_type([translation/0]).
 
 -export([
@@ -41,22 +43,26 @@
     func/1,
     replace/2]).
 
--spec parse({translation, string(), fun()}) -> translation() | {error, list()}.
+-spec parse(raw_translation()) -> translation() | {error, list()}.
 parse({translation, Mapping, Fun}) ->
     #translation{
         mapping = Mapping,
         func = Fun
     };
-parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_translation:parse/1 : ~p", [X])}.
+parse(X) ->
+    {error,
+     io_lib:format(
+        "poorly formatted input to cuttlefish_translation:parse/1 : ~p",
+        [X]
+    )}.
 
 %% This assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
-    tuple(), [translation()]) -> [translation()].
+    raw_translation(), [translation()]) -> [translation()].
 parse_and_merge({translation, Mapping, _} = TranslationSource, Translations) ->
     NewTranslation = parse(TranslationSource),
-
     case lists:keyfind(Mapping, #translation.mapping, Translations) of
         false ->
             [ NewTranslation | Translations];

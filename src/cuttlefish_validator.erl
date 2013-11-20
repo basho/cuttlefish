@@ -31,7 +31,9 @@
     description::string(),
     func::fun()
     }).
--opaque validator() :: #validator{}.
+-type validator() :: #validator{}.
+-type validator_fun() :: fun((any()) -> boolean()).
+-type raw_validator() :: {validator, string(), string(), validator_fun()}.
 -export_type([validator/0]).
 
 -export([
@@ -43,23 +45,27 @@
     func/1,
     replace/2]).
 
--spec parse({validator, string(), fun()}) -> validator() | {error, list()}.
+-spec parse(raw_validator()) -> validator() | {error, list()}.
 parse({validator, Name, Description, Fun}) ->
     #validator{
         name = Name,
         description = Description,
         func = Fun
     };
-parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_validator:parse/1 : ~p", [X])}.
+parse(X) ->
+    {error, 
+     io_lib:format(
+        "poorly formatted input to cuttlefish_validator:parse/1 : ~p",
+        [X]
+    )}.
 
 %% This assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
-    tuple(), [validator()]) -> [validator()].
+    raw_validator(), [validator()]) -> [validator()|{error, list()}].
 parse_and_merge({validator, ValidatorName, _, _} = ValidatorSource, Validators) ->
     NewValidator = parse(ValidatorSource),
-
     case lists:keyfind(ValidatorName, #validator.name, Validators) of
         false ->
             [ NewValidator | Validators];
