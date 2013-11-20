@@ -189,8 +189,8 @@ generate(ParsedArgs) ->
     end,
 
     case FilesToUse of
-        %% this is nice and all, but currently all error paths of engage_cuttlefish end with init:stop(1)
-        %% hopefully factor that to be cleaner.
+        %% this is nice and all, but currently all error paths of engage_cuttlefish end with 
+        %% stop_deactivate() hopefully factor that to be cleaner.
         error -> 
             stop_deactivate();
         {AppConf, VMArgs} ->
@@ -199,10 +199,7 @@ generate(ParsedArgs) ->
             %% command EXCEPT '-args_file', so in order to get access to this file location
             %% from within the vm, we need to pass it in twice.
             ?STDOUT(" -config ~s -args_file ~s -vm_args ~s ", [AppConf, VMArgs, VMArgs]),
-            init:stop(0);
-        X ->
-            lager:error("Unknown Return from cuttlefish library: ~p", X),
-            stop_deactivate()
+            init:stop(0)
     end.
 
 load_schema(ParsedArgs) ->
@@ -237,7 +234,7 @@ load_conf(ParsedArgs) ->
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     cuttlefish_conf:files(ConfFiles).
 
--spec engage_cuttlefish([proplists:property()]) -> {string(), string()}.
+-spec engage_cuttlefish([proplists:property()]) -> {string(), string()} | error.
 engage_cuttlefish(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 

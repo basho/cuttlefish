@@ -29,16 +29,20 @@
 -compile(export_all).
 -endif.
 
--type errorlist() :: {error, string()|[string()]}.
+-type error() :: {error, string()|[string()]}.
+-type errorlist() :: {error, [error()]}.
 -type schema() :: {[cuttlefish_translation:translation()], [cuttlefish_mapping:mapping()], [cuttlefish_validator:validator()]}.
 -export_type([schema/0]).
 
+-spec files([string()]) -> schema() | errorlist().
 files(ListOfSchemaFiles) ->
     merger(fun file/1, ListOfSchemaFiles).
 
+-spec strings([string()]) -> schema() | errorlist().
 strings(ListOfStrings) ->
     merger(fun string/1, ListOfStrings).
 
+-spec merger(fun((string()) -> schema() | errorlist()), [string()]) -> schema() | errorlist().
 merger(Fun, ListOfInputs) ->
     Schema = lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
@@ -75,6 +79,9 @@ merger(Fun, ListOfInputs) ->
 
 %% This filter is *ONLY* for the case of multiple mappings to a single erlang
 %% app setting, *AND* there's no corresponding translation for that app setting
+-spec filter(schema() | errorlist()) -> schema() | errorlist().
+filter({error, Errorlist}) ->
+    {error, Errorlist};
 filter({Translations, Mappings, Validators}) ->
     Counts = count_mappings(Mappings),
     {MappingsToCheck, _} = lists:unzip(Counts),
@@ -100,11 +107,7 @@ count_mappings(Mappings) ->
         orddict:new(),
         Mappings).
 
--spec file(string()) -> {
-    [cuttlefish_translation:translation()],
-    [cuttlefish_mapping:mapping()],
-    [cuttlefish_validator:validator()]
-} | errorlist().
+-spec file(string()) -> schema() | errorlist().
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
@@ -117,20 +120,7 @@ file(Filename) ->
             Schema
     end.
 
-%% string/1 reads in a string and returns a tuple of lists.
-%% The first is a list of Translations
-%% The second is a list of Mappings
-%% The third is a list of Validators
-%% 
-%% The big issue here is how we should preserve order in a single string,
-%% which for practical purposes represents a single schema file.
-
-%% Ugh, that means conflict resolution.
--spec string(string()) -> {
-    [cuttlefish_translation:translation()], 
-    [cuttlefish_mapping:mapping()],
-    [cuttlefish_validator:validator()]
-} | {error, [errorlist()]}.
+-spec string(string()) -> schema() | errorlist().
 string(S) -> 
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
