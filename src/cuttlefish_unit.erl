@@ -53,3 +53,10 @@ assert_config(Config, KVCPath, Value) ->
         X -> X
     end,
     ?assertEqual({KVCPath, Value}, {KVCPath, ActualValue}).
+
+-spec dump_to_file(any(), string()) -> ok.
+dump_to_file(ErlangTerm, Filename) ->
+    {ok, S} = file:open(Filename, [write,append]),
+    io:format(S, "~p~n", [ErlangTerm]),
+    file:close(S),
+    ok.

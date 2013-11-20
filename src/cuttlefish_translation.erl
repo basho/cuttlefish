@@ -35,11 +35,11 @@
 
 -export([
     parse/1,
+    parse_and_merge/2,
     is_translation/1,
     mapping/1, 
     func/1,
-    replace/2,
-    remove_duplicates/1]).
+    replace/2]).
 
 -spec parse({translation, string(), fun()}) -> translation() | {error, list()}.
 parse({translation, Mapping, Fun}) ->
@@ -49,6 +49,20 @@ parse({translation, Mapping, Fun}) ->
     };
 parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_translation:parse/1 : ~p", [X])}.
 
+%% This assumes it's run as part of a foldl over new schema elements
+%% in which case, there's only ever one instance of a key in the list
+%% so keyreplace works fine.
+-spec parse_and_merge(
+    tuple(), [translation()]) -> [translation()].
+parse_and_merge({translation, Mapping, _} = TranslationSource, Translations) ->
+    NewTranslation = parse(TranslationSource),
+
+    case lists:keyfind(Mapping, #translation.mapping, Translations) of
+        false ->
+            [ NewTranslation | Translations];
+        _OldMapping ->
+            lists:keyreplace(Mapping, #translation.mapping, Translations, NewTranslation) 
+    end.
 
 -spec is_translation(any()) -> boolean().
 is_translation(T) -> is_tuple(T) andalso element(1, T) =:= translation.
@@ -68,15 +82,6 @@ replace(Translation, ListOfTranslations) ->
         _ ->
             [Translation | ListOfTranslations]
     end.
-
--spec remove_duplicates([translation()]) -> [translation()].
-remove_duplicates(Translations) ->
-    lists:foldl(
-        fun(Translation, Acc) ->
-            replace(Translation, Acc)
-        end, 
-        [], 
-        Translations). 
 
 -ifdef(TEST).
 
@@ -128,23 +133,6 @@ replace_test() ->
 
     NewTranslations = replace(Override, SampleTranslations),
     ?assertEqual([Element1, Override], NewTranslations),
-    ok.
-
-remove_duplicates_test() ->
-    SampleTranslations = [
-    #translation{
-        mapping = "mapping1",
-        func = fun(X) -> X*3 end
-    },
-    #translation{
-        mapping = "mapping1",
-        func = fun(X) -> X*4 end
-    }
-    ],
-
-    NewTranslations = remove_duplicates(SampleTranslations),
-    [_|Expected] = SampleTranslations,
-    ?assertEqual(Expected, NewTranslations),
     ok.
 
 -endif.
