@@ -29,16 +29,20 @@
 -compile(export_all).
 -endif.
 
--type errorlist() :: {error, string()|[string()]}.
+-type error() :: {error, string()|[string()]}.
+-type errorlist() :: {error, [error()]}.
 -type schema() :: {[cuttlefish_translation:translation()], [cuttlefish_mapping:mapping()], [cuttlefish_validator:validator()]}.
 -export_type([schema/0]).
 
+-spec files([string()]) -> schema() | errorlist().
 files(ListOfSchemaFiles) ->
     merger(fun file/1, ListOfSchemaFiles).
 
+-spec strings([string()]) -> schema() | errorlist().
 strings(ListOfStrings) ->
     merger(fun string/1, ListOfStrings).
 
+-spec merger(fun((string()) -> schema() | errorlist()), [string()]) -> schema() | errorlist().
 merger(Fun, ListOfInputs) ->
     Schema = lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
@@ -46,20 +50,22 @@ merger(Fun, ListOfInputs) ->
             case Fun(Input) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
+                    %% but, return them anyway so the rebar plugin can display them 
+                    %% with io:format, since it doesn't have lager.
                     {error, Errors}; 
                 {Translations, Mappings, Validators} ->
                     
-                    NewMappings = lists:foldl(
+                    NewMappings = lists:foldr(
                         fun cuttlefish_mapping:replace/2,
                         MappingAcc,
                         Mappings),
 
-                    NewTranslations = lists:foldl(
+                    NewTranslations = lists:foldr(
                         fun cuttlefish_translation:replace/2,
                         TranslationAcc,
                         Translations),
 
-                    NewValidators = lists:foldl(
+                    NewValidators = lists:foldr(
                         fun cuttlefish_validator:replace/2,
                         ValidatorAcc,
                         Validators),
@@ -71,6 +77,11 @@ merger(Fun, ListOfInputs) ->
         ListOfInputs),
     filter(Schema).
 
+%% This filter is *ONLY* for the case of multiple mappings to a single erlang
+%% app setting, *AND* there's no corresponding translation for that app setting
+-spec filter(schema() | errorlist()) -> schema() | errorlist().
+filter({error, Errorlist}) ->
+    {error, Errorlist};
 filter({Translations, Mappings, Validators}) ->
     Counts = count_mappings(Mappings),
     {MappingsToCheck, _} = lists:unzip(Counts),
@@ -96,11 +107,7 @@ count_mappings(Mappings) ->
         orddict:new(),
         Mappings).
 
--spec file(string()) -> {
-    [cuttlefish_translation:translation()],
-    [cuttlefish_mapping:mapping()],
-    [cuttlefish_validator:validator()]
-} | errorlist().
+-spec file(string()) -> schema() | errorlist().
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
@@ -113,40 +120,16 @@ file(Filename) ->
             Schema
     end.
 
--spec string(string()) -> {
-    [cuttlefish_translation:translation()], 
-    [cuttlefish_mapping:mapping()],
-    [cuttlefish_validator:validator()]
-} | {error, [errorlist()]}.
+-spec string(string()) -> schema() | errorlist().
 string(S) -> 
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
             CommentTokens = erl_comment_scan:string(S),
-            Schemas = parse_schema(Tokens, CommentTokens),
-
-            {Errors, _Other} = lists:partition(fun(X) -> element(1, X) =:= error end, Schemas),
-
+            {Translations, Mappings, Validators, Errors} = parse_schema(Tokens, CommentTokens),
+            
             case length(Errors) of
                 0 ->
-                    {Translations, Mappings, Validators} = 
-                        lists:foldr(
-                            fun(Item, {Ts, Ms, Vs}) -> 
-                                case element(1, Item) of
-                                    translation ->
-                                        {[Item|Ts], Ms, Vs};
-                                    mapping ->
-                                        {Ts, [Item|Ms], Vs};
-                                    validator ->
-                                        {Ts, Ms, [Item|Vs]};
-                                    _ ->
-                                        {Ts, Ms, Vs}
-                                end 
-                            end, 
-                            {[],[],[]}, 
-                            Schemas),
-                    {cuttlefish_translation:remove_duplicates(Translations),
-                     cuttlefish_mapping:remove_duplicates(Mappings),
-                     cuttlefish_validator:remove_duplicates(Validators)};
+                    {Translations, Mappings, Validators};
                 _ ->
                     [begin
                         case Desc of
@@ -165,18 +148,24 @@ string(S) ->
     end.
 
 parse_schema(Tokens, Comments) ->
-    parse_schema(Tokens, Comments, []).
+    parse_schema(Tokens, Comments, {[], [], [], []}).
 
-%% We're done! We don't care about any comments after the last schema item
 -spec parse_schema(
     [any()],
     [any()],
-    [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()]
+    {[cuttlefish_translation:translation()],
+     [cuttlefish_mapping:mapping()],
+     [cuttlefish_validator:validator()],
+     [errorlist()]}
     ) -> 
-        [cuttlefish_translation:translation() | cuttlefish_mapping:mapping() | cuttlefish_validator:validator() | errorlist()].
-parse_schema([], _LeftoverComments, Acc) ->
-    lists:reverse(Acc);
-parse_schema(ScannedTokens, CommentTokens, Acc) ->
+        {[cuttlefish_translation:translation()],
+         [cuttlefish_mapping:mapping()],
+         [cuttlefish_validator:validator()],
+         [errorlist()]}.
+%% We're done! We don't care about any comments after the last schema item
+parse_schema([], _LeftoverComments, {TAcc, MAcc, VAcc, EAcc}) ->
+    {lists:reverse(TAcc), lists:reverse(MAcc), lists:reverse(VAcc), lists:reverse(EAcc)};
+parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
     {LineNo, Tokens, TailTokens } = parse_schema_tokens(ScannedTokens),
     {Comments, TailComments} = lists:foldr(
         fun(X={CommentLineNo, _, _, Comment}, {C, TC}) -> 
@@ -187,23 +176,24 @@ parse_schema(ScannedTokens, CommentTokens, Acc) ->
         end, 
         {[], []}, 
         CommentTokens),
-    
-    Item = case parse(Tokens) of
+
+    NewAcc = case parse(Tokens) of
         {error, Reason} ->
             MoreInfo = "Schema parse error near line number " ++ integer_to_list(LineNo),
-            {error, [MoreInfo|Reason]};
-        {mapping, {mapping, Key, Mapping, Proplist}} ->
+            {TAcc, MAcc, VAcc, [{error, [MoreInfo|Reason]} | EAcc]};
+        {mapping, {mapping, Variable, Mapping, Proplist}} ->
             Attributes = comment_parser(Comments),
-            Doc = proplists:get_value(doc, Attributes, []), 
-            cuttlefish_mapping:parse({mapping, Key, Mapping, [{doc, Doc}|Proplist]});
+            Doc = proplists:get_value(doc, Attributes, []),
+            MappingSource = {mapping, Variable, Mapping, [{doc, Doc}|Proplist]},
+            {TAcc, cuttlefish_mapping:parse_and_merge(MappingSource, MAcc), VAcc, EAcc};
         {translation, Return} ->
-            cuttlefish_translation:parse(Return);
+            {cuttlefish_translation:parse_and_merge(Return, TAcc), MAcc, VAcc, EAcc};
         {validator, Return} ->
-            cuttlefish_validator:parse(Return);
+            {TAcc, MAcc, cuttlefish_validator:parse_and_merge(Return, VAcc), EAcc};
         Other ->
-            {error, io_lib:format("Unknown parse return: ~p", [Other])}
+            {TAcc, MAcc, VAcc, [{error, io_lib:format("Unknown parse return: ~p", [Other])} | EAcc]}
     end,
-    parse_schema(TailTokens, TailComments, [Item| Acc]).
+    parse_schema(TailTokens, TailComments, NewAcc).
 
 parse_schema_tokens(Scanned) -> 
     parse_schema_tokens(Scanned, []).
@@ -347,7 +337,7 @@ parse_bad_datatype_test() ->
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
 
 files_test() ->
-
+    lager:start(),
     %% files/1 takes a list of schemas in priority order.
     %% Loads them in reverse order, as things are overridden
     {Translations, Mappings, Validators} = files(

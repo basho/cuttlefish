@@ -40,10 +40,12 @@
     }).
 
 -type mapping() :: #mapping{}.
+-type raw_mapping() :: {mapping, string(), string(), [proplists:property()]}.
 -export_type([mapping/0]).
 
 -export([
     parse/1,
+    parse_and_merge/2,
     is_mapping/1,
     variable/1,
     mapping/1,
@@ -54,13 +56,12 @@
     doc/1,
     include_default/1,
     replace/2,
-    remove_duplicates/1,
     validators/1,
     validators/2,
     remove_all_but_first/2
     ]).
 
--spec parse({mapping, string(), string(), [{atom(), any()}]}) -> mapping() | {error, list()}.
+-spec parse(raw_mapping()) -> mapping() | {error, list()}.
 parse({mapping, Variable, Mapping, Proplist}) ->
 
     Datatype = case proplists:get_value(datatype, Proplist, string) of
@@ -86,7 +87,29 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         include_default = proplists:get_value(include_default, Proplist),
         validators = proplists:get_value(validators, Proplist, [])
     };
-parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_mapping:parse/1 : ~p", [X])}.
+parse(X) ->
+    {error,
+     io_lib:format(
+        "poorly formatted input to cuttlefish_mapping:parse/1 : ~p",
+        [X]
+    )}.
+
+%% If this mapping exists, do something (For now, a simple replace)
+%% TODO: SMART MERGE
+%% This assumes it's run as part of a foldl over new schema elements
+%% in which case, there's only ever one instance of a key in the list
+%% so keyreplace works fine.
+-spec parse_and_merge(
+    raw_mapping(), [mapping()]) -> [mapping()].
+parse_and_merge({mapping, _Variable, _Mapping, _Props} = MappingSource, Mappings) ->
+    NewMapping = parse(MappingSource),
+    Variable = variable(NewMapping),
+    case lists:keyfind(Variable, #mapping.variable, Mappings) of
+        false ->
+            [ NewMapping | Mappings];
+        _OldMapping ->
+            lists:keyreplace(Variable, #mapping.variable, Mappings, NewMapping) 
+    end.
 
 -spec is_mapping(any()) -> boolean().
 is_mapping(M) ->
@@ -138,15 +161,6 @@ replace(Mapping, ListOfMappings) ->
             [Mapping | ListOfMappings]
     end.
 
--spec remove_duplicates([mapping()]) -> [mapping()].
-remove_duplicates(Mappings) ->
-    lists:foldl(
-        fun(Mapping, Acc) ->
-            replace(Mapping, Acc)
-        end, 
-        [], 
-        Mappings). 
-
 -spec remove_all_but_first(string(), [mapping()]) -> [mapping()].
 remove_all_but_first(MappingName, Mappings) ->
     lists:foldr(
@@ -155,6 +169,7 @@ remove_all_but_first(MappingName, Mappings) ->
             (M, Acc) ->
                 [M|Acc]
         end, [], Mappings).
+
 -ifdef(TEST).
 
 mapping_test() ->
@@ -246,41 +261,6 @@ replace_test() ->
     ?assertEqual([Element1, Override], NewMappings),
     ok.
 
-
-remove_duplicates_test() ->
-    SampleMappings = [parse({
-        mapping,
-        "conf.key",
-        "erlang.key1",
-        [
-            {level, advanced},
-            {default, "default value"},
-            {datatype, {enum, [on, off]}},
-            {commented, "commented value"},
-            {include_default, "default_substitution"},
-            {doc, ["documentation", "for feature"]}
-        ]
-    }),
-    parse({
-        mapping,
-        "conf.key",
-        "erlang.key2",
-        [
-            {level, advanced},
-            {default, "default value"},
-            {datatype, {enum, [on, off]}},
-            {commented, "commented value"},
-            {include_default, "default_substitution"},
-            {doc, ["documentation", "for feature"]}
-        ]
-    })
-    ],
-
-    NewMappings = remove_duplicates(SampleMappings),
-    [_|Expected] = SampleMappings,
-    ?assertEqual(Expected, NewMappings),
-    ok.
-
 validators_test() ->
     Validators = [
     cuttlefish_validator:parse({
@@ -306,7 +286,40 @@ validators_test() ->
     [A, B, _C] = Validators,
 
     ?assertEqual([A,B], validators(Mapping, Validators)),
+    ok.
 
+parse_and_merge_test() ->
+    SampleMappings = [parse({
+        mapping,
+        "conf.key",
+        "erlang.key1",
+        [
+            {level, advanced},
+            {default, "default value"},
+            {datatype, {enum, [on, off]}},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    }),
+    parse({
+        mapping,
+        "conf.key2",
+        "erlang.key2",
+        [
+            {level, advanced},
+            {default, "default value"},
+            {datatype, {enum, [on, off]}},
+            {commented, "commented value"},
+            {include_default, "default_substitution"},
+            {doc, ["documentation", "for feature"]}
+        ]
+    })
+    ],
+
+    NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", []}, SampleMappings),
+
+    ?assertEqual("erlang.key3", mapping(hd(NewMappings))),
     ok.
 
 -endif.

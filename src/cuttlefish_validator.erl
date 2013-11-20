@@ -31,27 +31,47 @@
     description::string(),
     func::fun()
     }).
--opaque validator() :: #validator{}.
+-type validator() :: #validator{}.
+-type validator_fun() :: fun((any()) -> boolean()).
+-type raw_validator() :: {validator, string(), string(), validator_fun()}.
 -export_type([validator/0]).
 
 -export([
     parse/1,
+    parse_and_merge/2,
     is_validator/1,
     name/1,
     description/1, 
     func/1,
-    replace/2,
-    remove_duplicates/1]).
+    replace/2]).
 
--spec parse({validator, string(), fun()}) -> validator() | {error, list()}.
+-spec parse(raw_validator()) -> validator() | {error, list()}.
 parse({validator, Name, Description, Fun}) ->
     #validator{
         name = Name,
         description = Description,
         func = Fun
     };
-parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_validator:parse/1 : ~p", [X])}.
+parse(X) ->
+    {error, 
+     io_lib:format(
+        "poorly formatted input to cuttlefish_validator:parse/1 : ~p",
+        [X]
+    )}.
 
+%% This assumes it's run as part of a foldl over new schema elements
+%% in which case, there's only ever one instance of a key in the list
+%% so keyreplace works fine.
+-spec parse_and_merge(
+    raw_validator(), [validator()]) -> [validator()|{error, list()}].
+parse_and_merge({validator, ValidatorName, _, _} = ValidatorSource, Validators) ->
+    NewValidator = parse(ValidatorSource),
+    case lists:keyfind(ValidatorName, #validator.name, Validators) of
+        false ->
+            [ NewValidator | Validators];
+        _OldMapping ->
+            lists:keyreplace(ValidatorName, #validator.name, Validators, NewValidator) 
+    end.
 
 -spec is_validator(any()) -> boolean().
 is_validator(V) -> is_tuple(V) andalso element(1, V) =:= validator.
@@ -74,15 +94,6 @@ replace(Validator, ListOfValidators) ->
         _ ->
             [Validator | ListOfValidators]
     end.
-
--spec remove_duplicates([validator()]) -> [validator()].
-remove_duplicates(Validators) ->
-    lists:foldl(
-        fun(Validator, Acc) ->
-            replace(Validator, Acc)
-        end, 
-        [], 
-        Validators). 
 
 -ifdef(TEST).
 
@@ -157,9 +168,14 @@ remove_duplicates_test() ->
     }
     ],
 
-    NewValidators = remove_duplicates(SampleValidators),
-    [_|Expected] = SampleValidators,
-    ?assertEqual(Expected, NewValidators),
+    [NewValidator|_] = parse_and_merge(
+        {validator, "name1", "description2", fun(X) -> X*10 end}, 
+        SampleValidators),
+    F = func(NewValidator),
+    ?assertEqual(50, F(5)),
+    ?assertEqual("description2", description(NewValidator)),
+    ?assertEqual("name1", name(NewValidator)),
+
     ok.
 
 -endif.

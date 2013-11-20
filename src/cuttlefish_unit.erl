@@ -43,7 +43,7 @@ generate_config(file, SchemaFile, Conf) ->
 
 -spec generate_config(string(), list()) -> list().
 generate_config(SchemaFile, Conf) ->
-    Schema = cuttlefish_schema:file(SchemaFile),
+    Schema = cuttlefish_schema:files([SchemaFile]),
     cuttlefish_generator:map(Schema, Conf).
 
 assert_config(Config, KVCPath, Value) ->
@@ -53,3 +53,10 @@ assert_config(Config, KVCPath, Value) ->
         X -> X
     end,
     ?assertEqual({KVCPath, Value}, {KVCPath, ActualValue}).
+
+-spec dump_to_file(any(), string()) -> ok.
+dump_to_file(ErlangTerm, Filename) ->
+    {ok, S} = file:open(Filename, [write,append]),
+    io:format(S, "~p~n", [ErlangTerm]),
+    file:close(S),
+    ok.
