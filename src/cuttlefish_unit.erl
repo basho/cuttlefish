@@ -43,7 +43,7 @@ generate_config(file, SchemaFile, Conf) ->
 
 -spec generate_config(string(), list()) -> list().
 generate_config(SchemaFile, Conf) ->
-    Schema = cuttlefish_schema:file(SchemaFile),
+    Schema = cuttlefish_schema:files([SchemaFile]),
     cuttlefish_generator:map(Schema, Conf).
 
 assert_config(Config, KVCPath, Value) ->
