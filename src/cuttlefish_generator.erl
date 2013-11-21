@@ -87,14 +87,16 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
                 Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
-                proplists:is_defined(Mapping, Translations)
+                lists:any(fun(T) -> cuttlefish_translation:mapping(T) =:= Mapping end, Translations)
                 } of
                 {true, false} -> 
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
-                {true, true} -> {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
-                _ -> {ConfAcc, {[Mapping|MaybeDrop], Keep}}
+                {true, true} ->
+                    {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
+                _ ->
+                    {ConfAcc, {[Mapping|MaybeDrop], Keep}}
             end
         end, 
         {[], {[],[]}},
@@ -375,11 +377,13 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
         {[], []},
         Mappings),
 
+    %% The input to this function is massaged enough that you'll never see a hard mapping count > 1
+    %% You might see more than one fuzzy match, there's really nothing to stop that.
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
         {0, 0} -> {error, lists:flatten(io_lib:format("~s not_found", [string:join(Variable, ".")]))};
-        {X, Y} -> {error, io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, Variable])}
+        {X, Y} -> {error, lists:flatten(io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, string:join(Variable, ".")]))}
     end;
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_util:tokenize_variable_key(Variable), Mappings).
@@ -459,7 +463,6 @@ add_defaults_test() ->
         {["n","ak","x"], "set_n_name_x"},
         {["n","bk","x"], "set_n_name_x2"},
         {["n","ck","y"], "set_n_name_y3"}
-          
     ],
 
     Mappings = [
@@ -509,7 +512,7 @@ map_test() ->
     Conf = conf_parse:file("../test/riak.conf"),
 
     NewConfig = map(Schema, Conf),
-    
+
     NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
     ?assertEqual(32, NewRingSize),
 
@@ -582,6 +585,11 @@ find_mapping_test() ->
         ),
 
     ?assertEqual(
+        ["variable","with","fixed","name"],
+        cuttlefish_mapping:variable(find_mapping("variable.with.fixed.name", Mappings))
+        ),
+
+    ?assertEqual(
         0,
         cuttlefish_mapping:default(find_mapping(["variable","with","fixed","name"], Mappings))
         ),
@@ -646,7 +654,59 @@ find_mapping_test() ->
         1,
         cuttlefish_mapping:default(find_mapping(["variable","with","E.F","name"], Mappings))
         ),
+    ok.
 
+multiple_hard_match_test() ->
+    %% In real life this should never happen, but if it does, I'd love a log message
+    Mappings = [
+        cuttlefish_mapping:parse({mapping, "variable.with.fixed.name", "", [{ default, 0}]}),
+        cuttlefish_mapping:parse({mapping, "variable.with.fixed.name", "",  [{ default, 1}]})
+    ],
+    ?assertEqual(
+        {error, "2 hard mappings and 0 fuzzy mappings found for variable.with.fixed.name"},
+        find_mapping(["variable","with","fixed","name"], Mappings)
+        ),
+    ok.
+
+apply_mappings_translations_dropped_correctly_test() ->
+    Fun = fun(X) -> X end,
+    ?assertEqual(1, Fun(1)), %% coverage kludge
+
+    Translations = [
+        cuttlefish_translation:parse({
+            translation,
+            "mapping.name",
+            Fun
+            })
+    ],
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "mapping.name",
+            [{default, 6}]
+            }) 
+    ],
+    %% So, we have a translation for the corresponding mapping, but that mapping has no default
+    {_DirectMappings, TranslationsToDrop} = apply_mappings({Translations, Mappings, []}, []),
+    ?assertEqual([], TranslationsToDrop),
+    ok.
+
+transform_datatypes_not_found_test() ->
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "erlang.key",
+            []
+            })
+    ],
+
+    Conf = [
+        {["conf", "other"], "string"}
+    ],
+    NewConf = transform_datatypes(Conf, Mappings),
+    ?assertEqual([], NewConf),
     ok.
 
 validation_test() ->

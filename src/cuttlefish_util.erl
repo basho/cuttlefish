@@ -98,15 +98,15 @@ split_variable_on_match(Variable) ->
     }.
 
 %% @doc replaces the $var in Key with Sub
--spec variable_match_replace([string()], string()) -> [string()].
+-spec variable_match_replace(cuttlefish_conf:variable(), string()) -> [string()].
 variable_match_replace(Variable, Sub) ->
     [ begin 
-        case {hd(Tok), Sub} of
-            {$$, undefined} -> Tok;
+        case {H, Sub} of
+            {$$, undefined} -> T;
             {$$, Sub} -> Sub;
             _ -> Tok
         end
-    end || Tok <- Variable]. 
+    end || [H|T]=Tok <- Variable]. 
 
 %% @doc could this fixed Key be a match for the variable key KeyDef?
 %% e.g. could a.b.$var.d =:= a.b.c.d? 
@@ -326,6 +326,8 @@ variable_match_replace_test() ->
     ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "f")),
     ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "g")),
     ?assertEqual(["a", "g", "c"], variable_match_replace(["a", "$b", "c"], "g")),
+    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "$b", "c"], undefined)),
+
     ok.
 
 fuzzy_variable_match_test() ->
@@ -355,6 +357,34 @@ matches_for_variable_def_test() ->
     ?assert(lists:member("backend4", Vars)),
     ?assertEqual(4, length(Vars)),
 
+    ok.
+
+levenshtein_test() ->
+    ?assertEqual(0, levenshtein("X", "X")),
+    ?assertEqual(1, levenshtein("X", "XX")),
+    ?assertEqual(1, levenshtein("penguin", "penguino")),
+    ?assertEqual(1, levenshtein("dtrace", "ctrace")),
+    ?assertEqual(5, levenshtein("anti_entropy", "anti_entropy.tick")),
+    ?assertEqual(1, levenshtein("anti_entropy", "anti-entropy")),
+    ?assertEqual(4, levenshtein("", "four")),
+    ?assertEqual(4, levenshtein("four", "")),
+    ok.
+
+print_error_test() ->
+    case lager:error("Error") of
+        {error, lager_not_running} ->
+            ?assertEqual(ok, print_error("Error"));
+        _ ->
+            ?assert(fail)
+    end,
+    ok.
+
+ceiling_test() ->
+    ?assertEqual(9, ceiling(8.99999)),
+    ?assertEqual(9, ceiling(8.00001)),
+    ?assertEqual(9, ceiling(9.00000)),
+    ?assertEqual(-2, ceiling(-2.0000001)),
+    ?assertEqual(-2, ceiling(-2.9999999)),
     ok.
 
 -endif.
