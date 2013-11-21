@@ -32,11 +32,11 @@
         default::term(),
         commented::term(),
         datatype = string :: cuttlefish_datatypes:datatype(),
-        datatype_options :: any(),
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
-        validators = [] :: [string()]
+        validators = [] :: [string()],
+        is_merge = false :: boolean()
     }).
 
 -type mapping() :: #mapping{}.
@@ -101,14 +101,44 @@ parse(X) ->
 %% so keyreplace works fine.
 -spec parse_and_merge(
     raw_mapping(), [mapping()]) -> [mapping()].
-parse_and_merge({mapping, _Variable, _Mapping, _Props} = MappingSource, Mappings) ->
-    NewMapping = parse(MappingSource),
-    Variable = variable(NewMapping),
-    case lists:keyfind(Variable, #mapping.variable, Mappings) of
+parse_and_merge({mapping, Variable, _Mapping, Props} = MappingSource, Mappings) ->
+    Var = cuttlefish_util:tokenize_variable_key(Variable),
+    case lists:keyfind(Var, #mapping.variable, Mappings) of
         false ->
-            [ NewMapping | Mappings];
-        _OldMapping ->
-            lists:keyreplace(Variable, #mapping.variable, Mappings, NewMapping) 
+            [ parse(MappingSource) | Mappings];
+        OldMapping ->
+            MaybeMergedMapping = case proplists:is_defined(merge, Props) of
+                true ->
+                    io:format("true!"),
+                    merge(MappingSource, OldMapping);
+                _ ->
+                    io:format("false!"),
+                    parse(MappingSource)
+            end,
+            lists:keyreplace(Var, #mapping.variable, Mappings, MaybeMergedMapping) 
+    end.
+
+-spec merge(raw_mapping(), mapping()) -> mapping().
+merge(NewMappingSource, OldMapping) ->
+    MergeMapping = parse(NewMappingSource),
+    #mapping{
+        variable = variable(MergeMapping),
+        mapping = mapping(MergeMapping),
+        default = choose(default, NewMappingSource, MergeMapping, OldMapping),
+        commented = choose(commented, NewMappingSource, MergeMapping, OldMapping),
+        datatype = choose(datatype, NewMappingSource, MergeMapping, OldMapping),
+        level = choose(level, NewMappingSource, MergeMapping, OldMapping),
+        doc = choose(doc, NewMappingSource, MergeMapping, OldMapping),
+        include_default = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
+        validators = choose(validators, NewMappingSource, MergeMapping, OldMapping)
+    }.
+
+choose(Field, {_, _, _, OriginalProps} = _RawMapping, MergeMapping, OldMapping) ->
+    case proplists:is_defined(Field, OriginalProps) of
+        true ->
+            ?MODULE:Field(MergeMapping);
+        _ ->
+            ?MODULE:Field(OldMapping)
     end.
 
 -spec is_mapping(any()) -> boolean().
@@ -336,6 +366,61 @@ parse_and_merge_test() ->
     NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", []}, SampleMappings),
 
     ?assertEqual("erlang.key3", mapping(hd(NewMappings))),
+    ok.
+
+smart_merge_test() ->
+    
+    OldM1 = parse({mapping, "thing.to.merge", "some.key", [
+            {default, 7}, 
+            {datatype, integer}, 
+            {doc, ["documentation", "for feature"]}
+        ]}),
+    OldM2 = parse({mapping, "thing.not.merged", "some.other_key", [{default, 6}, {datatype, integer}]}),
+
+    OriginalMappings = [OldM1, OldM2],
+
+    NewRawNoMergeMapping = {mapping, "thing.to.merge", "some.new_other_key", [{level, advanced}]},
+    [NewUnMergedMapping, OldM2] = parse_and_merge(
+        NewRawNoMergeMapping,
+        OriginalMappings),
+
+    ?assertEqual(["thing", "to", "merge"], variable(NewUnMergedMapping)),
+    ?assertEqual(undefined, default(NewUnMergedMapping)),
+    ?assertEqual("some.new_other_key", mapping(NewUnMergedMapping)),
+    ?assertEqual(advanced, level(NewUnMergedMapping)),
+    ?assertEqual(string, datatype(NewUnMergedMapping)),
+    ?assertEqual([], doc(NewUnMergedMapping)),
+    ?assertEqual(undefined, include_default(NewUnMergedMapping)),
+    ?assertEqual([], validators(NewUnMergedMapping)),
+
+    NewRawMergeMapping = {mapping, "thing.to.merge", "some.new_key", [merge, {level, advanced}]},
+    [NewMergedMapping, OldM2] = NewMappings = parse_and_merge(
+        NewRawMergeMapping,
+        OriginalMappings),
+
+    ?assertEqual(["thing", "to", "merge"], variable(NewMergedMapping)),
+    ?assertEqual(7, default(NewMergedMapping)),
+    ?assertEqual("some.new_key", mapping(NewMergedMapping)),
+    ?assertEqual(advanced, level(NewMergedMapping)),
+    ?assertEqual(integer, datatype(NewMergedMapping)),
+    ?assertEqual(["documentation", "for feature"], doc(NewMergedMapping)),
+    ?assertEqual(undefined, include_default(NewMergedMapping)),
+    ?assertEqual([], validators(NewMergedMapping)),
+
+    NewerRawMergeMapping = {mapping, "thing.to.merge", "some.third_key", [merge, {default, 42}]},
+
+    [NewerMergedMapping, OldM2] = parse_and_merge(
+        NewerRawMergeMapping,
+        NewMappings),
+
+    ?assertEqual(["thing", "to", "merge"], variable(NewerMergedMapping)),
+    ?assertEqual(42, default(NewerMergedMapping)),
+    ?assertEqual("some.third_key", mapping(NewerMergedMapping)),
+    ?assertEqual(advanced, level(NewerMergedMapping)),
+    ?assertEqual(integer, datatype(NewerMergedMapping)),
+    ?assertEqual(["documentation", "for feature"], doc(NewerMergedMapping)),
+    ?assertEqual(undefined, include_default(NewerMergedMapping)),
+    ?assertEqual([], validators(NewerMergedMapping)),
     ok.
 
 accidentally_used_strings_for_enums_test() ->
