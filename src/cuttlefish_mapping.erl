@@ -109,10 +109,8 @@ parse_and_merge({mapping, Variable, _Mapping, Props} = MappingSource, Mappings) 
         OldMapping ->
             MaybeMergedMapping = case proplists:is_defined(merge, Props) of
                 true ->
-                    io:format("true!"),
                     merge(MappingSource, OldMapping);
                 _ ->
-                    io:format("false!"),
                     parse(MappingSource)
             end,
             lists:keyreplace(Var, #mapping.variable, Mappings, MaybeMergedMapping) 
@@ -369,7 +367,6 @@ parse_and_merge_test() ->
     ok.
 
 smart_merge_test() ->
-    
     OldM1 = parse({mapping, "thing.to.merge", "some.key", [
             {default, 7}, 
             {datatype, integer}, 
