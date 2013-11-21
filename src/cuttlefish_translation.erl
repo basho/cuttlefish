@@ -124,40 +124,65 @@ replace_test() ->
         mapping = "mapping18",
         func = fun(X) -> X*2 end
     },
+    ?assertEqual(4, (Element1#translation.func)(2)),
 
-    SampleTranslations = [Element1,
-    #translation{
+    Element2 =     #translation{
         mapping = "mapping1",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Element2#translation.func)(2)),
+
+    SampleTranslations = [Element1, Element2],
 
     Override = #translation{
         mapping = "mapping1",
         func = fun(X) -> X*5 end
     },
+    ?assertEqual(25, (Override#translation.func)(5)),
 
     NewTranslations = replace(Override, SampleTranslations),
     ?assertEqual([Element1, Override], NewTranslations),
     ok.
 
 parse_and_merge_test() ->
-    SampleTranslations = [
-    #translation{
+    Sample1 = #translation{
         mapping = "mapping1",
         func = fun(X) -> X*3 end
     },
-    #translation{
+    ?assertEqual(6, (Sample1#translation.func)(2)),
+
+    Sample2 = #translation{
         mapping = "mapping2",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Sample2#translation.func)(2)),
+
+    SampleTranslations = [Sample1, Sample2],
 
     NewTranslations = parse_and_merge(
         {translation, "mapping1", fun(X) -> X * 10 end}, 
         SampleTranslations),
     F = func(hd(NewTranslations)),
     ?assertEqual(50, F(5)),
+    ok.
+
+parse_error_test() ->
+    {ErrorAtom, IOList} = parse(not_a_raw_translation),
+    ?assertEqual(error, ErrorAtom),
+    ?assertEqual(
+        "poorly formatted input to cuttlefish_translation:parse/1 : not_a_raw_translation",
+        lists:flatten(IOList)),
+    ok.
+
+is_translation_test() ->
+    ?assert(not(is_translation(not_a_translation))),
+
+    T = #translation{
+        mapping = "mapping1",
+        func = fun(X) -> X*3 end
+    },
+    ?assertEqual(6, (T#translation.func)(2)),
+    ?assert(is_translation(T)),
     ok.
 
 -endif.

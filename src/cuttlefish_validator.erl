@@ -135,38 +135,44 @@ replace_test() ->
         description = "description18",
         func = fun(X) -> X*2 end
     },
+    ?assertEqual(4, (Element1#validator.func)(2)),
 
-    SampleValidators = [Element1,
-    #validator{
+    Element2 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Element2#validator.func)(2)),
+
+    SampleValidators = [Element1, Element2],
 
     Override = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*5 end
     },
+    ?assertEqual(25, (Override#validator.func)(5)),
 
     NewValidators = replace(Override, SampleValidators),
     ?assertEqual([Element1, Override], NewValidators),
     ok.
 
 remove_duplicates_test() ->
-    SampleValidators = [
-    #validator{
+    Sample1 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*3 end
     },
-    #validator{
+    ?assertEqual(6, (Sample1#validator.func)(2)),
+
+    Sample2 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Sample2#validator.func)(2)),
+
+    SampleValidators = [Sample1, Sample2],
 
     [NewValidator|_] = parse_and_merge(
         {validator, "name1", "description2", fun(X) -> X*10 end}, 
@@ -175,7 +181,26 @@ remove_duplicates_test() ->
     ?assertEqual(50, F(5)),
     ?assertEqual("description2", description(NewValidator)),
     ?assertEqual("name1", name(NewValidator)),
+    ok.
 
+parse_error_test() ->
+    {ErrorAtom, IOList} = parse(not_a_raw_validator),
+    ?assertEqual(error, ErrorAtom),
+    ?assertEqual(
+        "poorly formatted input to cuttlefish_validator:parse/1 : not_a_raw_validator",
+        lists:flatten(IOList)),
+    ok.
+
+is_validator_test() ->
+    ?assert(not(is_validator(not_a_validator))),
+
+    V = #validator{
+        name = "name1",
+        description = "description1",
+        func = fun(X) -> X*4 end
+    },
+    ?assertEqual(8, (V#validator.func)(2)),
+    ?assert(is_validator(V)),
     ok.
 
 -endif.

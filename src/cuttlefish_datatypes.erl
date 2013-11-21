@@ -120,11 +120,12 @@ from_string(Thing, InvalidDatatype) ->
 -ifdef(TEST).
 
 to_string_atom_test() ->
-    ?assertEqual("split_the", to_string(split_the, atom)).
+    ?assertEqual("split_the", to_string(split_the, atom)),
+    ?assertEqual("split_the", to_string("split_the", atom)).
 
 to_string_integer_test() ->
     ?assertEqual("32", to_string(32, integer)),
-    ?assertEqual("32", to_string(32, integer)).
+    ?assertEqual("32", to_string("32", integer)).
 
 to_string_ip_test() ->
     ?assertEqual("127.0.0.1:8098", to_string("127.0.0.1:8098", ip)),
@@ -137,6 +138,16 @@ to_string_enum_test() ->
 to_string_string_test() ->
     ?assertEqual("string", to_string("string", string)).
 
+to_string_duration_test() ->
+    ?assertEqual("1w", to_string("1w", {duration, s})),
+    ?assertEqual("1w", to_string(604800000, {duration, ms})).
+
+to_string_bytesize_test() ->
+    ?assertEqual("1GB", to_string(1073741824, bytesize)),
+    ?assertEqual("1GB", to_string("1GB", bytesize)).
+
+to_string_unsupported_datatype_test() ->
+    ?assertEqual(error, to_string("Something", unsupported_datatype)).
 
 from_string_atom_test() ->
     ?assertEqual(split_the, from_string(split_the, atom)),
@@ -180,5 +191,26 @@ from_string_duration_secs_test() ->
 
 from_string_string_test() ->
     ?assertEqual("string", from_string("string", string)).
+
+from_string_unsupported_datatype_test() ->
+    ?assertEqual(error, from_string("string", unsupported_datatype)).
+
+is_supported_test() ->
+    ?assert(is_supported(integer)),
+    ?assert(is_supported(string)),
+    ?assert(is_supported(atom)),
+    ?assert(is_supported({enum, [one, two, three]})),
+    ?assert(not(is_supported({enum, not_a_list}))),
+    ?assert(is_supported(ip)),
+    ?assert(is_supported({duration, f})),
+    ?assert(is_supported({duration, w})),
+    ?assert(is_supported({duration, d})),
+    ?assert(is_supported({duration, h})),
+    ?assert(is_supported({duration, m})),
+    ?assert(is_supported({duration, s})),
+    ?assert(is_supported({duration, ms})),
+    ?assert(is_supported(bytesize)),
+    ?assert(not(is_supported(some_unsupported_type))),
+    ok.
 
 -endif.

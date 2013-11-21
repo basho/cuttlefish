@@ -263,9 +263,9 @@ replace_test() ->
 
 validators_test() ->
     Validators = [
-    cuttlefish_validator:parse({
-        validator, "a", "a desc", fun(_X) -> true end
-        }),
+    cuttlefish_validator:parse(
+        {validator, "a", "a desc", fun(_X) -> true end}
+    ),
     cuttlefish_validator:parse({
         validator, "b", "b desc", fun(_X) -> true end
         }),
@@ -274,6 +274,11 @@ validators_test() ->
         })
     ],
 
+    %% Hack for coverage
+    [ begin
+        Fun = cuttlefish_validator:func(V),
+        ?assert(Fun(x)) 
+    end || V <- Validators],
     Mapping = parse({
         mapping,
         "conf.key",
@@ -286,6 +291,17 @@ validators_test() ->
     [A, B, _C] = Validators,
 
     ?assertEqual([A,B], validators(Mapping, Validators)),
+
+    MappingWithMissingValidator = parse({
+        mapping,
+        "conf.key",
+        "erlang.key1",
+        [
+            {validators, ["a", "d"]} %% There is no "d"
+        ]
+    }),
+    ?assertEqual([A], validators(MappingWithMissingValidator, Validators)),
+
     ok.
 
 parse_and_merge_test() ->
@@ -320,6 +336,40 @@ parse_and_merge_test() ->
     NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", []}, SampleMappings),
 
     ?assertEqual("erlang.key3", mapping(hd(NewMappings))),
+    ok.
+
+accidentally_used_strings_for_enums_test() ->
+    Mapping = parse({
+        mapping,
+        "conf.key2",
+        "erlang.key2",
+        [
+            {datatype, {enum, ["on", "off"]}}
+        ]
+    }),
+    ?assertEqual({enum, [on, off]}, cuttlefish_mapping:datatype(Mapping)),
+    ok.
+
+parse_error_test() ->
+    {ErrorAtom, IOList} = parse(not_a_raw_mapping),
+    ?assertEqual(error, ErrorAtom),
+    ?assertEqual(
+        "poorly formatted input to cuttlefish_mapping:parse/1 : not_a_raw_mapping",
+        lists:flatten(IOList)),
+    ok.
+
+is_mapping_test() ->
+    ?assert(not(is_mapping(not_a_mapping))),
+
+    M = parse({
+        mapping,
+        "conf.key2",
+        "erlang.key2",
+        [
+            {datatype, {enum, ["on", "off"]}}
+        ]
+    }),
+    ?assert(is_mapping(M)),
     ok.
 
 -endif.

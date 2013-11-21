@@ -40,13 +40,17 @@ is_variable_defined(VariableDef, Conf) ->
 files(ListOfConfFiles) ->
     lists:foldl(
         fun(ConfFile, ConfAcc) -> 
-            Conf = cuttlefish_conf:file(ConfFile),
-            lists:foldl(
-                fun({K,V}, MiniAcc) ->
-                    cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
-                end, 
-                ConfAcc, 
-                Conf) 
+            case cuttlefish_conf:file(ConfFile) of
+                {error, _Reason} ->
+                    ConfAcc;
+                Conf ->
+                    lists:foldl(
+                        fun({K,V}, MiniAcc) ->
+                            cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
+                        end, 
+                        ConfAcc, 
+                        Conf)
+            end
         end, 
         [], 
         ListOfConfFiles).
@@ -54,7 +58,8 @@ files(ListOfConfFiles) ->
 file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
-            lager:error("Could not open file (~s) for Reason ~s", [Filename, Reason]);
+            lager:error("Could not open file (~s) for Reason ~s", [Filename, Reason]),
+            {error, Reason};
         Conf ->
             remove_duplicates(Conf)
     end.
@@ -196,7 +201,7 @@ duplicates_multi_test() ->
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
-files_one_nonent() ->
+files_one_nonent_test() ->
     Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
     ?assertEqual(2, length(Conf)),
     ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
