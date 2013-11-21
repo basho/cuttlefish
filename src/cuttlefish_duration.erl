@@ -74,8 +74,15 @@ parse(InputDurationString) ->
     DurationString = string:to_lower(InputDurationString),
     DurationTokens = tokens(DurationString),
     
-    Millis = lists:sum([parse_token(T) || T <- DurationTokens]),
-    round(Millis).
+    ParsedTokens = [parse_token(T) || T <- DurationTokens],
+
+    case lists:any(fun(X) -> X =:= error end, ParsedTokens) of
+        true ->
+            error;
+        false ->
+            Millis = lists:sum(ParsedTokens),
+            round(Millis)
+    end.
 
 tokens(DurationString) ->
     {LastWorking, List} = lists:foldl(
@@ -116,8 +123,8 @@ parse_token_r([$w|BackwardsWeeks]) ->
 parse_token_r([$f|BackwardsFortnights]) ->
     FortnightStr = lists:reverse(BackwardsFortnights),
     cuttlefish_util:numerify(FortnightStr) * ?FORTNIGHT;
-parse_token_r(Error) ->
-    {error, Error}.
+parse_token_r(_UnknownUnit) ->
+    error.
 
 is_digit(Char) -> 
     Char =:= $1 orelse
@@ -146,7 +153,6 @@ seconds_test() ->
     ?assertEqual("30m", to_string(1800, s)),
     ?assertEqual("1w1d1h1m1s", to_string(694861, s)),
     ok.
-
 
 parse_test() ->
     test_parse(500,  "500ms"),
@@ -202,6 +208,20 @@ parse_2_test() ->
     ?assertEqual(1, parse("1ms", d)),
     ?assertEqual(1, parse("1ms", w)),
     ?assertEqual(1, parse("1ms", f)),
+    ok.
+
+to_string_test() ->
+    ?assertEqual("2w", to_string(1, f)),
+    ?assertEqual("2w", to_string(2, w)),
+    ?assertEqual("1w", to_string(1, w)),
+    ?assertEqual("1d", to_string(1, d)),
+    ?assertEqual("1w", to_string(7, d)),
+    ?assertEqual("1h", to_string(1, h)),
+    ?assertEqual("1m", to_string(1, m)),
+    ok.
+
+parse_error_test() ->
+    ?assertEqual(error, parse("1q")),
     ok.
 
 -endif.

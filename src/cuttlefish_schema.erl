@@ -191,7 +191,7 @@ parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
         {validator, Return} ->
             {TAcc, MAcc, cuttlefish_validator:parse_and_merge(Return, VAcc), EAcc};
         Other ->
-            {TAcc, MAcc, VAcc, [{error, io_lib:format("Unknown parse return: ~p", [Other])} | EAcc]}
+            {TAcc, MAcc, VAcc, [{error, lists:flatten(io_lib:format("Unknown parse return: ~p", [Other]))} | EAcc]}
     end,
     parse_schema(TailTokens, TailComments, NewAcc).
 
@@ -425,6 +425,17 @@ strings_filtration_test() ->
     ?assertEqual(6, length(Mappings)),
     ?assertEqual(["a", "b"], cuttlefish_mapping:variable(hd(Mappings))),
     ?assertEqual(["b", "b"], cuttlefish_mapping:variable(lists:nth(5, Mappings))),
+    ok.
+
+error_test() ->
+    {ErrorAtom, Errors} = strings(["tyktorp"]),
+    io:format("~p", [Errors]),
+    ?assertEqual(error, ErrorAtom),
+
+    {error, [{error, Error}]} = strings(["{mapping, \"a\", [{datatype, unsupported_datatype}]}."]),
+    ?assertEqual(
+        "Unknown parse return: {mapping,\n                          {mapping,\"a\",[{datatype,unsupported_datatype}]}}",
+        Error),
     ok.
 
 -endif.
