@@ -94,9 +94,11 @@ parse(X) ->
         [X]
     )}.
 
-%% If this mapping exists, do something (For now, a simple replace)
-%% TODO: SMART MERGE
-%% This assumes it's run as part of a foldl over new schema elements
+%% If this mapping exists, do something.
+%% That something is usually a simple replace, unless the proplist in
+%% the raw mapping contains the atom 'merge'.
+%%
+%% This fuction assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
