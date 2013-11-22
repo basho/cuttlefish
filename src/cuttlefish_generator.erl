@@ -190,10 +190,53 @@ add_defaults(Conf, Mappings) ->
                 %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but
                 %% it's part of a complex data structure.
                 {false, true} ->
+                    %% This might not need to be a fold. It could be a lists:keyfind if there
+                    %% were some way to partially match the key instead of an exact match.
+                    %% basically, I need a lists:keystartswith
                     lists:foldl(
                         fun({Prefix, List}, SubAcc) ->
                             case lists:prefix(Prefix, VariableDef) of
                                 true ->
+                                    %% This means that we found the key. Most of the time this will only 
+                                    %% be true once, so this fold is kind of stupid.
+                                    
+                                    %% ToAdd will be the list of all the things we're adding to the defaults.
+                                    %% So, let's say you have the following mappings defined:
+                                    %% namespace.$named_thing.a
+                                    %% namespace.$named_thing.b
+                                    %% namespace.$named_thing.c
+
+                                    %% and in your conf, you defined the following:
+                                    %% namespace.strong_bad.a = 10
+                                    %% namespace.senor_cardgage.b = percent_sign
+                                    %% namespace.trogdor.c = burninate
+
+                                    %% Well, Prefixes would look like this:
+                                    %% [{"namespace", ["strong_bad", "senor_cardgage", "trogdor"]}]
+
+                                    %% The ToAdd list comp is going through and saying: ok, I know there are
+                                    %% defaults for namespace.$named_thing.a, b, and c. And I know the possible
+                                    %% values of $named_thing are strong_bad, senor_cardgage, and trogdor.
+                                    %% so I want to ensure that there are values for the following:
+                                    %% 
+                                    %% namespace.strong_bad.a
+                                    %% namespace.strong_bad.b
+                                    %% namespace.strong_bad.c
+                                    %% namespace.senor_cardgage.a
+                                    %% namespace.senor_cardgage.b
+                                    %% namespace.senor_cardgage.c
+                                    %% namespace.trogdor.a
+                                    %% namespace.trogdor.b
+                                    %% namespace.trogdor.c
+
+                                    %% So, we go through the List of possible substitutions. If it already exists
+                                    %% in the Conf (which this deep in the function is AKA Acc), then we return the 
+                                    %% atom 'no', otherwise we return the {Key, Default} tuple. e.g. 
+                                    %% {["namespace", "strong_bad", "b"], Default}
+
+                                    %% Then we filter out the 'no's and we have a list of defaults to add to Conf.
+
+                                    %% And that's the story of this fold.
                                     ToAdd = [ begin
                                         VariableToAdd = cuttlefish_util:variable_match_replace(VariableDef, V),
                                         case proplists:is_defined(VariableToAdd, Acc) of
