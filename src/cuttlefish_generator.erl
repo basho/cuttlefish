@@ -180,13 +180,8 @@ add_defaults(Conf, Mappings) ->
         fun(MappingRecord, Acc) ->
             Default = cuttlefish_mapping:default(MappingRecord),
             VariableDef = cuttlefish_mapping:variable(MappingRecord),
-            IsFuzzyMatch =  cuttlefish_mapping:is_fuzzy_variable(MappingRecord),
-
-            IsStrictMatch = lists:any(
-                fun({K, _V}) ->
-                    K =:= VariableDef
-                end,
-                Conf),
+            IsFuzzyMatch = cuttlefish_mapping:is_fuzzy_variable(MappingRecord),
+            IsStrictMatch = lists:keymember(VariableDef, 1, Conf),
 
             %% No, then plug in the default
             case {IsStrictMatch, IsFuzzyMatch} of
