@@ -58,7 +58,7 @@ conf_get_value(Variable, ConfigProplist, Default) ->
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
-    proplists:delete(Key, Proplist) ++ [{Key, Value}].
+    lists:keystore(Key, 1, Proplist, {Key, Value}).
 
 %% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
