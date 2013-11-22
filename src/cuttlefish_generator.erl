@@ -218,7 +218,7 @@ add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
     case PotentialMatch of
         %% None of the prefixes match, so we don't generate a default.
         [] -> Conf;
-        [{_Prefix, List}|_] ->
+        [{_Prefix, Substitutions}|_] ->
             %% This means that we found the key.
             %% ToAdd will be the list of all the things we're adding to the defaults.
             %% So, let's say you have the following mappings defined:
@@ -254,9 +254,9 @@ add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
             %% already exists in the Conf, then we skip it, otherwise
             %% we include the Default value.
             ToAdd = [ {VariableToAdd, Default}
-                      || V <- List,
-                         VariableToAdd <- [ cuttlefish_util:variable_match_replace(VariableDef, V) ],
-                        not lists:keymember(VariableToAdd, 1, Conf)],
+                      || Subst <- Substitutions,
+                         VariableToAdd <- [cuttlefish_util:variable_match_replace(VariableDef, Subst)],
+                         not lists:keymember(VariableToAdd, 1, Conf)],
             Conf ++ ToAdd
     end.
 
