@@ -177,95 +177,89 @@ add_defaults(Conf, Mappings) ->
     Prefixes = get_possible_values_for_fuzzy_matches(Conf, Mappings),
 
     lists:foldl(
-        fun(MappingRecord, Acc) ->
-            Default = cuttlefish_mapping:default(MappingRecord),
-            VariableDef = cuttlefish_mapping:variable(MappingRecord),
-            IsFuzzyMatch = cuttlefish_mapping:is_fuzzy_variable(MappingRecord),
-            IsStrictMatch = lists:keymember(VariableDef, 1, Conf),
+      fun(MappingRecord, Acc) ->
+              case cuttlefish_mapping:has_default(MappingRecord) of
+                  false -> Acc;
+                  true  -> add_default(Conf, Prefixes, MappingRecord, Acc)
+              end
+      end,
+      Conf, Mappings).
 
-            %% No, then plug in the default
-            case {IsStrictMatch, IsFuzzyMatch} of
-                %% Strict match means we have the setting already
-                {true, false} -> Acc;
-                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but
-                %% it's part of a complex data structure.
-                {false, true} ->
-                    %% This might not need to be a fold. It could be a lists:keyfind if there
-                    %% were some way to partially match the key instead of an exact match.
-                    %% basically, I need a lists:keystartswith
-                    lists:foldl(
-                        fun({Prefix, List}, SubAcc) ->
-                            case lists:prefix(Prefix, VariableDef) of
-                                true ->
-                                    %% This means that we found the key. Most of the time this will only 
-                                    %% be true once, so this fold is kind of stupid.
-                                    
-                                    %% ToAdd will be the list of all the things we're adding to the defaults.
-                                    %% So, let's say you have the following mappings defined:
-                                    %% namespace.$named_thing.a
-                                    %% namespace.$named_thing.b
-                                    %% namespace.$named_thing.c
+add_default(Conf, Prefixes, MappingRecord, Acc) ->
+    Default = cuttlefish_mapping:default(MappingRecord),
+    VariableDef = cuttlefish_mapping:variable(MappingRecord),
+    IsFuzzyMatch = cuttlefish_mapping:is_fuzzy_variable(MappingRecord),
+    IsStrictMatch = lists:keymember(VariableDef, 1, Conf),
 
-                                    %% and in your conf, you defined the following:
-                                    %% namespace.strong_bad.a = 10
-                                    %% namespace.senor_cardgage.b = percent_sign
-                                    %% namespace.trogdor.c = burninate
+    %% No, then plug in the default
+    case {IsStrictMatch, IsFuzzyMatch} of
+        %% Strict match means we have the setting already
+        {true, false} -> Acc;
 
-                                    %% Well, Prefixes would look like this:
-                                    %% [{"namespace", ["strong_bad", "senor_cardgage", "trogdor"]}]
+        %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but
+        %% it's part of a complex data structure.
+        {false, true} ->
+            add_fuzzy_default(Prefixes, Acc, Default, VariableDef);
 
-                                    %% The ToAdd list comp is going through and saying: ok, I know there are
-                                    %% defaults for namespace.$named_thing.a, b, and c. And I know the possible
-                                    %% values of $named_thing are strong_bad, senor_cardgage, and trogdor.
-                                    %% so I want to ensure that there are values for the following:
-                                    %% 
-                                    %% namespace.strong_bad.a
-                                    %% namespace.strong_bad.b
-                                    %% namespace.strong_bad.c
-                                    %% namespace.senor_cardgage.a
-                                    %% namespace.senor_cardgage.b
-                                    %% namespace.senor_cardgage.c
-                                    %% namespace.trogdor.a
-                                    %% namespace.trogdor.b
-                                    %% namespace.trogdor.c
+        %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
+        {false, false} -> [{VariableDef, Default}|Acc];
 
-                                    %% So, we go through the List of possible substitutions. If it already exists
-                                    %% in the Conf (which this deep in the function is AKA Acc), then we return the 
-                                    %% atom 'no', otherwise we return the {Key, Default} tuple. e.g. 
-                                    %% {["namespace", "strong_bad", "b"], Default}
+        %% If Match =:= true, do nothing, the value is set in the .conf file
+        _ ->
+            %% TODO: Handle with more style and grace
+            lager:error("Both fuzzy and strict match! should not happen"),
+            [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
+    end.
 
-                                    %% Then we filter out the 'no's and we have a list of defaults to add to Conf.
+add_fuzzy_default(Prefixes, Acc, Default, VariableDef) ->
+    PotentialMatch = lists:dropwhile(fun({Prefix, _}) ->
+                                             not lists:prefix(Prefix, VariableDef)
+                                     end, Prefixes),
+    case PotentialMatch of
+        %% None of the prefixes match, so we don't generate a default.
+        [] -> Acc;
+        [{_Prefix, List}|_] ->
+            %% This means that we found the key.
+            %% ToAdd will be the list of all the things we're adding to the defaults.
+            %% So, let's say you have the following mappings defined:
+            %% namespace.$named_thing.a
+            %% namespace.$named_thing.b
+            %% namespace.$named_thing.c
 
-                                    %% And that's the story of this fold.
-                                    ToAdd = [ begin
-                                        VariableToAdd = cuttlefish_util:variable_match_replace(VariableDef, V),
-                                        case proplists:is_defined(VariableToAdd, Acc) of
-                                            true ->
-                                                no;
-                                            _ ->
-                                                {VariableToAdd, Default}
-                                        end
-                                    end || V <- List],
-                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd),
-                                    SubAcc ++ ToAdd2;
-                                _ -> SubAcc
-                            end
-                        end,
-                        Acc,
-                        Prefixes);
-                %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
-                {false, false} -> [{VariableDef, Default}|Acc];
-                %% If Match =:= true, do nothing, the value is set in the .conf file
-                _ ->
-                    %% TODO: Handle with more style and grace
-                    lager:error("Both fuzzy and strict match! should not happen"),
-                    [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
-            end
-        end,
-        Conf,
-        lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Mappings)).
+            %% and in your conf, you defined the following:
+            %% namespace.strong_bad.a = 10
+            %% namespace.senor_cardgage.b = percent_sign
+            %% namespace.trogdor.c = burninate
 
+            %% Well, Prefixes would look like this:
+            %% [{"namespace", ["strong_bad", "senor_cardgage", "trogdor"]}]
 
+            %% The ToAdd list comp is going through and saying: ok, I know there are
+            %% defaults for namespace.$named_thing.a, b, and c. And I know the possible
+            %% values of $named_thing are strong_bad, senor_cardgage, and trogdor.
+            %% so I want to ensure that there are values for the following:
+            %%
+            %% namespace.strong_bad.a
+            %% namespace.strong_bad.b
+            %% namespace.strong_bad.c
+            %% namespace.senor_cardgage.a
+            %% namespace.senor_cardgage.b
+            %% namespace.senor_cardgage.c
+            %% namespace.trogdor.a
+            %% namespace.trogdor.b
+            %% namespace.trogdor.c
+
+            %% So, we go through the List of possible substitutions
+            %% and apply the substitution to the variable. If it
+            %% already exists in the Conf (which this deep in the
+            %% function is AKA Acc), then we skip it, otherwise we
+            %% include the Default value.
+            ToAdd = [ {VariableToAdd, Default}
+                      || V <- List,
+                         VariableToAdd <- [ cuttlefish_util:variable_match_replace(VariableDef, V) ],
+                         not lists:keymember(VariableToAdd, 1, Acc)],
+            Acc ++ ToAdd
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %% Prefixes is the thing we need for defaults of named keys
