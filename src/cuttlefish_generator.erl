@@ -211,13 +211,13 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
             [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
     end.
 
-add_fuzzy_default(Prefixes, Acc, Default, VariableDef) ->
+add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
     PotentialMatch = lists:dropwhile(fun({Prefix, _}) ->
                                              not lists:prefix(Prefix, VariableDef)
                                      end, Prefixes),
     case PotentialMatch of
         %% None of the prefixes match, so we don't generate a default.
-        [] -> Acc;
+        [] -> Conf;
         [{_Prefix, List}|_] ->
             %% This means that we found the key.
             %% ToAdd will be the list of all the things we're adding to the defaults.
@@ -251,14 +251,13 @@ add_fuzzy_default(Prefixes, Acc, Default, VariableDef) ->
 
             %% So, we go through the List of possible substitutions
             %% and apply the substitution to the variable. If it
-            %% already exists in the Conf (which this deep in the
-            %% function is AKA Acc), then we skip it, otherwise we
-            %% include the Default value.
+            %% already exists in the Conf, then we skip it, otherwise
+            %% we include the Default value.
             ToAdd = [ {VariableToAdd, Default}
                       || V <- List,
                          VariableToAdd <- [ cuttlefish_util:variable_match_replace(VariableDef, V) ],
-                         not lists:keymember(VariableToAdd, 1, Acc)],
-            Acc ++ ToAdd
+                        not lists:keymember(VariableToAdd, 1, Conf)],
+            Conf ++ ToAdd
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
