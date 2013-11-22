@@ -30,7 +30,6 @@
     conf_get_value/2,
     conf_get_value/3,
     replace_proplist_value/3,
-    variable_starts_with/2,
     filter_by_variable_starts_with/2,
     split_variable_on_match/1,
     variable_match_replace/2,
@@ -60,12 +59,6 @@ conf_get_value(Variable, ConfigProplist, Default) ->
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     proplists:delete(Key, Proplist) ++ [{Key, Value}].
-
-variable_starts_with([HPrefix|Variable], [HPrefix|TPrefix]) ->
-    variable_starts_with(Variable, TPrefix);
-variable_starts_with(_Variable, []) ->
-    true;
-variable_starts_with(_,_) -> false.
 
 %% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
@@ -267,12 +260,6 @@ replace_proplist_value_when_undefined_test() ->
         3,
         proplists:get_value("test3", NewProplist) 
         ),
-    ok.
-
-variable_starts_with_test() ->
-    ?assert(variable_starts_with([], [])),
-    ?assert(variable_starts_with(["a","b","c"], ["a", "b"])),
-    ?assert(not(variable_starts_with(["a", "b", "c"], ["a", "q"]))),
     ok.
 
 filter_by_variable_starts_with_test() ->

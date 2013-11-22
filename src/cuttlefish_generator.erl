@@ -198,7 +198,7 @@ add_defaults(Conf, Mappings) ->
                 {false, true} ->
                     lists:foldl(
                         fun({Prefix, List}, SubAcc) -> 
-                            case cuttlefish_util:variable_starts_with(VariableDef, Prefix) of 
+                            case lists:prefix(Prefix, VariableDef) of
                                 true ->
                                     ToAdd = [ begin
                                         VariableToAdd = cuttlefish_util:variable_match_replace(VariableDef, V),
