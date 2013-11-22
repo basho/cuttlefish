@@ -36,17 +36,17 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% add_defaults/2 rolls the default values in from the schema
     lager:info("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
-    
+
     case contains_error(DConfig) of
         true ->
             lager:info("Error adding defaults, aborting"),
             {error, add_defaults};
-        _ -> 
+        _ ->
             map_transform_datatypes(Schema, DConfig)
     end.
 
 map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
-    %% Everything in DConfig is of datatype "string", 
+    %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     lager:info("Applying Datatypes"),
@@ -64,7 +64,7 @@ map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
-        true -> 
+        true ->
             {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
         _ ->
@@ -75,9 +75,9 @@ map_validate(Schema, Conf) ->
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
-    %% these 1:1 mappings, hence the return "DirectMappings". 
+    %% these 1:1 mappings, hence the return "DirectMappings".
     %% It also builds a list of "TranslationsToDrop". It's basically saying that
-    %% if a user didn't actually configure this setting in the .conf file and 
+    %% if a user didn't actually configure this setting in the .conf file and
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
     {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldr(
@@ -86,10 +86,10 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
             Default = cuttlefish_mapping:default(MappingRecord),
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
-                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
+                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf),
                 lists:any(fun(T) -> cuttlefish_translation:mapping(T) =:= Mapping end, Translations)
                 } of
-                {true, false} -> 
+                {true, false} ->
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
@@ -98,7 +98,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                 _ ->
                     {ConfAcc, {[Mapping|MaybeDrop], Keep}}
             end
-        end, 
+        end,
         {[], {[],[]}},
         Mappings),
     lager:info("Applied 1:1 Mappings"),
@@ -119,7 +119,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     Tokens = string:tokens(Mapping, "."),
                     %% get Xlat arity
                     Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    NewValue = case Arity of 
+                    NewValue = case Arity of
                         1 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf) of
@@ -128,7 +128,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        2 -> 
+                        2 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf, Schema) of
                                 X -> X
@@ -136,7 +136,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        Other -> 
+                        Other ->
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
@@ -145,8 +145,8 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     lager:debug("~p in Translations to drop...", [Mapping]),
                     Acc
             end
-        end, 
-        DirectMappings, 
+        end,
+        DirectMappings,
         Translations),
     lager:info("Applied Translations"),
     Return.
@@ -160,7 +160,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
 
 %% This is the last token, so things ends with replacing the proplist value.
 set_value([LastToken], Acc, NewValue) ->
-    cuttlefish_util:replace_proplist_value(list_to_atom(LastToken), NewValue, Acc); 
+    cuttlefish_util:replace_proplist_value(list_to_atom(LastToken), NewValue, Acc);
 %% This is the case of all but the last token.
 %% recurse until you hit a leaf.
 set_value([HeadToken|MoreTokens], PList, NewValue) ->
@@ -171,11 +171,11 @@ set_value([HeadToken|MoreTokens], PList, NewValue) ->
         set_value(MoreTokens, OldValue, NewValue),
         PList).
 
-%% @doc adds default values from the schema when something's not 
+%% @doc adds default values from the schema when something's not
 %% defined in the Conf, to give a complete app.config
 add_defaults(Conf, Mappings) ->
     Prefixes = get_possible_values_for_fuzzy_matches(Conf, Mappings),
-    
+
     lists:foldl(
         fun(MappingRecord, Acc) ->
             Default = cuttlefish_mapping:default(MappingRecord),
@@ -186,18 +186,18 @@ add_defaults(Conf, Mappings) ->
             IsStrictMatch = lists:any(
                 fun({K, _V}) ->
                     K =:= VariableDef
-                end, 
+                end,
                 Conf),
 
             %% No, then plug in the default
             case {IsStrictMatch, IsFuzzyMatch} of
                 %% Strict match means we have the setting already
                 {true, false} -> Acc;
-                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but 
+                %% If IsStrictMatch =:= false, IsFuzzyMatch =:= true, we've got a setting, but
                 %% it's part of a complex data structure.
                 {false, true} ->
                     lists:foldl(
-                        fun({Prefix, List}, SubAcc) -> 
+                        fun({Prefix, List}, SubAcc) ->
                             case lists:prefix(Prefix, VariableDef) of
                                 true ->
                                     ToAdd = [ begin
@@ -207,25 +207,25 @@ add_defaults(Conf, Mappings) ->
                                                 no;
                                             _ ->
                                                 {VariableToAdd, Default}
-                                        end 
+                                        end
                                     end || V <- List],
-                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd), 
+                                    ToAdd2 = lists:filter(fun(X) -> X =/= no end, ToAdd),
                                     SubAcc ++ ToAdd2;
                                 _ -> SubAcc
                             end
-                        end, 
-                        Acc, 
+                        end,
+                        Acc,
                         Prefixes);
                 %% If Match =:= FuzzyMatch =:= false, use the default, key not set in .conf
                 {false, false} -> [{VariableDef, Default}|Acc];
                 %% If Match =:= true, do nothing, the value is set in the .conf file
-                _ -> 
+                _ ->
                     %% TODO: Handle with more style and grace
                     lager:error("Both fuzzy and strict match! should not happen"),
                     [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
-            end 
-        end, 
-        Conf, 
+            end
+        end,
+        Conf,
         lists:filter(fun(MappingRecord) -> cuttlefish_mapping:default(MappingRecord) =/= undefined end, Mappings)).
 
 
@@ -245,53 +245,53 @@ add_defaults(Conf, Mappings) ->
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
     %% Get a list of all the key definitions from the schema
     %% that involve a pattern match
-    FuzzyVariableDefs = 
+    FuzzyVariableDefs =
         [ cuttlefish_mapping:variable(M) || M <- Mappings, lists:any(fun(X) -> hd(X) =:= $$ end, cuttlefish_mapping:variable(M))],
 
     %% Now, get all the Keys athat could match them
     FuzzyVariables = lists:foldl(
         fun({Variable, _}, FuzzyMatches) ->
             Fuzz = lists:filter(
-                fun(VariableDef) -> 
+                fun(VariableDef) ->
                     cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)
-                end, 
-                FuzzyVariableDefs), 
+                end,
+                FuzzyVariableDefs),
             case Fuzz of
                 [] -> FuzzyMatches;
-                [VD|_] -> 
+                [VD|_] ->
                     ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, [{Variable, 0}])],
                     orddict:append_list(VD, ListOfVars, FuzzyMatches)
             end
-        end, 
-        orddict:new(), 
-        Conf), 
-    
-    %% PrefixesWithoutDefaults are all the names it found referenced in the Conf 
+        end,
+        orddict:new(),
+        Conf),
+
+    %% PrefixesWithoutDefaults are all the names it found referenced in the Conf
     %% proplist. It may look something like this: [{"n",["ck","ak","bk"]}]
     PrefixesWithoutDefaults = orddict:fold(
-        fun(VariableDef, NameList, Acc) -> 
-            {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VariableDef), 
+        fun(VariableDef, NameList, Acc) ->
+            {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VariableDef),
             orddict:append_list(Prefix, NameList, Acc)
-        end, 
-        orddict:new(), 
+        end,
+        orddict:new(),
         FuzzyVariables),
 
     %% We're almost done, we need to go through the FuzzyKeyDefs again.
-    %% make sure that each one starts with a Prefix. 
+    %% make sure that each one starts with a Prefix.
     %% if not *AND* the schema provides a 'include_default', add that
     %% default substitution to the list of prefixes
 
     %% For each FuzzyKeyDef, if it is not covered by a prefix in
     %% PrefixesWithoutDefaults, add it to DefaultsNeeded.
     DefaultsNeeded = lists:filter(
-        fun(FVD) -> 
+        fun(FVD) ->
             lists:all(
-                fun(P) -> 
-                    string:str(FVD, P) =/= 1 
-                end, 
+                fun(P) ->
+                    string:str(FVD, P) =/= 1
+                end,
                 orddict:fetch_keys(PrefixesWithoutDefaults))
-        end, 
-        FuzzyVariableDefs), 
+        end,
+        FuzzyVariableDefs),
 
     %% This fold is our end result.
     %% For each DefaultNeeded, add the default if the schema has an "include_default"
@@ -304,13 +304,13 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                 undefined ->
                     Acc;
                 _ ->
-                    {Prefix, _Var, _} = cuttlefish_util:split_variable_on_match(Needed), 
+                    {Prefix, _Var, _} = cuttlefish_util:split_variable_on_match(Needed),
                     DefaultVar = cuttlefish_mapping:include_default(M),
-                    orddict:append(Prefix, DefaultVar, Acc) 
+                    orddict:append(Prefix, DefaultVar, Acc)
             end
-            
-        end, 
-        PrefixesWithoutDefaults, 
+
+        end,
+        PrefixesWithoutDefaults,
         DefaultsNeeded).
 
 -spec transform_datatypes(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> cuttlefish_conf:conf().
@@ -346,7 +346,7 @@ transform_datatypes(Conf, Mappings) ->
                         {{enum, PossibleValues}, NewValue} ->
                             case lists:member(NewValue, PossibleValues) of
                                 true -> [{Variable, NewValue}|Acc];
-                                false ->  
+                                false ->
                                     ErrStr = io_lib:format("Bad value: ~s for enum ~s", [NewValue, Variable]),
                                     lager:error(ErrStr),
                                     [{error, ErrStr}|Acc]
@@ -354,9 +354,9 @@ transform_datatypes(Conf, Mappings) ->
                         {_, NewValue} -> [{Variable, NewValue}|Acc]
                     end
             end
-        end, 
-        [], 
-        Conf). 
+        end,
+        [],
+        Conf).
 
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
@@ -367,7 +367,7 @@ transform_datatypes(Conf, Mappings) ->
 find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
         fun(Mapping, {HM, FM}) ->
-            VariableDef = cuttlefish_mapping:variable(Mapping), 
+            VariableDef = cuttlefish_mapping:variable(Mapping),
             case {Variable =:= VariableDef, cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)} of
                 {true, _} -> {[Mapping|HM], FM};
                 {_, true} -> {HM, [Mapping|FM]};
@@ -396,25 +396,25 @@ run_validations({_, Mappings, Validators}, Conf) ->
             Validator = cuttlefish_validator:func(V),
             case {Value, Validator(Value)} of
                 {undefined, _} -> true;
-                {_, true} -> 
+                {_, true} ->
                     true;
-                _ -> 
+                _ ->
                     LogString = io_lib:format(
-                        "~s invalid, ~s", 
+                        "~s invalid, ~s",
                         [
-                            cuttlefish_mapping:variable(M), 
-                            cuttlefish_validator:description(V) 
+                            cuttlefish_mapping:variable(M),
+                            cuttlefish_validator:description(V)
                         ]),
                     lager:error(LogString),
-                    false 
+                    false
             end
         end || V <- Vs]
 
-     end || M <- Mappings, 
-            cuttlefish_mapping:validators(M) =/= [], 
+     end || M <- Mappings,
+            cuttlefish_mapping:validators(M) =/= [],
             cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
             ],
-    lists:all(fun(X) -> X =:= true end, lists:flatten(Validations)). 
+    lists:all(fun(X) -> X =:= true end, lists:flatten(Validations)).
 
 -spec contains_error(list()) -> boolean().
 contains_error(List) ->
@@ -442,13 +442,13 @@ bad_conf_test() ->
     ],
 
     Translations = [
-        cuttlefish_translation:parse({translation, "to.enum", fun(_ConfConf) -> whatev end}) 
+        cuttlefish_translation:parse({translation, "to.enum", fun(_ConfConf) -> whatev end})
     ],
 
     NewConfig = map({Translations, Mappings, []}, Conf),
     io:format("NewConf: ~p~n", [NewConfig]),
 
-    ?assertEqual({error,transform_datatypes}, NewConfig), 
+    ?assertEqual({error,transform_datatypes}, NewConfig),
     ok.
 
 add_defaults_test() ->
@@ -458,7 +458,7 @@ add_defaults_test() ->
         {["a","c","d"], "override"},
         {["no","match"], "unchanged"},
         %%{"m.rk.x", "defined"}, %% since this is undefined no defaults should be created for "m",
-        
+
         %% two matches on a name "ak" and "bk"
         {["n","ak","x"], "set_n_name_x"},
         {["n","bk","x"], "set_n_name_x2"},
@@ -508,41 +508,41 @@ add_defaults_test() ->
 map_test() ->
     lager:start(),
     Schema = cuttlefish_schema:file("../test/riak.schema"),
-    
+
     Conf = conf_parse:file("../test/riak.conf"),
 
     NewConfig = map(Schema, Conf),
 
-    NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)), 
+    NewRingSize = proplists:get_value(ring_creation_size, proplists:get_value(riak_core, NewConfig)),
     ?assertEqual(32, NewRingSize),
 
-    NewAAE = proplists:get_value(anti_entropy, proplists:get_value(riak_kv, NewConfig)), 
+    NewAAE = proplists:get_value(anti_entropy, proplists:get_value(riak_kv, NewConfig)),
     ?assertEqual({on,[debug]}, NewAAE),
 
-    NewSASL = proplists:get_value(sasl_error_logger, proplists:get_value(sasl, NewConfig)), 
+    NewSASL = proplists:get_value(sasl_error_logger, proplists:get_value(sasl, NewConfig)),
     ?assertEqual(false, NewSASL),
 
-    NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)), 
+    NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)),
     ?assertEqual([{"10.0.0.1", 80}, {"127.0.0.1", 8098}], NewHTTP),
 
-    NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)), 
+    NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)),
     ?assertEqual([{"127.0.0.1", 8087}], NewPB),
 
-    NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)), 
+    NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)),
     ?assertEqual(undefined, NewHTTPS),
     ok.
 
 
 apply_mappings_test() ->
-    %% Two mappings, both alike in dignity, 
-    %% In fair unit test, where we lay our scene, 
-    %% From ancient failure break to new mutiny, 
-    %% Where civil overrides makes civil priority unclean. 
-    %% From forth the fatal loins of these two foes 
-    %% A pair of star-cross'd mappings write one app var; 
-    %% Whose misadventured piteous overthrows 
+    %% Two mappings, both alike in dignity,
+    %% In fair unit test, where we lay our scene,
+    %% From ancient failure break to new mutiny,
+    %% Where civil overrides makes civil priority unclean.
+    %% From forth the fatal loins of these two foes
+    %% A pair of star-cross'd mappings write one app var;
+    %% Whose misadventured piteous overthrows
     %% Do with their merge behave unexpectedly.
-    
+
     %% Assume add_defaults has already run
     Conf = [
         {["conf", "key1"], "1"},
@@ -578,7 +578,7 @@ find_mapping_test() ->
         cuttlefish_mapping:parse({mapping, "variable.with.$matched.name", "",  [{ default, 1}]})
     ],
     io:format("Mappings: ~p~n", [Mappings]),
-    
+
     ?assertEqual(
         ["variable","with","fixed","name"],
         cuttlefish_mapping:variable(find_mapping(["variable","with","fixed","name"], Mappings))
@@ -685,7 +685,7 @@ apply_mappings_translations_dropped_correctly_test() ->
             "conf.key",
             "mapping.name",
             [{default, 6}]
-            }) 
+            })
     ],
     %% So, we have a translation for the corresponding mapping, but that mapping has no default
     {_DirectMappings, TranslationsToDrop} = apply_mappings({Translations, Mappings, []}, []),
@@ -720,7 +720,7 @@ validation_test() ->
 
     Validators = [cuttlefish_validator:parse(
         {validator, "a", "error msg", fun(X) -> Pid ! X, true end}
-        ) 
+        )
     ],
 
     Conf = [
