@@ -36,17 +36,17 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% add_defaults/2 rolls the default values in from the schema
     lager:info("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
-    
+
     case contains_error(DConfig) of
         true ->
             lager:info("Error adding defaults, aborting"),
             {error, add_defaults};
-        _ -> 
+        _ ->
             map_transform_datatypes(Schema, DConfig)
     end.
 
 map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
-    %% Everything in DConfig is of datatype "string", 
+    %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     lager:info("Applying Datatypes"),
@@ -64,7 +64,7 @@ map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
     case run_validations(Schema, Conf) of
-        true -> 
+        true ->
             {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
         _ ->
@@ -75,9 +75,9 @@ map_validate(Schema, Conf) ->
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
-    %% these 1:1 mappings, hence the return "DirectMappings". 
+    %% these 1:1 mappings, hence the return "DirectMappings".
     %% It also builds a list of "TranslationsToDrop". It's basically saying that
-    %% if a user didn't actually configure this setting in the .conf file and 
+    %% if a user didn't actually configure this setting in the .conf file and
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
     {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldr(
@@ -86,10 +86,10 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
             Default = cuttlefish_mapping:default(MappingRecord),
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
-                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf), 
+                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf),
                 lists:any(fun(T) -> cuttlefish_translation:mapping(T) =:= Mapping end, Translations)
                 } of
-                {true, false} -> 
+                {true, false} ->
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
@@ -98,7 +98,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                 _ ->
                     {ConfAcc, {[Mapping|MaybeDrop], Keep}}
             end
-        end, 
+        end,
         {[], {[],[]}},
         Mappings),
     lager:info("Applied 1:1 Mappings"),
@@ -119,7 +119,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     Tokens = string:tokens(Mapping, "."),
                     %% get Xlat arity
                     Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    NewValue = case Arity of 
+                    NewValue = case Arity of
                         1 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf) of
@@ -128,7 +128,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        2 -> 
+                        2 ->
                             lager:debug("Running translation for ~s", [Mapping]),
                             try Xlat(Conf, Schema) of
                                 X -> X
@@ -136,17 +136,33 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                 E:R ->
                                     lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
                             end;
-                        Other -> 
+                        Other ->
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
-                    set_value(Tokens, Acc, NewValue);
+                    %% We ignore undefined as value, this way translation
+                    %% functions can opt out of applying themselfs.
+                    %% For fallback we still allow values to be passed w/o
+                    %% a {ok, ...} wrapping them so this will give a lager
+                    %% warning
+                    case NewValue of
+                        {ok, V} ->
+                            set_value(Tokens, Acc, V);
+                        undefined ->
+                            Acc;
+                        V ->
+                            lager:warning("Translation for ~p returned a "
+                                          "depricated value, please use "
+                                          "{ok, ~p} in the future.",
+                                          [Mapping, V]),
+                            set_value(Tokens, Acc, V)
+                    end;
                 _ ->
                     lager:debug("~p in Translations to drop...", [Mapping]),
                     Acc
             end
-        end, 
-        DirectMappings, 
+        end,
+        DirectMappings,
         Translations),
     lager:info("Applied Translations"),
     Return.

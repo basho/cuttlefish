@@ -1,13 +1,15 @@
+%% -*- erlang -*-
+
 %% This'll be the 'a' namespace
 
 {mapping, "a.some.var1", "app_a.some_var1", []}.
-{translation, "app_a.some_var1", fun(X) -> "a1" end}.
+{translation, "app_a.some_var1", fun(X) -> {ok, "a1"} end}.
 
 {mapping, "a.some.var2", "app_a.some_var2", []}.
-{translation, "app_a.some_var2", fun(X) -> "a2" end}.
+{translation, "app_a.some_var2", fun(X) -> {ok, "a2"} end}.
 
 {mapping, "a.some.var3", "app_a.some_var3", []}.
-{translation, "app_a.some_var3", fun(X) -> "a3" end}.
+{translation, "app_a.some_var3", fun(X) -> {ok, "a3"} end}.
 
 {validator, "a.validator1", "validate! validate!", fun(_AlwaysTrue) -> true end}.
 

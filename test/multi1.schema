@@ -1,3 +1,5 @@
+%% -*- erlang -*-
+
 %% We'll say this is the application level schema. This is where the developer
 %% defines their own big config knobs. Also, overrides anything brought in from 
 %% dependencies. That means we can do things like override "a.some.var2"
@@ -14,6 +16,6 @@
 
 %% But we can have our own mappings too! And they will come cuttlefish_lager_test_backend
 {mapping, "top_level.var1", "app_a.big_var", []}.
-{translation, "app_a.big_var", fun(X) -> "tippedy top" end}.
+{translation, "app_a.big_var", fun(X) -> {ok, "tippedy top"} end}.
 {validator, "top.val", "you only validate once.", fun(_AlwaysFalse) -> false end}.
 

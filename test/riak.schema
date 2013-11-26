@@ -1,3 +1,5 @@
+%% -*- erlang -*-
+
 %% example of super basic mapping
 %% @doc Default ring creation size.  Make sure it is a power of 2,
 %% e.g. 16, 32, 64, 128, 256, 512 etc
@@ -9,7 +11,7 @@
 ]}.
 
 {validator, "ring_size", "not a power of 2 greater than 1",
- fun(Size) -> 
+ fun(Size) ->
   Size > 1 andalso (Size band (Size-1) =:= 0)
  end}.
 
@@ -23,13 +25,14 @@
 { translation,
   "riak_kv.anti_entropy",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("anti_entropy", Conf), 
-    case Setting of
+    Setting = cuttlefish_util:conf_get_value("anti_entropy", Conf),
+    R = case Setting of
       on -> {on, []};
       debug -> {on, [debug]};
       off -> {off, []};
       _Default -> {on, []}
-    end
+    end,
+    {ok, R}
   end
 }.
 
@@ -101,7 +104,7 @@
       both -> [ConsoleHandler, ConsoleFileHandler];
       _ -> []
     end,
-    SyslogHandler ++ ConsoleHandlers ++ ErrorHandler
+    {ok, SyslogHandler ++ ConsoleHandlers ++ ErrorHandler}
   end
 }.
 
@@ -117,8 +120,8 @@
   "sasl.sasl_error_logger",
   fun(Conf) ->
     case cuttlefish_util:conf_get_value("sasl", Conf) of %%how to pull default?
-        on -> true;
-        _ -> false
+        on -> {ok, true};
+        _ -> {ok, false}
     end
   end
 }.
@@ -136,7 +139,7 @@
   "riak_core.http",
     fun(Conf) ->
         HTTP = cuttlefish_util:filter_by_variable_starts_with("listener.http", Conf),
-        [ IP || {_, IP} <- HTTP]
+        {ok, [ IP || {_, IP} <- HTTP]}
     end
 }.
 
@@ -153,7 +156,7 @@
   "riak_api.pb",
     fun(Conf) ->
         PB = cuttlefish_util:filter_by_variable_starts_with("listener.protobuf", Conf),
-        [ IP || {_, IP} <- PB]
+        {ok, [ IP || {_, IP} <- PB]}
     end
 }.
 
@@ -184,7 +187,7 @@
   "riak_core.https",
     fun(Conf) ->
         HTTPS = cuttlefish_util:filter_by_variable_starts_with("listener.https", Conf),
-        [ IP || {_, IP} <- HTTPS]
+        {ok, [ IP || {_, IP} <- HTTPS]}
     end
 }.
 
@@ -235,9 +238,9 @@
   fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("dtrace", Conf), 
     case Setting of
-      on -> true;
-      off -> false;
-      _Default -> false
+      on -> {ok, true};
+      off -> {ok, false};
+      _Default -> {ok, false}
     end
   end
 }.
@@ -274,9 +277,9 @@
   "riak_search.enabled", fun(Conf) -> 
     Setting = cuttlefish_util:conf_get_value("search", Conf), 
     case Setting of
-      on -> true;
-      off -> false;
-      _Default -> false
+      on -> {ok, true};
+      off -> {ok, false};
+      _Default -> {ok, false}
     end
 end}.
 
@@ -350,9 +353,9 @@ end}.
   "lager.error_logger_redirect", fun(Conf) -> 
     Setting = cuttlefish_util:conf_get_value("log.error.redirect", Conf), 
     case Setting of
-      on -> true;
-      off -> false;
-      _Default -> true
+      on -> {ok, true};
+      off -> {ok, false};
+      _Default -> {ok, true}
     end
 end}.
 
@@ -375,13 +378,14 @@ end}.
   "riak_kv.storage_backend",
   fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("storage_backend", Conf), 
-    case Setting of
+    R = case Setting of
       bitcask -> riak_kv_bitcask_backend;
       leveldb -> riak_kv_eleveldb_backend;
       memory -> riak_kv_memory_backend;
       multi -> riak_kv_multi_backend;
       _Default -> riak_kv_bitcask_backend
-    end
+    end,
+    {ok, R}
   end}.
 
 %% @doc raw_name is the first part of all URLS used by the Riak raw HTTP
@@ -410,8 +414,8 @@ end}.
 {translation,
  "riak_kv.anti_entropy_build_limit",
  fun(Conf) ->
-    {cuttlefish_util:conf_get_value("anti_entropy.build_limit.number", Conf), 
-     cuttlefish_util:conf_get_value("anti_entropy.build_limit.per_timespan", Conf)}
+    {ok, {cuttlefish_util:conf_get_value("anti_entropy.build_limit.number", Conf), 
+     cuttlefish_util:conf_get_value("anti_entropy.build_limit.per_timespan", Conf)}}
  end}.
 
 %% @doc Determine how often hash trees are expired after being built.
@@ -478,11 +482,12 @@ end}.
   "riak_kv.mapred_2i_pipe",
   fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("mapred_2i_pipe", Conf), 
-    case Setting of
+    R = case Setting of
       on -> true;
       off -> false;
       _Default -> true
-    end
+    end,
+    {ok, R}
   end}.
 %% @doc Each of the following entries control how many Javascript
 %% virtual machines are available for executing map, reduce,
@@ -548,11 +553,12 @@ end}.
   "riak_kv.vnode_vclocks",
   fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("vnode_vclocks", Conf), 
-    case Setting of
+    R = case Setting of
       on -> true;
       off -> false;
       _Default -> true
-    end
+    end,
+    {ok, R}
   end}.
 
 %% @doc This option toggles compatibility of keylisting with 1.0
@@ -569,11 +575,12 @@ end}.
   "riak_kv.listkeys_backpressure",
   fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("listkeys_backpressure", Conf), 
-    case Setting of
+    R = case Setting of
       on -> true;
       off -> false;
       _Default -> true
-    end
+    end,
+    {ok, R}
   end}.
 
 %% @doc This option specifies how many of each type of fsm may exist
@@ -650,11 +657,12 @@ end}.
  "riak_control.enabled",
  fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("riak_control", Conf), 
-    case Setting of
+    R = case Setting of
       on -> true;
       off -> false;
       _Default -> false
-    end
+    end,
+    {ok, R}
  end}.
 
 %% @doc Authentication style used for access to the admin
@@ -665,14 +673,15 @@ end}.
 ]}.
 
 {translation,
-"riak_control.auth",
-fun(Conf) ->
-  case cuttlefish_util:conf_get_value("riak_control.auth", Conf) of
-    userlist -> userlist;
-    off -> none;
-    _ -> none
-  end
-end}.
+ "riak_control.auth",
+ fun(Conf) ->
+    R = case cuttlefish_util:conf_get_value("riak_control.auth", Conf) of
+      userlist -> userlist;
+      off -> none;
+      _ -> none
+    end,
+    {ok, R}
+ end}.
 
 %% @doc If auth is set to 'userlist' then this is the
 %% list of usernames and passwords for access to the
@@ -693,8 +702,8 @@ fun(Conf) ->
   UserList = [ begin
     [_, _, Username, _] = UserVariable,
     {Username, Password}
-  end || {UserVariable, Password} <- UserList1]
-
+  end || {UserVariable, Password} <- UserList1],
+  {ok, UserList}
 end}.
 
 %% @doc The admin panel is broken up into multiple
@@ -709,11 +718,12 @@ end}.
  "riak_control.admin",
  fun(Conf) ->
     Setting = cuttlefish_util:conf_get_value("riak_control.admin", Conf), 
-    case Setting of
+    R = case Setting of
       on -> true;
       off -> false;
       _Default -> true
-    end
+    end,
+    {ok, R}
  end}.
 
  %%%% bitcask
@@ -769,18 +779,19 @@ end}.
   {level, advanced}
 ]}.
 
-{translation, 
- "bitcask.sync_strategy", 
- fun(Conf) -> 
-  Setting = cuttlefish_util:conf_get_value("bitcask.sync_strategy", Conf), 
-    case Setting of
+{translation,
+ "bitcask.sync_strategy",
+ fun(Conf) ->
+  Setting = cuttlefish_util:conf_get_value("bitcask.sync_strategy", Conf),
+    R = case Setting of
       none -> none;
       o_sync -> o_sync;
       interval ->
         Interval = cuttlefish_util:conf_get_value("bitcask.sync_interval", Conf, undefined),
         {seconds, Interval};
       _Default -> none
-    end
+    end,
+    {ok, R}
  end}.
 
 %% @doc The `max_file_size` setting describes the maximum permitted size for any
@@ -829,7 +840,7 @@ end}.
  "bitcask.merge_window", 
  fun(Conf) -> 
   Setting = cuttlefish_util:conf_get_value("bitcask.merge_window", Conf), 
-    case Setting of
+    R = case Setting of
       always -> always;
       never -> never;
       window ->
@@ -837,7 +848,8 @@ end}.
         End = cuttlefish_util:conf_get_value("bitcask.merge_window.end", Conf, undefined),
         {Start, End};
       _Default -> always
-    end
+    end,
+    {ok, R}
  end}.
 
 %% @doc `frag_merge_trigger` setting describes what ratio of
@@ -1051,11 +1063,12 @@ end}.
 { translation,
   "eleveldb.use_bloomfilter",
   fun(Conf) ->
-    case cuttlefish_util:conf_get_value("leveldb.bloomfilter", Conf) of
+    R = case cuttlefish_util:conf_get_value("leveldb.bloomfilter", Conf) of
         on -> true;
         off -> false;
         _ -> true
-    end
+    end,
+    {ok, R}
   end
 }.
 
@@ -1105,7 +1118,7 @@ end}.
  "riak_kv.memory_backend.max_memory", 
  fun(Conf) -> 
   Bytes = cuttlefish_util:conf_get_value("memory_backend.max_memory", Conf),
-  cuttlefish_util:ceiling(Bytes / 1048576)
+  {ok, cuttlefish_util:ceiling(Bytes / 1048576)}
  end
 }.
 
@@ -1179,7 +1192,7 @@ end}.
 {translation, "vm_args.+P", 
 fun(Conf) -> 
   Procs = cuttlefish_util:conf_get_value("process_limit", Conf),
-  integer_to_list(Procs)
+  {ok, integer_to_list(Procs)}
 end}.
 
 %% @doc For nodes with many busy_dist_port events, Basho recommends

@@ -1,3 +1,5 @@
+%% -*- erlang -*-
+
 %%% Things that need to be in vm.args, but never tuned
 
 {mapping, "erlang.smp", "vm_args.-smp", [
@@ -61,7 +63,7 @@
 {translation, "vm_args.+P", 
 fun(Conf) -> 
   Procs = cuttlefish_util:conf_get_value("erlang.process_limit", Conf),
-  integer_to_list(Procs)
+  {ok, integer_to_list(Procs)}
 end}.
 
 %% @doc For nodes with many busy_dist_port events, Basho recommends
@@ -79,18 +81,19 @@ end}.
 {translation, "vm_args.+zdbbl",
  fun(Conf) -> 
   ZDBBL = cuttlefish_util:conf_get_value("erlang.zdbbl", Conf, undefined),
-  case ZDBBL of
+  R = case ZDBBL of
     undefined -> undefined;
     X when is_integer(X) -> cuttlefish_util:ceiling(X / 1024); %% Bytes to Kilobytes;
     _ -> undefined
-  end
+  end,
+  {ok, R}
  end
 }.
 
 {validator, "zdbbl_range", "+zddbl must be between 1KB and 2097151KB", 
- fun(ZDBBL) -> 
+fun(ZDBBL) -> 
   %% 2097151KB = 2147482624
-  ZDBBL >= 1024 andalso ZDBBL =< 2147482624
+  {ok, ZDBBL >= 1024 andalso ZDBBL =< 2147482624}
  end
 }.
 
