@@ -1,7 +1,7 @@
 %% -*- erlang -*-
 
 %% We'll say this is the application level schema. This is where the developer
-%% defines their own big config knobs. Also, overrides anything brought in from 
+%% defines their own big config knobs. Also, overrides anything brought in from
 %% dependencies. That means we can do things like override "a.some.var2"
 %% The original order should be preserved.
 {mapping, "a.some.var2", "app_a.some_var", [
@@ -9,7 +9,7 @@
 ]}.
 
 %% Works for translations too!
-{translation, "app_a.some_var3", fun(X) -> "toplevel" end}.
+{translation, "app_a.some_var3", fun(X) -> {ok, "toplevel"} end}.
 
 %% And validators!
 {validator, "a.validator2", "so much validator", fun(_AlwaysFalse) -> false end}.

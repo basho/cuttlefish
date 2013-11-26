@@ -7,8 +7,8 @@
 %% basic schema test will check to make sure that all defaults from the schema
 %% make it into the generated app.config
 basic_schema_test() ->
-    %% The defaults are defined in ../priv/riak_kv.schema and multi_backend.schema. 
-    %% they are the files under test. 
+    %% The defaults are defined in ../priv/riak_kv.schema and multi_backend.schema.
+    %% they are the files under test.
     Config = cuttlefish_unit:generate_templated_config(
         ["../priv/erlang_vm.schema"], [], context()),
 
@@ -48,6 +48,7 @@ override_schema_test() ->
 
     Config = cuttlefish_unit:generate_templated_config(
         ["../priv/erlang_vm.schema"], Conf, context()),
+    lager:debug("Conf: ~p", [Config]),
 
     cuttlefish_unit:assert_config(Config, "vm_args.-smp", "disable"),
     cuttlefish_unit:assert_config(Config, "vm_args.+W", "i"),
