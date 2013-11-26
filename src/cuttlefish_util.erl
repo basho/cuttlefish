@@ -46,13 +46,13 @@
 %% for schema writers to not have to use [] notation for varibales
 -spec conf_get_value(string()|[string()], [{[string()], any()}]) -> any().
 conf_get_value(Variable, ConfigProplist) ->
-    conf_get_value(Variable, ConfigProplist, undefined). 
+    conf_get_value(Variable, ConfigProplist, undefined).
 
 -spec conf_get_value(string()|[string()], [{[string()], any()}], any()) -> any().
 conf_get_value([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
     proplists:get_value(Variable, ConfigProplist, Default);
 conf_get_value(Variable, ConfigProplist, Default) ->
-    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default). 
+    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default).
 
 
 %% @doc replace the element in a proplist
@@ -62,7 +62,7 @@ replace_proplist_value(Key, Value, Proplist) ->
 
 %% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
--spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}]. 
+-spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}].
 filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
     [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
 filter_by_variable_starts_with(StringPrefix, Proplist) ->
@@ -81,28 +81,28 @@ split_variable_on_match(Variable) ->
                 {_, []} -> {[T|Prefix], MatchGroup, Suffix};
                 {_, _} -> {Prefix, MatchGroup, [T|Suffix]}
             end
-        end, 
+        end,
         {[], [], []},
         Variable),
     {
         lists:reverse(PrefixToks),
-        MatchGroup,    
+        MatchGroup,
         lists:reverse(SuffixToks)
     }.
 
 %% @doc replaces the $var in Key with Sub
 -spec variable_match_replace(cuttlefish_conf:variable(), string()) -> [string()].
 variable_match_replace(Variable, Sub) ->
-    [ begin 
+    [ begin
         case {H, Sub} of
             {$$, undefined} -> T;
             {$$, Sub} -> Sub;
             _ -> Tok
         end
-    end || [H|T]=Tok <- Variable]. 
+    end || [H|T]=Tok <- Variable].
 
 %% @doc could this fixed Key be a match for the variable key KeyDef?
-%% e.g. could a.b.$var.d =:= a.b.c.d? 
+%% e.g. could a.b.$var.d =:= a.b.c.d?
 -spec fuzzy_variable_match([string()], [string()]) -> boolean().
 fuzzy_variable_match(Variable, VariableDef) ->
     case length(Variable) =:= length(VariableDef) of
@@ -116,7 +116,7 @@ fuzzy_variable_match(Variable, VariableDef) ->
         _ -> false
     end.
 
-%% @doc like string:tokens(Key, "."), but if the dot was escaped 
+%% @doc like string:tokens(Key, "."), but if the dot was escaped
 %% i.e. \\., don't tokenize that
 -spec tokenize_variable_key(string()) -> [string()].
 tokenize_variable_key(Key) ->
@@ -202,7 +202,7 @@ ceiling(X) ->
     end.
 
 print_error(FormatString, Args) ->
-    print_error(io_lib:format(FormatString, Args)). 
+    print_error(io_lib:format(FormatString, Args)).
 print_error(String) ->
     case lager:error("~s", [String]) of
         {error, lager_not_running} ->
@@ -254,7 +254,7 @@ replace_proplist_value_test() ->
     NewProplist = replace_proplist_value("test2", 8, Proplist),
     ?assertEqual(
         8,
-        proplists:get_value("test2", NewProplist) 
+        proplists:get_value("test2", NewProplist)
         ),
     ok.
 
@@ -267,7 +267,7 @@ replace_proplist_value_when_undefined_test() ->
     NewProplist = replace_proplist_value("test3", 3, Proplist),
         ?assertEqual(
         3,
-        proplists:get_value("test3", NewProplist) 
+        proplists:get_value("test3", NewProplist)
         ),
     ok.
 
@@ -302,7 +302,7 @@ tokenize_variable_key_test() ->
     ?assertEqual(["a", "b", "c", "d"], tokenize_variable_key("a.b.c.d")),
 
     ?assertEqual(["a", "b.c", "d"], tokenize_variable_key("a.b\\.c.d")),
-    
+
     %% Covers GH #22
     ?assertEqual(
         ["listener", "http"],
@@ -342,10 +342,10 @@ matches_for_variable_def_test() ->
         {["multi_backend","backend4","storage_backend"], 4}
     ],
 
-    Vars = proplists:get_all_values("$name", 
+    Vars = proplists:get_all_values("$name",
             matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf)
     ),
-    
+
     ?assertEqual(4, length(Vars)),
     ?assert(lists:member("backend1", Vars)),
     ?assert(lists:member("backend2", Vars)),
@@ -378,7 +378,7 @@ print_error_test() ->
 ceiling_test() ->
     ?assertEqual(9, ceiling(8.99999)),
     ?assertEqual(9, ceiling(8.00001)),
-    ?assertEqual(9, ceiling(9.00000)),
+    ?assertEqual(9, ceiling(9.0)),
     ?assertEqual(-2, ceiling(-2.0000001)),
     ?assertEqual(-2, ceiling(-2.9999999)),
     ok.
