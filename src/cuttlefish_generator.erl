@@ -273,32 +273,23 @@ add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
 %%%%%%%%%%%%%%%%%%%%%%%%
 -spec get_possible_values_for_fuzzy_matches(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> [{string(), [string()]}].
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
-    %% Get a list of all the variable definitions from the schema that
-    %% involve a pattern match
-    FuzzyVariableDefs = [ cuttlefish_mapping:variable(M) ||
-                            M <- Mappings,
-                            cuttlefish_mapping:is_fuzzy_variable(M)],
-
     %% Now, get all the variables that could match, i.e. all the names
     %% it found referenced in the Conf proplist. It may look something
     %% like this: [{"n",["ck","ak","bk"]}]
     lists:foldl(
-        fun({Variable, _}, FuzzyMatches) ->
-            Fuzz = lists:filter(
-                fun(VariableDef) ->
-                    cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)
-                end,
-                FuzzyVariableDefs),
-            case Fuzz of
-                [] -> FuzzyMatches;
-                [VD|_] ->
-                    ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, [{Variable, 0}])],
-                    {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VD),
-                    orddict:append_list(Prefix, ListOfVars, FuzzyMatches)
-            end
-        end,
-        orddict:new(),
-        Conf).
+      fun(Mapping, FuzzyMatches) ->
+              case cuttlefish_mapping:is_fuzzy_variable(Mapping) of
+                  false -> FuzzyMatches; %% Strict match
+                  true ->
+                      %% Fuzzy match, extract the matching settings from the conf
+                      VD = cuttlefish_mapping:variable(Mapping),
+                      ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, Conf)],
+                      {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VD),
+                      orddict:append_list(Prefix, ListOfVars, FuzzyMatches)
+              end
+      end,
+      orddict:new(),
+      Mappings).
 
 -spec transform_datatypes(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> cuttlefish_conf:conf().
 transform_datatypes(Conf, Mappings) ->
