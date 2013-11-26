@@ -279,8 +279,10 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                             M <- Mappings,
                             cuttlefish_mapping:is_fuzzy_variable(M)],
 
-    %% Now, get all the variables that could match them
-    FuzzyVariables = lists:foldl(
+    %% Now, get all the variables that could match, i.e. all the names
+    %% it found referenced in the Conf proplist. It may look something
+    %% like this: [{"n",["ck","ak","bk"]}]
+    lists:foldl(
         fun({Variable, _}, FuzzyMatches) ->
             Fuzz = lists:filter(
                 fun(VariableDef) ->
@@ -291,59 +293,12 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                 [] -> FuzzyMatches;
                 [VD|_] ->
                     ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, [{Variable, 0}])],
-                    orddict:append_list(VD, ListOfVars, FuzzyMatches)
+                    {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VD),
+                    orddict:append_list(Prefix, ListOfVars, FuzzyMatches)
             end
         end,
         orddict:new(),
-        Conf),
-
-    %% PrefixesWithoutDefaults are all the names it found referenced
-    %% in the Conf proplist. It may look something like this:
-    %% [{"n",["ck","ak","bk"]}]
-    PrefixesWithoutDefaults = orddict:fold(
-        fun(VariableDef, NameList, Acc) ->
-            {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VariableDef),
-            orddict:append_list(Prefix, NameList, Acc)
-        end,
-        orddict:new(),
-        FuzzyVariables),
-
-    %% We're almost done, we need to go through the FuzzyKeyDefs again.
-    %% make sure that each one starts with a Prefix.
-    %% if not *AND* the schema provides a 'include_default', add that
-    %% default substitution to the list of prefixes
-
-    %% For each FuzzyKeyDef, if it is not covered by a prefix in
-    %% PrefixesWithoutDefaults, add it to DefaultsNeeded.
-    DefaultsNeeded = lists:filter(
-        fun(FVD) ->
-            lists:all(
-                fun(P) ->
-                    string:str(FVD, P) =/= 1
-                end,
-                orddict:fetch_keys(PrefixesWithoutDefaults))
-        end,
-        FuzzyVariableDefs),
-
-    %% This fold is our end result.
-    %% For each DefaultNeeded, add the default if the schema has an "include_default"
-    lists:foldl(
-        fun(Needed, Acc) ->
-            M = find_mapping(Needed, Mappings),
-            DefaultVar = cuttlefish_mapping:include_default(M),
-
-            case DefaultVar of
-                undefined ->
-                    Acc;
-                _ ->
-                    {Prefix, _Var, _} = cuttlefish_util:split_variable_on_match(Needed),
-                    DefaultVar = cuttlefish_mapping:include_default(M),
-                    orddict:append(Prefix, DefaultVar, Acc)
-            end
-
-        end,
-        PrefixesWithoutDefaults,
-        DefaultsNeeded).
+        Conf).
 
 -spec transform_datatypes(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> cuttlefish_conf:conf().
 transform_datatypes(Conf, Mappings) ->
@@ -523,7 +478,7 @@ add_defaults_test() ->
 
     DConf = add_defaults(Conf, Mappings),
     io:format("DConf: ~p~n", [DConf]),
-    ?assertEqual(10, length(DConf)),
+    ?assertEqual(9, length(DConf)),
     ?assertEqual("q",               proplists:get_value(["a","b","c"], DConf)),
     ?assertNotEqual("l",            proplists:get_value(["a","c","d"], DConf)),
     ?assertEqual("override",        proplists:get_value(["a","c","d"], DConf)),
@@ -534,7 +489,7 @@ add_defaults_test() ->
     ?assertEqual("n_name_y",        proplists:get_value(["n","ak","y"], DConf)),
     ?assertEqual("n_name_y",        proplists:get_value(["n","bk","y"], DConf)),
     ?assertEqual("set_n_name_y3",   proplists:get_value(["n","ck","y"], DConf)),
-    ?assertEqual("o_name_z",        proplists:get_value(["o","blue","z"], DConf)),
+    ?assertEqual(undefined,         proplists:get_value(["o","blue","z"], DConf)),
     ok.
 
 map_test() ->
@@ -558,7 +513,7 @@ map_test() ->
     ?assertEqual([{"10.0.0.1", 80}, {"127.0.0.1", 8098}], NewHTTP),
 
     NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)),
-    ?assertEqual([{"127.0.0.1", 8087}], NewPB),
+    ?assertEqual([], NewPB),
 
     NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)),
     ?assertEqual(undefined, NewHTTPS),
