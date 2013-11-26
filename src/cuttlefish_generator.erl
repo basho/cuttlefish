@@ -273,12 +273,13 @@ add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
 %%%%%%%%%%%%%%%%%%%%%%%%
 -spec get_possible_values_for_fuzzy_matches(cuttlefish_conf:conf(), [cuttlefish_mapping:mapping()]) -> [{string(), [string()]}].
 get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
-    %% Get a list of all the key definitions from the schema
-    %% that involve a pattern match
-    FuzzyVariableDefs =
-        [ cuttlefish_mapping:variable(M) || M <- Mappings, lists:any(fun(X) -> hd(X) =:= $$ end, cuttlefish_mapping:variable(M))],
+    %% Get a list of all the variable definitions from the schema that
+    %% involve a pattern match
+    FuzzyVariableDefs = [ cuttlefish_mapping:variable(M) ||
+                            M <- Mappings,
+                            cuttlefish_mapping:is_fuzzy_variable(M)],
 
-    %% Now, get all the Keys athat could match them
+    %% Now, get all the variables that could match them
     FuzzyVariables = lists:foldl(
         fun({Variable, _}, FuzzyMatches) ->
             Fuzz = lists:filter(
@@ -296,8 +297,9 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
         orddict:new(),
         Conf),
 
-    %% PrefixesWithoutDefaults are all the names it found referenced in the Conf
-    %% proplist. It may look something like this: [{"n",["ck","ak","bk"]}]
+    %% PrefixesWithoutDefaults are all the names it found referenced
+    %% in the Conf proplist. It may look something like this:
+    %% [{"n",["ck","ak","bk"]}]
     PrefixesWithoutDefaults = orddict:fold(
         fun(VariableDef, NameList, Acc) ->
             {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VariableDef),

@@ -135,36 +135,45 @@ tokenize_variable_key([Char|Rest], Part, Acc) ->
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
--spec matches_for_variable_def([string()], [{[string()], any()}]) -> [{string(), any()}].
+-spec matches_for_variable_def(cuttlefish_conf:variable(), cuttlefish_conf:conf()) -> [{string(), any()}].
 matches_for_variable_def(VariableDef, Conf) ->
     lists:foldl(
         fun({Variable, _}, Acc) ->
-            case length(Variable) =:= length(VariableDef) of
-                true ->
-                    Zipped = lists:zip(VariableDef, Variable),
-                    Match = lists:all(
-                        fun({X,Y}) ->
-                            X =:= Y orelse hd(X) =:= $$
-                        end,
-                        Zipped),
-                    case Match of
-                        true ->
-                            Matches = lists:filter(fun({X,Y}) ->
-                                X =/= Y andalso hd(X) =:= $$
-                            end, Zipped),
-                            case length(Matches) > 0 of
-                                true -> 
-                                    [hd(Matches)|Acc];
-                                _ -> Acc
-                            end;
-                        _ -> Acc
-                    end;
-
-                _ -> Acc
+            case extract_first_match(VariableDef, Variable) of
+                nomatch ->
+                    Acc;
+                [Match|_] ->
+                    [Match|Acc]
             end
-        end, [], Conf). 
+        end, [], Conf).
 
-    
+-spec extract_first_match(cuttlefish_conf:variable(),
+                          cuttlefish_conf:variable()) ->
+                             nomatch  | [{string(), string()}].
+%% If the lengths are equal, try to pair up a fuzzy segment with its match.
+extract_first_match(VariableDef, Variable) when length(VariableDef) == length(Variable) ->
+    extract_first_match(VariableDef, Variable, nomatch);
+%% This could never match because they are different lengths.
+extract_first_match(_,_) -> nomatch.
+
+%% We have a perfect match, or no match at all, so return the result.
+extract_first_match([], [], Result) when is_list(Result) ->
+    %% If the Result is 'nomatch', the last function clause will be
+    %% the only one that matches.
+    lists:reverse(Result);
+%% We found the first fuzzy segment, grab the binding of the segment.
+extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], nomatch) ->
+    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}]);
+%% We found a fuzzy segment and already have a match, so just recurse.
+extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], Result) ->
+    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}|Result]);
+%% We found two segments that are static and equal.
+extract_first_match([X|VariableDef], [X|Variable], Result) ->
+    extract_first_match(VariableDef, Variable, Result);
+%% Something else happened, so we don't match!
+extract_first_match(_,_,_) -> nomatch.
+
+
 %% @doc turn a string into a number in a way I am happy with
 -spec numerify(string()) -> integer()|float()|{error, string()}.
 numerify([$.|_]=Num) -> numerify([$0|Num]);
