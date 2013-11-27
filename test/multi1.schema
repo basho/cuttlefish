@@ -1,5 +1,5 @@
 %% We'll say this is the application level schema. This is where the developer
-%% defines their own big config knobs. Also, overrides anything brought in from 
+%% defines their own big config knobs. Also, overrides anything brought in from
 %% dependencies. That means we can do things like override "a.some.var2"
 %% The original order should be preserved.
 {mapping, "a.some.var2", "app_a.some_var", [

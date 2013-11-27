@@ -21,8 +21,8 @@ generated_config_file_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [], %% conf_parse:file("../test/riak.conf"),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
-    
-    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),  
+
+    file:write_file("../generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
     ok.
 
 breaks_on_fuzzy_and_strict_match_test() ->
@@ -53,7 +53,7 @@ all_the_marbles_test() ->
     NewConfigWithoutVmargs = proplists:delete(vm_args, NewConfig),
 
     {ok, [AppConfig]} = file:consult("../test/default.config"),
-    
+
     ?assert(is_proplist(AppConfig)),
 
     proplist_equals(AppConfig, NewConfigWithoutVmargs),
@@ -77,11 +77,11 @@ multibackend_test() ->
 
     NewConfig = cuttlefish_generator:map(Schema, Conf),
     KV = proplists:get_value(riak_kv, NewConfig),
-    Multi = proplists:get_value(multi_backend, KV), 
+    Multi = proplists:get_value(multi_backend, KV),
 
     {<<"bitcask_mult">>, riak_kv_bitcask_backend, BitcaskProps} = lists:keyfind(<<"bitcask_mult">>, 1, Multi),
     lager:info("BitcaskProps: ~p", [BitcaskProps]),
-    ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)), 
+    ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)),
     ?assertEqual(4,                   proplists:get_value(open_timeout, BitcaskProps)),
     ?assertEqual(2147483648,          proplists:get_value(max_file_size, BitcaskProps)),
     ?assertEqual(60,                  proplists:get_value(frag_merge_trigger, BitcaskProps)),
@@ -112,7 +112,7 @@ multibackend_test() ->
     ?assertEqual(true, proplists:get_value(use_bloomfilter, Level1Props)),
 
     {<<"leveldb_mult2">>, riak_kv_eleveldb_backend, Level2Props} = lists:keyfind(<<"leveldb_mult2">>, 1, Multi),
-   
+
     ?assertEqual("/path/to/dat/level2", proplists:get_value(data_root, Level2Props)),
     ?assertEqual(30, proplists:get_value(max_open_files, Level2Props)),
     ?assertEqual(8388608, proplists:get_value(cache_size, Level2Props)),
@@ -124,7 +124,7 @@ multibackend_test() ->
     ?assertEqual(true, proplists:get_value(verify_checksums, Level2Props)),
     ?assertEqual(true, proplists:get_value(verify_compaction, Level2Props)),
     ?assertEqual(true, proplists:get_value(use_bloomfilter, Level2Props)),
- 
+
     {<<"memory_mult">>, riak_kv_memory_backend, MemProps} = lists:keyfind(<<"memory_mult">>, 1, Multi),
     ?assertEqual(86400, proplists:get_value(ttl, MemProps)),
     ?assertEqual(4096, proplists:get_value(max_memory, MemProps)),
@@ -134,8 +134,8 @@ multibackend_test() ->
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
     ActualKeys = lists:sort(proplists:get_keys(Actual)),
-    ?assertEqual(ExpectedKeys, ActualKeys), 
-    [ begin 
+    ?assertEqual(ExpectedKeys, ActualKeys),
+    [ begin
         ExpectedValue = proplists:get_value(EKey, Expected),
         ActualValue = proplists:get_value(EKey, Actual, undefined),
         case {is_proplist(ExpectedValue), is_proplist(ActualValue)} of
@@ -150,7 +150,7 @@ proplist_equals(Expected, Actual) ->
 
 is_proplist(Proplist) when is_list(Proplist) ->
     lists:all(
-        fun(X) -> 
+        fun(X) ->
             is_tuple(X) andalso tuple_size(X) =:= 2
         end,
         Proplist);

@@ -39,7 +39,7 @@
     parse/1,
     parse_and_merge/2,
     is_translation/1,
-    mapping/1, 
+    mapping/1,
     func/1,
     replace/2]).
 
@@ -67,7 +67,7 @@ parse_and_merge({translation, Mapping, _} = TranslationSource, Translations) ->
         false ->
             [ NewTranslation | Translations];
         _OldMapping ->
-            lists:keyreplace(Mapping, #translation.mapping, Translations, NewTranslation) 
+            lists:keyreplace(Mapping, #translation.mapping, Translations, NewTranslation)
     end.
 
 -spec is_translation(any()) -> boolean().
@@ -160,7 +160,7 @@ parse_and_merge_test() ->
     SampleTranslations = [Sample1, Sample2],
 
     NewTranslations = parse_and_merge(
-        {translation, "mapping1", fun(X) -> X * 10 end}, 
+        {translation, "mapping1", fun(X) -> X * 10 end},
         SampleTranslations),
     F = func(hd(NewTranslations)),
     ?assertEqual(50, F(5)),

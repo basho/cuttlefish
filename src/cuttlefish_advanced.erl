@@ -36,14 +36,14 @@ overlay(GeneratedConfig, AdvancedConfig) ->
         fun({ApplicationName, ApplicationConfig}, OuterAcc) ->
             GeneratedApplicationConfig = proplists:get_value(ApplicationName, GeneratedConfig, []),
             Updated = lists:foldl(
-                fun({ConfigElementName, ConfigElement}, Acc) -> 
-                    cuttlefish_util:replace_proplist_value(ConfigElementName, ConfigElement, Acc) 
-                end, 
-                GeneratedApplicationConfig, 
+                fun({ConfigElementName, ConfigElement}, Acc) ->
+                    cuttlefish_util:replace_proplist_value(ConfigElementName, ConfigElement, Acc)
+                end,
+                GeneratedApplicationConfig,
                 ApplicationConfig),
-            cuttlefish_util:replace_proplist_value(ApplicationName, Updated, OuterAcc) 
+            cuttlefish_util:replace_proplist_value(ApplicationName, Updated, OuterAcc)
         end,
-        GeneratedConfig, 
+        GeneratedConfig,
         AdvancedConfig).
 
 

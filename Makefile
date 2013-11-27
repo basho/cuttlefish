@@ -22,7 +22,7 @@ clean:
 distclean: clean
 	@rm -rf cuttlefish deps
 
-test: all	
+test: all
 	./rebar skip_deps=true eunit
 
 docs: deps

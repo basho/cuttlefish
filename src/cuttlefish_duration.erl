@@ -56,24 +56,24 @@ milliseconds(Millis) ->
         {(Millis rem ?MINUTE) div ?SECOND, "s"},
         { Millis rem ?SECOND,              "ms"}
     ]),
-    lists:flatten([ 
-        integer_to_list(N) ++ Unit 
+    lists:flatten([
+        integer_to_list(N) ++ Unit
     || {N, Unit} <- Units]).
 
 -spec parse(string(), time_unit()) -> integer().
-parse(DurationString, f) -> cuttlefish_util:ceiling(parse(DurationString) / ?FORTNIGHT); 
-parse(DurationString, w) -> cuttlefish_util:ceiling(parse(DurationString) / ?WEEK); 
-parse(DurationString, d) -> cuttlefish_util:ceiling(parse(DurationString) / ?DAY); 
-parse(DurationString, h) -> cuttlefish_util:ceiling(parse(DurationString) / ?HOUR); 
-parse(DurationString, m) -> cuttlefish_util:ceiling(parse(DurationString) / ?MINUTE); 
-parse(DurationString, s) -> cuttlefish_util:ceiling(parse(DurationString) / ?SECOND); 
+parse(DurationString, f) -> cuttlefish_util:ceiling(parse(DurationString) / ?FORTNIGHT);
+parse(DurationString, w) -> cuttlefish_util:ceiling(parse(DurationString) / ?WEEK);
+parse(DurationString, d) -> cuttlefish_util:ceiling(parse(DurationString) / ?DAY);
+parse(DurationString, h) -> cuttlefish_util:ceiling(parse(DurationString) / ?HOUR);
+parse(DurationString, m) -> cuttlefish_util:ceiling(parse(DurationString) / ?MINUTE);
+parse(DurationString, s) -> cuttlefish_util:ceiling(parse(DurationString) / ?SECOND);
 parse(DurationString, ms) -> parse(DurationString).
 
 -spec parse(string()) -> integer().
 parse(InputDurationString) ->
     DurationString = string:to_lower(InputDurationString),
     DurationTokens = tokens(DurationString),
-    
+
     ParsedTokens = [parse_token(T) || T <- DurationTokens],
 
     case lists:any(fun(X) -> X =:= error end, ParsedTokens) of
@@ -95,10 +95,10 @@ tokens(DurationString) ->
                 {_, false} ->
                     {Working ++ [Char], Acc}
             end
-        end, 
-        {[], []}, 
+        end,
+        {[], []},
         DurationString),
-    [LastWorking|List]. 
+    [LastWorking|List].
 
 parse_token(T) -> parse_token_r(lists:reverse(T)).
 
@@ -126,7 +126,7 @@ parse_token_r([$f|BackwardsFortnights]) ->
 parse_token_r(_UnknownUnit) ->
     error.
 
-is_digit(Char) -> 
+is_digit(Char) ->
     Char =:= $1 orelse
     Char =:= $2 orelse
     Char =:= $3 orelse
@@ -192,7 +192,7 @@ parse_test() ->
 
     %% Weird but ok?
     test_parse(121001, "1m1s1ms1m"),
-    
+
     %% Easter Egg
     test_parse(1904461001, "1f1w1d1h1m1s1ms"),
     ok.

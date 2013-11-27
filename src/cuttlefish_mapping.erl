@@ -71,13 +71,13 @@ parse({mapping, Variable, Mapping, Proplist}) ->
             AtomEnums = [ begin
                 case is_list(E) of
                     true -> list_to_atom(E);
-                    _ -> E 
+                    _ -> E
                 end
             end || E <- Enums ],
             {enum, AtomEnums};
         D -> D
     end,
-    
+
     #mapping{
         variable = cuttlefish_util:tokenize_variable_key(Variable),
         default = proplists:get_value(default, Proplist),
@@ -117,7 +117,7 @@ parse_and_merge({mapping, Variable, _Mapping, Props} = MappingSource, Mappings) 
                 _ ->
                     parse(MappingSource)
             end,
-            lists:keyreplace(Var, #mapping.variable, Mappings, MaybeMergedMapping) 
+            lists:keyreplace(Var, #mapping.variable, Mappings, MaybeMergedMapping)
     end.
 
 -spec merge(raw_mapping(), mapping()) -> mapping().
@@ -145,7 +145,7 @@ choose(Field, {_, _, _, OriginalProps} = _RawMapping, MergeMapping, OldMapping) 
 
 -spec is_mapping(any()) -> boolean().
 is_mapping(M) ->
-    is_tuple(M) andalso element(1, M) =:= mapping. 
+    is_tuple(M) andalso element(1, M) =:= mapping.
 
 -spec variable(mapping()) -> [string()].
 variable(M) -> M#mapping.variable.
@@ -317,7 +317,7 @@ validators_test() ->
     %% Hack for coverage
     [ begin
         Fun = cuttlefish_validator:func(V),
-        ?assert(Fun(x)) 
+        ?assert(Fun(x))
     end || V <- Validators],
     Mapping = parse({
         mapping,
@@ -380,8 +380,8 @@ parse_and_merge_test() ->
 
 smart_merge_test() ->
     OldM1 = parse({mapping, "thing.to.merge", "some.key", [
-            {default, 7}, 
-            {datatype, integer}, 
+            {default, 7},
+            {datatype, integer},
             {doc, ["documentation", "for feature"]}
         ]}),
     OldM2 = parse({mapping, "thing.not.merged", "some.other_key", [{default, 6}, {datatype, integer}]}),

@@ -19,7 +19,7 @@
 
 -spec get_logs() -> [iolist()] | {error, term()}.
 get_logs() ->
-    gen_event:call(lager_event, ?MODULE, get_logs, infinity).  
+    gen_event:call(lager_event, ?MODULE, get_logs, infinity).
 
 bounce() ->
     application:stop(lager),
@@ -49,8 +49,8 @@ init([Level, Verbose]) ->
 -spec(handle_event(tuple(), #state{}) -> {ok, #state{}}).
 %% @private
 %% @doc handles the event, adding the log message to the gen_event's state.
-%%      this function attempts to handle logging events in both the simple tuple 
-%%      and new record (introduced after lager 1.2.1) formats. 
+%%      this function attempts to handle logging events in both the simple tuple
+%%      and new record (introduced after lager 1.2.1) formats.
 handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]}, %% lager 1.2.1
     #state{level=L, verbose=Verbose, log = Logs} = State) when Level > L ->
     case lists:member(riak_test_lager_backend, Dest) of
@@ -81,9 +81,9 @@ handle_event({log, {lager_msg, Dest, _Meta, Level, DateTime, _Timestamp, Message
             handle_event({log, L, DateTime,
                           [["[",atom_to_list(Level),"] "], " ", Message]},
                          State);
-        L -> 
+        L ->
             handle_event({log, Dest, L, DateTime,
-                          [["[",atom_to_list(Level),"] "], " ", Message]}, 
+                          [["[",atom_to_list(Level),"] "], " ", Message]},
                          State)
     end;
 handle_event(Event, State) ->
@@ -103,7 +103,7 @@ handle_call({set_loglevel, Level}, State) ->
     end;
 handle_call(get_logs, #state{log = Logs} = State) ->
     {ok, lists:reverse(Logs), State};
-handle_call(_, State) -> 
+handle_call(_, State) ->
     {ok, ok, State}.
 
 -spec(handle_info(any(), #state{}) -> {ok, #state{}}).

@@ -38,11 +38,11 @@ generate(Config0, ReltoolFile) ->
             %% Finally, overlay the files specified by the overlay section
             case lists:keyfind(overlay, 1, ReltoolConfig) of
                 {overlay, Overlays} when is_list(Overlays) ->
-                    SchemaOverlays = lists:filter(fun(Overlay) -> 
-                            element(1, Overlay) =:= template 
+                    SchemaOverlays = lists:filter(fun(Overlay) ->
+                            element(1, Overlay) =:= template
                                 andalso filename:extension(element(3, Overlay)) =:= ".schema"
-                        end, 
-                        Overlays), 
+                        end,
+                        Overlays),
 
                     Schemas = lists:sort([
                         lists:flatten(filename:join(TargetDir, element(3, Schema)))
@@ -50,7 +50,7 @@ generate(Config0, ReltoolFile) ->
 
                     io:format("Schema: ~p~n", [Schemas]),
 
-                    case cuttlefish_schema:files(Schemas) of 
+                    case cuttlefish_schema:files(Schemas) of
                         {error, _Es} ->
                             %% These errors were already printed
                             error;
@@ -79,7 +79,7 @@ make_default_file(Config, TargetDir, Mappings) ->
     %% could be building anywhere. So, cuttlefish it is. he's pretty cool anyway.
     File = rebar_config:get_local(Config, cuttlefish_filename, "cuttlefish.conf"),
     Filename = filename:join([TargetDir, "etc", File]),
-    
+
     cuttlefish_conf:generate_file(Mappings, Filename),
     ok.
 

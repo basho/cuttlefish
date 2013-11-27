@@ -21,7 +21,7 @@ stringify_line(K, V) ->
 -ifdef(TEST).
 
 stringify_test() ->
-    VMArgsProplist = [ 
+    VMArgsProplist = [
       {'-name', "dev1@127.0.0.1"},
       {'-setcookie', 'riak'},
       {'-smp',"enable"},

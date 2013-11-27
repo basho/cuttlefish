@@ -35,24 +35,24 @@
 
 
 is_variable_defined(VariableDef, Conf) ->
-    lists:any(fun({X, _}) -> cuttlefish_util:fuzzy_variable_match(X, VariableDef) end, Conf). 
+    lists:any(fun({X, _}) -> cuttlefish_util:fuzzy_variable_match(X, VariableDef) end, Conf).
 
 files(ListOfConfFiles) ->
     lists:foldl(
-        fun(ConfFile, ConfAcc) -> 
+        fun(ConfFile, ConfAcc) ->
             case cuttlefish_conf:file(ConfFile) of
                 {error, _Reason} ->
                     ConfAcc;
                 Conf ->
                     lists:foldl(
                         fun({K,V}, MiniAcc) ->
-                            cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
-                        end, 
-                        ConfAcc, 
+                            cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
+                        end,
+                        ConfAcc,
                         Conf)
             end
-        end, 
-        [], 
+        end,
+        [],
         ListOfConfFiles).
 
 file(Filename) ->
@@ -74,10 +74,10 @@ generate(Mappings) ->
 -spec generate_file([cuttlefish_mapping:mapping()], string()) -> ok.
 generate_file(Mappings, Filename) ->
     ConfFileLines = generate(Mappings),
-    
+
     {ok, S} = file:open(Filename, [write]),
     [ begin
-        io:format(S, "~s~n", [lists:flatten(Line)]) 
+        io:format(S, "~s~n", [lists:flatten(Line)])
     end || Line <- ConfFileLines],
     file:close(S),
     ok.
@@ -94,7 +94,7 @@ generate_element(MappingRecord) ->
     %% commeneted $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
     %%    e.g. {include_default, "internal"}
-    %%         listener.http.$name -> listener.http.internal 
+    %%         listener.http.$name -> listener.http.internal
 
     Field = string:join(cuttlefish_util:variable_match_replace(Key, IncDef), "."),
 
@@ -106,7 +106,7 @@ generate_element(MappingRecord) ->
             Comments ++ [lists:flatten([ "## ", Field, " = ", cuttlefish_datatypes:to_string(Commented, Datatype) ]), ""];
         default ->
             Comments = generate_comments(MappingRecord),
-            Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]  
+            Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]
     end.
 
 generate_element(_, undefined, undefined) -> no;
@@ -122,9 +122,9 @@ generate_comments(MappingRecord) ->
 remove_duplicates(Conf) ->
     lists:foldl(
         fun({K,V}, MiniAcc) ->
-            cuttlefish_util:replace_proplist_value(K, V, MiniAcc) 
-        end, 
-        [], 
+            cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
+        end,
+        [],
         Conf).
 
 -ifdef(TEST).
@@ -137,7 +137,7 @@ remove_duplicates(Conf) ->
 generate_element_test() ->
 
     TestSchemaElement =
-        cuttlefish_mapping:parse({mapping, "ring_size", "riak_core.ring_creation_size", 
+        cuttlefish_mapping:parse({mapping, "ring_size", "riak_core.ring_creation_size",
             [
              {datatype, integer},
              {commented, 64},
@@ -153,23 +153,23 @@ generate_element_test() ->
     ?assertEqual(
         "## Default ring creation size.  Make sure it is a power of 2,",
         lists:nth(1, GeneratedConf)
-        ), 
+        ),
     ?assertEqual(
         "## e.g. 16, 32, 64, 128, 256, 512 etc",
         lists:nth(2, GeneratedConf)
-        ), 
+        ),
     ?assertEqual(
         "## ring_size = 64",
         lists:nth(3, GeneratedConf)
-        ), 
+        ),
     ?assertEqual(
         "",
         lists:nth(4, GeneratedConf)
-        ), 
+        ),
     ok.
 
 generate_dollar_test() ->
-    TestSchemaElement =         
+    TestSchemaElement =
         cuttlefish_mapping:parse({ mapping, "listener.http.$name", "riak_core.http", [
              {datatype, ip},
              {default, "127.0.0.1:8098"},

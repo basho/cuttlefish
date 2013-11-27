@@ -50,11 +50,11 @@ merger(Fun, ListOfInputs) ->
             case Fun(Input) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
-                    %% but, return them anyway so the rebar plugin can display them 
+                    %% but, return them anyway so the rebar plugin can display them
                     %% with io:format, since it doesn't have lager.
-                    {error, Errors}; 
+                    {error, Errors};
                 {Translations, Mappings, Validators} ->
-                    
+
                     NewMappings = lists:foldr(
                         fun cuttlefish_mapping:replace/2,
                         MappingAcc,
@@ -71,9 +71,9 @@ merger(Fun, ListOfInputs) ->
                         Validators),
 
                     {NewTranslations, NewMappings, NewValidators}
-            end 
-        end, 
-        {[], [], []}, 
+            end
+        end,
+        {[], [], []},
         ListOfInputs),
     filter(Schema).
 
@@ -88,7 +88,7 @@ filter({Translations, Mappings, Validators}) ->
     NewMappings = lists:foldl(
         fun(MappingName, Acc) ->
             case lists:any(
-                fun(T) -> cuttlefish_translation:mapping(T) =:= MappingName end, 
+                fun(T) -> cuttlefish_translation:mapping(T) =:= MappingName end,
                 Translations) of
                 false ->
                     cuttlefish_mapping:remove_all_but_first(MappingName, Acc);
@@ -112,7 +112,7 @@ file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
-    case string(S) of 
+    case string(S) of
         {error, Errors} ->
             cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
             {error, Errors};
@@ -121,12 +121,12 @@ file(Filename) ->
     end.
 
 -spec string(string()) -> schema() | errorlist().
-string(S) -> 
+string(S) ->
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
             CommentTokens = erl_comment_scan:string(S),
             {Translations, Mappings, Validators, Errors} = parse_schema(Tokens, CommentTokens),
-            
+
             case length(Errors) of
                 0 ->
                     {Translations, Mappings, Validators};
@@ -157,7 +157,7 @@ parse_schema(Tokens, Comments) ->
      [cuttlefish_mapping:mapping()],
      [cuttlefish_validator:validator()],
      [errorlist()]}
-    ) -> 
+    ) ->
         {[cuttlefish_translation:translation()],
          [cuttlefish_mapping:mapping()],
          [cuttlefish_validator:validator()],
@@ -168,13 +168,13 @@ parse_schema([], _LeftoverComments, {TAcc, MAcc, VAcc, EAcc}) ->
 parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
     {LineNo, Tokens, TailTokens } = parse_schema_tokens(ScannedTokens),
     {Comments, TailComments} = lists:foldr(
-        fun(X={CommentLineNo, _, _, Comment}, {C, TC}) -> 
+        fun(X={CommentLineNo, _, _, Comment}, {C, TC}) ->
             case CommentLineNo < LineNo of
                 true -> {Comment ++ C, TC};
                 _ -> {C, [X|TC]}
             end
-        end, 
-        {[], []}, 
+        end,
+        {[], []},
         CommentTokens),
 
     NewAcc = case parse(Tokens) of
@@ -195,7 +195,7 @@ parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
     end,
     parse_schema(TailTokens, TailComments, NewAcc).
 
-parse_schema_tokens(Scanned) -> 
+parse_schema_tokens(Scanned) ->
     parse_schema_tokens(Scanned, []).
 
 parse_schema_tokens([], Acc=[Last|_]) ->
@@ -220,8 +220,8 @@ parse(Scanned) ->
     end.
 
 comment_parser(Comments) ->
-    StrippedComments = 
-        lists:filter(fun(X) -> X =/= [] end, 
+    StrippedComments =
+        lists:filter(fun(X) -> X =/= [] end,
             [percent_stripper(C) || C <- Comments]),
     %% now, let's go annotation hunting
 
@@ -236,7 +236,7 @@ comment_parser(Comments) ->
                         [{Annotation, Strings}|T] = Acc,
                         [{Annotation, [String|Strings]}|T]
                 end
-            end, [], StrippedComments), 
+            end, [], StrippedComments),
     SortedList = lists:reverse([ {Attr, lists:reverse(Value)} || {Attr, Value} <- AttrList]),
     CorrectedList = attribute_formatter(SortedList),
     CorrectedList.
@@ -253,7 +253,7 @@ percent_stripper_l([$%|T]) -> percent_stripper_l(T);
 percent_stripper_l([$\s|T]) -> percent_stripper_l(T);
 percent_stripper_l(Line) -> Line.
 
-percent_stripper_r(Line) -> 
+percent_stripper_r(Line) ->
     lists:reverse(
         percent_stripper_l(
             lists:reverse(Line))).
@@ -285,10 +285,10 @@ comment_parser_test() ->
     ?assertEqual(["this is a sample doc",
                   "it spans multiple lines",
                   "there can be line breaks"],
-                  proplists:get_value(doc, ParsedComments)), 
+                  proplists:get_value(doc, ParsedComments)),
     ok.
 
-bad_file_test() -> 
+bad_file_test() ->
     cuttlefish_lager_test_backend:bounce(),
     {error, ErrorList} = file("../test/bad_erlang.schema"),
 
@@ -324,7 +324,7 @@ parse_invalid_erlang_test() ->
 
 parse_bad_datatype_test() ->
     cuttlefish_lager_test_backend:bounce(),
-    
+
     SchemaString = lists:flatten([
             "%% @doc some doc\n",
             "%% the doc continues!\n",

@@ -41,7 +41,7 @@
     parse_and_merge/2,
     is_validator/1,
     name/1,
-    description/1, 
+    description/1,
     func/1,
     replace/2]).
 
@@ -53,7 +53,7 @@ parse({validator, Name, Description, Fun}) ->
         func = Fun
     };
 parse(X) ->
-    {error, 
+    {error,
      io_lib:format(
         "poorly formatted input to cuttlefish_validator:parse/1 : ~p",
         [X]
@@ -70,7 +70,7 @@ parse_and_merge({validator, ValidatorName, _, _} = ValidatorSource, Validators) 
         false ->
             [ NewValidator | Validators];
         _OldMapping ->
-            lists:keyreplace(ValidatorName, #validator.name, Validators, NewValidator) 
+            lists:keyreplace(ValidatorName, #validator.name, Validators, NewValidator)
     end.
 
 -spec is_validator(any()) -> boolean().
@@ -175,7 +175,7 @@ remove_duplicates_test() ->
     SampleValidators = [Sample1, Sample2],
 
     [NewValidator|_] = parse_and_merge(
-        {validator, "name1", "description2", fun(X) -> X*10 end}, 
+        {validator, "name1", "description2", fun(X) -> X*10 end},
         SampleValidators),
     F = func(NewValidator),
     ?assertEqual(50, F(5)),
