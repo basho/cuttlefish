@@ -378,7 +378,8 @@ files_test() ->
         ?assertEqual(Mapping, cuttlefish_translation:mapping(Translation)),
         %% Check Override
         F1 = cuttlefish_translation:func(Translation),
-        ?assertEqual(Expected, F1(x))
+
+        ?assertEqual({ok, Expected}, F1(x))
     end,
 
     AssertTran("app_a.big_var",   T1, "tippedy top"),

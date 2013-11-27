@@ -140,7 +140,23 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                             lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
                             undefined
                     end,
-                    set_value(Tokens, Acc, NewValue);
+                    %% We ignore undefined as value, this way translation
+                    %% functions can opt out of applying themselfs.
+                    %% For fallback we still allow values to be passed w/o
+                    %% a {ok, ...} wrapping them so this will give a lager
+                    %% warning
+                    case NewValue of
+                        {ok, V} ->
+                            set_value(Tokens, Acc, V);
+                        undefined ->
+                            Acc;
+                        V ->
+                            lager:warning("Translation for ~p returned a "
+                                          "depricated value, please use "
+                                          "{ok, ~p} in the future.",
+                                          [Mapping, V]),
+                            set_value(Tokens, Acc, V)
+                    end;
                 _ ->
                     lager:debug("~p in Translations to drop...", [Mapping]),
                     Acc
