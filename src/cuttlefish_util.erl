@@ -30,7 +30,6 @@
     conf_get_value/2,
     conf_get_value/3,
     replace_proplist_value/3,
-    variable_starts_with/2,
     filter_by_variable_starts_with/2,
     split_variable_on_match/1,
     variable_match_replace/2,
@@ -47,29 +46,23 @@
 %% for schema writers to not have to use [] notation for varibales
 -spec conf_get_value(string()|[string()], [{[string()], any()}]) -> any().
 conf_get_value(Variable, ConfigProplist) ->
-    conf_get_value(Variable, ConfigProplist, undefined). 
+    conf_get_value(Variable, ConfigProplist, undefined).
 
 -spec conf_get_value(string()|[string()], [{[string()], any()}], any()) -> any().
 conf_get_value([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
     proplists:get_value(Variable, ConfigProplist, Default);
 conf_get_value(Variable, ConfigProplist, Default) ->
-    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default). 
+    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default).
 
 
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
-    proplists:delete(Key, Proplist) ++ [{Key, Value}].
-
-variable_starts_with([HPrefix|Variable], [HPrefix|TPrefix]) ->
-    variable_starts_with(Variable, TPrefix);
-variable_starts_with(_Variable, []) ->
-    true;
-variable_starts_with(_,_) -> false.
+    lists:keystore(Key, 1, Proplist, {Key, Value}).
 
 %% @doc For Proplist, return the subset of the proplist that starts
 %% with "Key"
--spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}]. 
+-spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}].
 filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
     [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
 filter_by_variable_starts_with(StringPrefix, Proplist) ->
@@ -88,28 +81,28 @@ split_variable_on_match(Variable) ->
                 {_, []} -> {[T|Prefix], MatchGroup, Suffix};
                 {_, _} -> {Prefix, MatchGroup, [T|Suffix]}
             end
-        end, 
+        end,
         {[], [], []},
         Variable),
     {
         lists:reverse(PrefixToks),
-        MatchGroup,    
+        MatchGroup,
         lists:reverse(SuffixToks)
     }.
 
 %% @doc replaces the $var in Key with Sub
 -spec variable_match_replace(cuttlefish_conf:variable(), string()) -> [string()].
 variable_match_replace(Variable, Sub) ->
-    [ begin 
+    [ begin
         case {H, Sub} of
             {$$, undefined} -> T;
             {$$, Sub} -> Sub;
             _ -> Tok
         end
-    end || [H|T]=Tok <- Variable]. 
+    end || [H|T]=Tok <- Variable].
 
 %% @doc could this fixed Key be a match for the variable key KeyDef?
-%% e.g. could a.b.$var.d =:= a.b.c.d? 
+%% e.g. could a.b.$var.d =:= a.b.c.d?
 -spec fuzzy_variable_match([string()], [string()]) -> boolean().
 fuzzy_variable_match(Variable, VariableDef) ->
     case length(Variable) =:= length(VariableDef) of
@@ -123,7 +116,7 @@ fuzzy_variable_match(Variable, VariableDef) ->
         _ -> false
     end.
 
-%% @doc like string:tokens(Key, "."), but if the dot was escaped 
+%% @doc like string:tokens(Key, "."), but if the dot was escaped
 %% i.e. \\., don't tokenize that
 -spec tokenize_variable_key(string()) -> [string()].
 tokenize_variable_key(Key) ->
@@ -142,36 +135,45 @@ tokenize_variable_key([Char|Rest], Part, Acc) ->
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
--spec matches_for_variable_def([string()], [{[string()], any()}]) -> [{string(), any()}].
+-spec matches_for_variable_def(cuttlefish_conf:variable(), cuttlefish_conf:conf()) -> [{string(), any()}].
 matches_for_variable_def(VariableDef, Conf) ->
     lists:foldl(
         fun({Variable, _}, Acc) ->
-            case length(Variable) =:= length(VariableDef) of
-                true ->
-                    Zipped = lists:zip(VariableDef, Variable),
-                    Match = lists:all(
-                        fun({X,Y}) ->
-                            X =:= Y orelse hd(X) =:= $$
-                        end,
-                        Zipped),
-                    case Match of
-                        true ->
-                            Matches = lists:filter(fun({X,Y}) ->
-                                X =/= Y andalso hd(X) =:= $$
-                            end, Zipped),
-                            case length(Matches) > 0 of
-                                true -> 
-                                    [hd(Matches)|Acc];
-                                _ -> Acc
-                            end;
-                        _ -> Acc
-                    end;
-
-                _ -> Acc
+            case extract_first_match(VariableDef, Variable) of
+                nomatch ->
+                    Acc;
+                [Match|_] ->
+                    [Match|Acc]
             end
-        end, [], Conf). 
+        end, [], Conf).
 
-    
+-spec extract_first_match(cuttlefish_conf:variable(),
+                          cuttlefish_conf:variable()) ->
+                             nomatch  | [{string(), string()}].
+%% If the lengths are equal, try to pair up a fuzzy segment with its match.
+extract_first_match(VariableDef, Variable) when length(VariableDef) == length(Variable) ->
+    extract_first_match(VariableDef, Variable, nomatch);
+%% This could never match because they are different lengths.
+extract_first_match(_,_) -> nomatch.
+
+%% We have a perfect match, or no match at all, so return the result.
+extract_first_match([], [], Result) when is_list(Result) ->
+    %% If the Result is 'nomatch', the last function clause will be
+    %% the only one that matches.
+    lists:reverse(Result);
+%% We found the first fuzzy segment, grab the binding of the segment.
+extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], nomatch) ->
+    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}]);
+%% We found a fuzzy segment and already have a match, so just recurse.
+extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], Result) ->
+    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}|Result]);
+%% We found two segments that are static and equal.
+extract_first_match([X|VariableDef], [X|Variable], Result) ->
+    extract_first_match(VariableDef, Variable, Result);
+%% Something else happened, so we don't match!
+extract_first_match(_,_,_) -> nomatch.
+
+
 %% @doc turn a string into a number in a way I am happy with
 -spec numerify(string()) -> integer()|float()|{error, string()}.
 numerify([$.|_]=Num) -> numerify([$0|Num]);
@@ -200,7 +202,7 @@ ceiling(X) ->
     end.
 
 print_error(FormatString, Args) ->
-    print_error(io_lib:format(FormatString, Args)). 
+    print_error(io_lib:format(FormatString, Args)).
 print_error(String) ->
     case lager:error("~s", [String]) of
         {error, lager_not_running} ->
@@ -252,7 +254,7 @@ replace_proplist_value_test() ->
     NewProplist = replace_proplist_value("test2", 8, Proplist),
     ?assertEqual(
         8,
-        proplists:get_value("test2", NewProplist) 
+        proplists:get_value("test2", NewProplist)
         ),
     ok.
 
@@ -265,14 +267,8 @@ replace_proplist_value_when_undefined_test() ->
     NewProplist = replace_proplist_value("test3", 3, Proplist),
         ?assertEqual(
         3,
-        proplists:get_value("test3", NewProplist) 
+        proplists:get_value("test3", NewProplist)
         ),
-    ok.
-
-variable_starts_with_test() ->
-    ?assert(variable_starts_with([], [])),
-    ?assert(variable_starts_with(["a","b","c"], ["a", "b"])),
-    ?assert(not(variable_starts_with(["a", "b", "c"], ["a", "q"]))),
     ok.
 
 filter_by_variable_starts_with_test() ->
@@ -306,7 +302,7 @@ tokenize_variable_key_test() ->
     ?assertEqual(["a", "b", "c", "d"], tokenize_variable_key("a.b.c.d")),
 
     ?assertEqual(["a", "b.c", "d"], tokenize_variable_key("a.b\\.c.d")),
-    
+
     %% Covers GH #22
     ?assertEqual(
         ["listener", "http"],
@@ -346,10 +342,10 @@ matches_for_variable_def_test() ->
         {["multi_backend","backend4","storage_backend"], 4}
     ],
 
-    Vars = proplists:get_all_values("$name", 
+    Vars = proplists:get_all_values("$name",
             matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf)
     ),
-    
+
     ?assertEqual(4, length(Vars)),
     ?assert(lists:member("backend1", Vars)),
     ?assert(lists:member("backend2", Vars)),
@@ -382,7 +378,7 @@ print_error_test() ->
 ceiling_test() ->
     ?assertEqual(9, ceiling(8.99999)),
     ?assertEqual(9, ceiling(8.00001)),
-    ?assertEqual(9, ceiling(9.00000)),
+    ?assertEqual(9, ceiling(9.0)),
     ?assertEqual(-2, ceiling(-2.0000001)),
     ?assertEqual(-2, ceiling(-2.9999999)),
     ok.

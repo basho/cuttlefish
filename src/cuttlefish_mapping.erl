@@ -48,8 +48,10 @@
     parse_and_merge/2,
     is_mapping/1,
     variable/1,
+    is_fuzzy_variable/1,
     mapping/1,
     default/1,
+    has_default/1,
     commented/1,
     datatype/1,
     level/1,
@@ -148,11 +150,19 @@ is_mapping(M) ->
 -spec variable(mapping()) -> [string()].
 variable(M) -> M#mapping.variable.
 
+-spec is_fuzzy_variable(mapping()) -> boolean().
+is_fuzzy_variable(#mapping{variable=VariableDef}) ->
+    lists:any(fun(X) -> hd(X) =:= $$ end, VariableDef).
+
 -spec mapping(mapping()) -> string().
 mapping(M) -> M#mapping.mapping.
 
 -spec default(mapping()) -> term().
 default(M) -> M#mapping.default.
+
+-spec has_default(mapping()) -> boolean().
+has_default(MappingRecord) ->
+    default(MappingRecord) =/= undefined.
 
 -spec commented(mapping()) -> term().
 commented(M)        -> M#mapping.commented.
