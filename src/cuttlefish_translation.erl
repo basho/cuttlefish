@@ -28,11 +28,11 @@
 
 -record(translation, {
     mapping::string(),
-    func::fun()
+    func = fun(X) -> X end::fun()
     }).
 -type translation() :: #translation{}.
 -type translation_fun() :: fun(([proplists:property()]) -> any()).
--type raw_translation() :: {translation, string(), translation_fun()}.
+-type raw_translation() :: {translation, string(), translation_fun()} | {translation, string()}.
 -export_type([translation/0]).
 
 -export([
@@ -44,6 +44,10 @@
     replace/2]).
 
 -spec parse(raw_translation()) -> translation() | {error, list()}.
+parse({translation, Mapping}) ->
+    #translation{
+        mapping = Mapping
+    };
 parse({translation, Mapping, Fun}) ->
     #translation{
         mapping = Mapping,
@@ -172,6 +176,19 @@ parse_error_test() ->
     ?assertEqual(
         "poorly formatted input to cuttlefish_translation:parse/1 : not_a_raw_translation",
         lists:flatten(IOList)),
+    ok.
+
+parse_empty_test() ->
+    TranslationDataStruct = {
+        translation,
+        "mapping"
+    },
+
+    Translation = parse(TranslationDataStruct),
+
+    ?assertEqual("mapping", Translation#translation.mapping),
+    F = Translation#translation.func,
+    ?assertEqual(4, F(4)),
     ok.
 
 is_translation_test() ->
