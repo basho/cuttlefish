@@ -87,7 +87,11 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
             Variable = cuttlefish_mapping:variable(MappingRecord),
             case {
                 Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf),
-                lists:any(fun(T) -> cuttlefish_translation:mapping(T) =:= Mapping end, Translations)
+                lists:any(
+                    fun(T) ->
+                        cuttlefish_translation:mapping(T) =:= Mapping
+                    end,
+                    Translations)
                 } of
                 {true, false} ->
                     Tokens = string:tokens(Mapping, "."),

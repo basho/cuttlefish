@@ -28,7 +28,7 @@
 
 -record(translation, {
     mapping::string(),
-    func = fun(X) -> X end::fun()
+    func::fun()
     }).
 -type translation() :: #translation{}.
 -type translation_fun() :: fun(([proplists:property()]) -> any()).
@@ -65,6 +65,8 @@ parse(X) ->
 %% so keyreplace works fine.
 -spec parse_and_merge(
     raw_translation(), [translation()]) -> [translation()].
+parse_and_merge({translation, Mapping}, Translations) ->
+    lists:keydelete(Mapping, #translation.mapping, Translations);
 parse_and_merge({translation, Mapping, _} = TranslationSource, Translations) ->
     NewTranslation = parse(TranslationSource),
     case lists:keyfind(Mapping, #translation.mapping, Translations) of
@@ -188,7 +190,30 @@ parse_empty_test() ->
 
     ?assertEqual("mapping", Translation#translation.mapping),
     F = Translation#translation.func,
-    ?assertEqual(4, F(4)),
+    ?assertEqual(undefined, F),
+    ok.
+
+parse_and_merge_empty_test() ->
+    Sample1 = #translation{
+        mapping = "mapping1",
+        func = fun(X) -> X*3 end
+    },
+    ?assertEqual(6, (Sample1#translation.func)(2)),
+
+    Sample2 = #translation{
+        mapping = "mapping2",
+        func = fun(X) -> X*4 end
+    },
+    ?assertEqual(8, (Sample2#translation.func)(2)),
+
+    SampleTranslations = [Sample1, Sample2],
+
+    NewTranslations = parse_and_merge(
+        {translation, "mapping1"},
+        SampleTranslations),
+    F = func(hd(NewTranslations)),
+    ?assertEqual(1, length(NewTranslations)),
+    ?assertEqual(40, F(10)),
     ok.
 
 is_translation_test() ->
