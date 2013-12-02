@@ -90,7 +90,7 @@
 %
 % * `none` - (default) Lets the operating system manage syncing writes.
 % * `o_sync` - Uses the O_SYNC flag which forces syncs on every write.
-% 
+%
 % * `interval` - Riak will force Bitcask to sync every `bitcask.sync_interval`
 %   `seconds.
 
