@@ -128,8 +128,18 @@ multibackend_test() ->
     {<<"memory_mult">>, riak_kv_memory_backend, MemProps} = lists:keyfind(<<"memory_mult">>, 1, Multi),
     ?assertEqual(86400, proplists:get_value(ttl, MemProps)),
     ?assertEqual(4096, proplists:get_value(max_memory, MemProps)),
-
     ok.
+
+unset_translation_test() ->
+    lager:start(),
+    Schema = cuttlefish_schema:files(["../test/unset_translation.schema"]),
+    Conf = [
+        {["a", "b"], "8"}
+    ],
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    Props = proplists:get_value(erlang, NewConfig),
+    lager:info("~p", [NewConfig]),
+    ?assertEqual(8, proplists:get_value(key, Props)).
 
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
