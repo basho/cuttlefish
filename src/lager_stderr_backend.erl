@@ -165,7 +165,7 @@ console_log_test_() ->
                 application:load(lager),
                 application:set_env(lager, handlers, []),
                 application:set_env(lager, error_logger_redirect, false),
-                application:start(lager),
+                lager:start(),
                 whereis(standard_error)
         end,
         fun(User) ->

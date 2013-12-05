@@ -141,6 +141,13 @@ unset_translation_test() ->
     lager:info("~p", [NewConfig]),
     ?assertEqual(8, proplists:get_value(key, Props)).
 
+not_found_error_test() ->
+    lager:start(),
+    Schema = cuttlefish_schema:files(["../test/throw_not_found.schema"]),
+    Conf = [],
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    ?assertEqual({error, apply_translations}, NewConfig).
+
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
     ActualKeys = lists:sort(proplists:get_keys(Actual)),
