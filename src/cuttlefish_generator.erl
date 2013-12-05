@@ -114,8 +114,8 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
     %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
-    Return = lists:foldl(
-        fun(TranslationRecord, Acc) ->
+    {Proplist, Errorlist} = lists:foldl(
+        fun(TranslationRecord, {Acc, Errors}) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
@@ -123,38 +123,61 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     Tokens = string:tokens(Mapping, "."),
                     %% get Xlat arity
                     Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    NewValue = case Arity of
-                        1 ->
-                            lager:debug("Running translation for ~s", [Mapping]),
-                            try Xlat(Conf) of
-                                X -> X
-                            catch
-                                E:R ->
-                                    lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
-                            end;
-                        2 ->
-                            lager:debug("Running translation for ~s", [Mapping]),
-                            try Xlat(Conf, Schema) of
-                                X -> X
-                            catch
-                                E:R ->
-                                    lager:error("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])
-                            end;
-                        Other ->
-                            lager:error("~p is not a valid arity for translation fun() ~s. Try 1 or 2.", [Other, Mapping]),
-                            undefined
+                    {XlatFun, XlatArgs} = case Arity of
+                         1 -> {Xlat, [Conf]};
+                         2 -> {Xlat, [Conf, Schema]};
+                         OtherArity ->
+                             {fun(_) ->
+                                 {error, io_lib:format(
+                                     "~p is not a valid arity for translation fun() ~s. Try 1 or 2.",
+                                     [OtherArity, Mapping]
+                                     )
+                                 }
+                             end, error}
                     end,
-                    set_value(Tokens, Acc, NewValue);
+
+                    lager:debug("Running translation for ~s", [Mapping]),
+                    Translated = try apply(XlatFun, XlatArgs) of
+                        {ok, Value} ->
+                            {set, Value};
+                        X ->
+                            {set, X}
+                    catch
+                        %% cuttlefish:conf_get/2 threw not_found
+                        throw:not_found ->
+                            {unset};
+                        %% For explicitly throw(unset) in translations
+                        throw:unset ->
+                            {unset};
+                        E:R ->
+                            {error, io_lib:format("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])}
+                    end,
+
+                    case Translated of
+                        %% Explicit 'unset'
+                        {unset} ->
+                            {Acc, Errors};
+                        {set, NewValue} ->
+                            {set_value(Tokens, Acc, NewValue), Errors};
+                        {error, Reason} ->
+                            {Acc, [{error, Reason}|Errors]};
+                        _ ->
+                            {Acc, Errors} %% Do nothing
+                    end;
                 _ ->
                     lager:debug("~p in Translations to drop...", [Mapping]),
-                    Acc
+                    {Acc, Errors}
             end
         end,
-        DirectMappings,
+        {DirectMappings, []},
         Translations),
     lager:info("Applied Translations"),
-    Return.
-
+    case Errorlist of
+        [] -> Proplist;
+        _Es ->
+            {error, apply_translations}
+            %%{error, Es}
+    end.
 %for each token, is it special?
 %
 %if yes, special processing
@@ -720,6 +743,16 @@ validation_test() ->
     end,
 
     ?assertEqual([{b, [{c, true}]}], AppConf),
+    ok.
+
+throw_unset_test() ->
+    Mappings = [cuttlefish_mapping:parse({mapping, "a", "b.c", []})],
+    Translations = [cuttlefish_translation:parse(
+        {translation, "b.c",
+        fun(_X) -> throw(unset) end})
+    ],
+    AppConf = map({Translations, Mappings, []}, []),
+    ?assertEqual([], AppConf),
     ok.
 
 -endif.
