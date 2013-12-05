@@ -291,8 +291,8 @@ add_fuzzy_default(Prefixes, Conf, Default, VariableDef) ->
             %% we include the Default value.
             ToAdd = [ {VariableToAdd, Default}
                       || Subst <- Substitutions,
-                         VariableToAdd <- [cuttlefish_util:variable_match_replace(VariableDef, Subst)],
-                         not lists:keymember(VariableToAdd, 1, Conf)],
+                       VariableToAdd <- [cuttlefish_variable:replace_match(VariableDef, Subst)],
+                       not lists:keymember(VariableToAdd, 1, Conf)],
             Conf ++ ToAdd
     end.
 
@@ -319,8 +319,8 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                   true ->
                       %% Fuzzy match, extract the matching settings from the conf
                       VD = cuttlefish_mapping:variable(Mapping),
-                      ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, Conf)],
-                      {Prefix, _, _} = cuttlefish_variable:split_variable_on_match(VD),
+                      ListOfVars = [Var || {_, Var} <- cuttlefish_variable:fuzzy_matches(VD, Conf)],
+                      {Prefix, _, _} = cuttlefish_variable:split_on_match(VD),
                       orddict:append_list(Prefix, ListOfVars, FuzzyMatches)
               end
       end,
@@ -382,7 +382,7 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     {HardMappings, FuzzyMappings} =  lists:foldl(
         fun(Mapping, {HM, FM}) ->
             VariableDef = cuttlefish_mapping:variable(Mapping),
-            case {Variable =:= VariableDef, cuttlefish_util:fuzzy_variable_match(Variable, VariableDef)} of
+            case {Variable =:= VariableDef, cuttlefish_variable:is_fuzzy_match(Variable, VariableDef)} of
                 {true, _} -> {[Mapping|HM], FM};
                 {_, true} -> {HM, [Mapping|FM]};
                 _ -> {HM, FM}

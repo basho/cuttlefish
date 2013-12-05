@@ -134,9 +134,9 @@ describe(ParsedArgs, Query) when is_list(Query) ->
 
      Results = lists:filter(
         fun(X) ->
-            cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
-        end,
-        Mappings),
+         cuttlefish_variable:is_fuzzy_match(QDef, cuttlefish_mapping:variable(X))
+       end,
+       Mappings),
 
     case length(Results) of
         0 ->

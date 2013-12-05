@@ -35,7 +35,7 @@
 
 
 is_variable_defined(VariableDef, Conf) ->
-    lists:any(fun({X, _}) -> cuttlefish_util:fuzzy_variable_match(X, VariableDef) end, Conf).
+    lists:any(fun({X, _}) -> cuttlefish_variable:is_fuzzy_match(X, VariableDef) end, Conf).
 
 files(ListOfConfFiles) ->
     lists:foldl(
@@ -96,7 +96,7 @@ generate_element(MappingRecord) ->
     %%    e.g. {include_default, "internal"}
     %%         listener.http.$name -> listener.http.internal
 
-    Field = string:join(cuttlefish_util:variable_match_replace(Key, IncDef), "."),
+    Field = string:join(cuttlefish_variable:replace_match(Key, IncDef), "."),
 
     case generate_element(Level, Default, Commented) of
         no ->

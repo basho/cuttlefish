@@ -30,9 +30,8 @@
     conf_get_value/2,
     conf_get_value/3,
     replace_proplist_value/3,
-    filter_by_variable_starts_with/2, variable_match_replace/2,
-    fuzzy_variable_match/2,
-    matches_for_variable_def/2, numerify/1,
+    filter_by_variable_starts_with/2,
+    numerify/1,
     ceiling/1,
     levenshtein/2,
     print_error/1,
@@ -63,72 +62,6 @@ filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
     [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
 filter_by_variable_starts_with(StringPrefix, Proplist) ->
     filter_by_variable_starts_with(cuttlefish_variable:tokenize(StringPrefix), Proplist).
-
-%% @doc replaces the $var in Key with Sub
--spec variable_match_replace(cuttlefish_conf:variable(), string()) -> [string()].
-variable_match_replace(Variable, Sub) ->
-    [ begin
-        case {H, Sub} of
-            {$$, undefined} -> T;
-            {$$, Sub} -> Sub;
-            _ -> Tok
-        end
-    end || [H|T]=Tok <- Variable].
-
-%% @doc could this fixed Key be a match for the variable key KeyDef?
-%% e.g. could a.b.$var.d =:= a.b.c.d?
--spec fuzzy_variable_match([string()], [string()]) -> boolean().
-fuzzy_variable_match(Variable, VariableDef) ->
-    case length(Variable) =:= length(VariableDef) of
-        true ->
-            Zipped = lists:zip(Variable, VariableDef),
-            lists:all(
-                fun({X,Y}) ->
-                    X =:= Y orelse hd(Y) =:= $$
-                end,
-                Zipped);
-        _ -> false
-    end.
-
-%% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
-%% in the set of Keys in Conf = [{Key, Value}]?
--spec matches_for_variable_def(cuttlefish_conf:variable(), cuttlefish_conf:conf()) -> [{string(), any()}].
-matches_for_variable_def(VariableDef, Conf) ->
-    lists:foldl(
-        fun({Variable, _}, Acc) ->
-            case extract_first_match(VariableDef, Variable) of
-                nomatch ->
-                    Acc;
-                [Match|_] ->
-                    [Match|Acc]
-            end
-        end, [], Conf).
-
--spec extract_first_match(cuttlefish_conf:variable(),
-                          cuttlefish_conf:variable()) ->
-                             nomatch  | [{string(), string()}].
-%% If the lengths are equal, try to pair up a fuzzy segment with its match.
-extract_first_match(VariableDef, Variable) when length(VariableDef) == length(Variable) ->
-    extract_first_match(VariableDef, Variable, nomatch);
-%% This could never match because they are different lengths.
-extract_first_match(_,_) -> nomatch.
-
-%% We have a perfect match, or no match at all, so return the result.
-extract_first_match([], [], Result) when is_list(Result) ->
-    %% If the Result is 'nomatch', the last function clause will be
-    %% the only one that matches.
-    lists:reverse(Result);
-%% We found the first fuzzy segment, grab the binding of the segment.
-extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], nomatch) ->
-    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}]);
-%% We found a fuzzy segment and already have a match, so just recurse.
-extract_first_match([[$$|_]=Fuzzy|VariableDef], [Value|Variable], Result) ->
-    extract_first_match(VariableDef, Variable, [{Fuzzy, Value}|Result]);
-%% We found two segments that are static and equal.
-extract_first_match([X|VariableDef], [X|Variable], Result) ->
-    extract_first_match(VariableDef, Variable, Result);
-%% Something else happened, so we don't match!
-extract_first_match(_,_,_) -> nomatch.
 
 
 %% @doc turn a string into a number in a way I am happy with
@@ -269,27 +202,27 @@ tokenize_variable_key_test() ->
     ok.
 
 split_variable_on_match_test() ->
-    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, (cuttlefish_variable:split_variable_on_match(["a", "b", "$c", "d", "e"]))),
-    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, (cuttlefish_variable:split_variable_on_match(["a", "b", "c", "d", "e"]))),
-    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, (cuttlefish_variable:split_variable_on_match(["$a", "b", "c", "d", "e"]))),
+    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, (cuttlefish_variable:split_on_match(["a", "b", "$c", "d", "e"]))),
+    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, (cuttlefish_variable:split_on_match(["a", "b", "c", "d", "e"]))),
+    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, (cuttlefish_variable:split_on_match(["$a", "b", "c", "d", "e"]))),
     ok.
 
 variable_match_replace_test() ->
-    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "d")),
-    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "e")),
-    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "f")),
-    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "b", "c"], "g")),
-    ?assertEqual(["a", "g", "c"], variable_match_replace(["a", "$b", "c"], "g")),
-    ?assertEqual(["a", "b", "c"], variable_match_replace(["a", "$b", "c"], undefined)),
+    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "d"))),
+    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "e"))),
+    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "f"))),
+    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "g"))),
+    ?assertEqual(["a", "g", "c"], (cuttlefish_variable:replace_match(["a", "$b", "c"], "g"))),
+    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "$b", "c"], undefined))),
 
     ok.
 
 fuzzy_variable_match_test() ->
-    ?assert(fuzzy_variable_match(["alpha","bravo","charlie","delta"], ["alpha","bravo","charlie","delta"])),
-    ?assert(fuzzy_variable_match(["alpha","bravo","anything","delta"], ["alpha","bravo","$charlie","delta"])),
-    ?assertNot(fuzzy_variable_match(["alpha","bravo.anything","delta"], ["alpha","bravo","charlie","delta"])),
-    ?assert(fuzzy_variable_match(["alpha","bravo","any.thing","delta"], ["alpha","bravo","$charlie","delta"])),
-    ?assert(fuzzy_variable_match(["alpha","bravo","any.thing.you.need","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","charlie","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","anything","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assertNot(cuttlefish_variable:is_fuzzy_match(["alpha","bravo.anything","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","any.thing","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","any.thing.you.need","delta"], ["alpha","bravo","$charlie","delta"])),
     ok.
 
 matches_for_variable_def_test() ->
@@ -301,15 +234,15 @@ matches_for_variable_def_test() ->
     ],
 
     Vars = proplists:get_all_values("$name",
-            matches_for_variable_def(["multi_backend","$name","storage_backend"], Conf)
+            cuttlefish_variable:fuzzy_matches(["multi_backend","$name","storage_backend"], Conf)
     ),
 
-    ?assertEqual(4, length(Vars)),
+    ?assertEqual(4, (length(Vars))),
     ?assert(lists:member("backend1", Vars)),
     ?assert(lists:member("backend2", Vars)),
     ?assert(lists:member("backend.3", Vars)),
     ?assert(lists:member("backend4", Vars)),
-    ?assertEqual(4, length(Vars)),
+    ?assertEqual(4, (length(Vars))),
 
     ok.
 

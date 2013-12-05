@@ -687,7 +687,7 @@ end}.
 fun(Conf) ->
   UserList1 = lists:filter(
     fun({Var, _V}) ->
-      cuttlefish_util:fuzzy_variable_match(Var, ["riak_control","user","$username","password"])
+      cuttlefish_variable:is_fuzzy_match(Var, ["riak_control","user","$username","password"])
     end,
     Conf),
   UserList = [ begin
