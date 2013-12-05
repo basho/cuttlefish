@@ -157,16 +157,16 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     catch
                         %% cuttlefish:conf_get/2 threw not_found
                         throw:not_found ->
-                            {unset};
+                            unset;
                         %% For explicitly throw(unset) in translations
                         throw:unset ->
-                            {unset};
+                            unset;
                         E:R ->
                             {error, io_lib:format("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])}
                     end,
 
                     case Translated of
-                        {unset} ->
+                        unset ->
                             {Acc, Errors};
                         {set, NewValue} ->
                             {set_value(Tokens, Acc, NewValue), Errors};
