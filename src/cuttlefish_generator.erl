@@ -320,7 +320,7 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
                       %% Fuzzy match, extract the matching settings from the conf
                       VD = cuttlefish_mapping:variable(Mapping),
                       ListOfVars = [ Var || {_, Var } <- cuttlefish_util:matches_for_variable_def(VD, Conf)],
-                      {Prefix, _, _} = cuttlefish_util:split_variable_on_match(VD),
+                      {Prefix, _, _} = cuttlefish_variable:split_variable_on_match(VD),
                       orddict:append_list(Prefix, ListOfVars, FuzzyMatches)
               end
       end,
@@ -400,7 +400,7 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
         {X, Y} -> {error, lists:flatten(io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, string:join(Variable, ".")]))}
     end;
 find_mapping(Variable, Mappings) ->
-    find_mapping(cuttlefish_util:tokenize_variable_key(Variable), Mappings).
+    find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
 
 run_validations({_, Mappings, Validators}, Conf) ->
     Validations = [ begin

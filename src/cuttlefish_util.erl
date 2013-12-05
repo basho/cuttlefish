@@ -30,13 +30,9 @@
     conf_get_value/2,
     conf_get_value/3,
     replace_proplist_value/3,
-    filter_by_variable_starts_with/2,
-    split_variable_on_match/1,
-    variable_match_replace/2,
+    filter_by_variable_starts_with/2, variable_match_replace/2,
     fuzzy_variable_match/2,
-    matches_for_variable_def/2,
-    tokenize_variable_key/1,
-    numerify/1,
+    matches_for_variable_def/2, numerify/1,
     ceiling/1,
     levenshtein/2,
     print_error/1,
@@ -52,7 +48,7 @@ conf_get_value(Variable, ConfigProplist) ->
 conf_get_value([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
     proplists:get_value(Variable, ConfigProplist, Default);
 conf_get_value(Variable, ConfigProplist, Default) ->
-    conf_get_value(tokenize_variable_key(Variable), ConfigProplist, Default).
+    conf_get_value(cuttlefish_variable:tokenize(Variable), ConfigProplist, Default).
 
 
 %% @doc replace the element in a proplist
@@ -66,29 +62,7 @@ replace_proplist_value(Key, Value, Proplist) ->
 filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
     [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
 filter_by_variable_starts_with(StringPrefix, Proplist) ->
-    filter_by_variable_starts_with(tokenize_variable_key(StringPrefix), Proplist).
-
-%% @doc split a key definition into:
-%% * Prefix: Things before the $var
-%% * Var: The $var itself
-%% * Suffix: Things after the $var
--spec split_variable_on_match([string()]) -> {[string()], string(), [string()]}.
-split_variable_on_match(Variable) ->
-    {PrefixToks, MatchGroup, SuffixToks} = lists:foldl(
-        fun(T, {Prefix, MatchGroup, Suffix}) ->
-            case {T, MatchGroup} of
-                {[$$|_], []} -> {Prefix, T, Suffix};
-                {_, []} -> {[T|Prefix], MatchGroup, Suffix};
-                {_, _} -> {Prefix, MatchGroup, [T|Suffix]}
-            end
-        end,
-        {[], [], []},
-        Variable),
-    {
-        lists:reverse(PrefixToks),
-        MatchGroup,
-        lists:reverse(SuffixToks)
-    }.
+    filter_by_variable_starts_with(cuttlefish_variable:tokenize(StringPrefix), Proplist).
 
 %% @doc replaces the $var in Key with Sub
 -spec variable_match_replace(cuttlefish_conf:variable(), string()) -> [string()].
@@ -115,23 +89,6 @@ fuzzy_variable_match(Variable, VariableDef) ->
                 Zipped);
         _ -> false
     end.
-
-%% @doc like string:tokens(Key, "."), but if the dot was escaped
-%% i.e. \\., don't tokenize that
--spec tokenize_variable_key(string()) -> [string()].
-tokenize_variable_key(Key) ->
-    tokenize_variable_key(Key, "", []).
-
-tokenize_variable_key([$\\, $.|Rest], Part, Acc) ->
-    tokenize_variable_key(Rest, [$.|Part], Acc);
-tokenize_variable_key([$.|Rest], Part, Acc) ->
-    tokenize_variable_key(Rest, "", [lists:reverse(Part)|Acc]);
-tokenize_variable_key([], "", Acc) ->
-    lists:reverse(Acc);
-tokenize_variable_key([], Part, Acc) ->
-    lists:reverse([lists:reverse(Part)|Acc]);
-tokenize_variable_key([Char|Rest], Part, Acc) ->
-    tokenize_variable_key(Rest, [Char|Part], Acc).
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
@@ -299,21 +256,22 @@ filter_by_variable_starts_with_test() ->
     ok.
 
 tokenize_variable_key_test() ->
-    ?assertEqual(["a", "b", "c", "d"], tokenize_variable_key("a.b.c.d")),
+    ?assertEqual(["a", "b", "c", "d"], (cuttlefish_variable:tokenize("a.b.c.d"))),
 
-    ?assertEqual(["a", "b.c", "d"], tokenize_variable_key("a.b\\.c.d")),
+    ?assertEqual(["a", "b.c", "d"], (cuttlefish_variable:tokenize("a.b\\.c.d"))),
 
     %% Covers GH #22
     ?assertEqual(
         ["listener", "http"],
-        cuttlefish_util:tokenize_variable_key("listener.http.")
+         (cuttlefish_variable:tokenize("listener.http."))
     ),
+    
     ok.
 
 split_variable_on_match_test() ->
-    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, split_variable_on_match(["a", "b", "$c", "d", "e"])),
-    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, split_variable_on_match(["a", "b", "c", "d", "e"])),
-    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, split_variable_on_match(["$a", "b", "c", "d", "e"])),
+    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, (cuttlefish_variable:split_variable_on_match(["a", "b", "$c", "d", "e"]))),
+    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, (cuttlefish_variable:split_variable_on_match(["a", "b", "c", "d", "e"]))),
+    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, (cuttlefish_variable:split_variable_on_match(["$a", "b", "c", "d", "e"]))),
     ok.
 
 variable_match_replace_test() ->

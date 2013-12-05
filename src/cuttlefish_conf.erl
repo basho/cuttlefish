@@ -31,7 +31,7 @@
 -type variable() :: [string()].
 -type conf_pair() :: {variable(), any()}.
 -type conf() :: [conf_pair()].
--export_type([variable/0, conf_pair/0, conf/0]).
+-export_type([conf_pair/0, conf/0, variable/0]).
 
 
 is_variable_defined(VariableDef, Conf) ->
