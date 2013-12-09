@@ -28,25 +28,30 @@
 
 -export([map/2, find_mapping/2, add_defaults/2]).
 
--spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) -> [proplists:property()] | {error, atom()}.
+-spec map(
+        cuttlefish_schema:schema(),
+        cuttlefish_conf:conf()) ->
+             [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
     map_add_defaults(Schema, Config).
 
--spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) -> [proplists:property()] | {error, atom()}.
+-spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
 map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     lager:info("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
-    case contains_error(DConfig) of
-        true ->
+    case cuttlefish_error:errorlist_maybe(DConfig) of
+        {error, EList} ->
             lager:info("Error adding defaults, aborting"),
-            {error, add_defaults};
+            {error, add_defaults, {error, EList}};
         _ ->
             map_transform_datatypes(Schema, DConfig)
     end.
 
--spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) -> [proplists:property()] | {error, atom()}.
+-spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
 map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
@@ -54,30 +59,30 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     lager:info("Applying Datatypes"),
     Conf = transform_datatypes(DConfig, Mappings),
 
-    case contains_error(Conf) of
-        true ->
+    case cuttlefish_error:errorlist_maybe(Conf) of
+        {error, EList} ->
             lager:info("Error transforming datatypes, aborting"),
-            {error, transform_datatypes};
+            {error, transform_datatypes, {error, EList}};
         _ ->
             map_validate(Schema, Conf)
     end.
 
--spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf()) -> [proplists:property()] | {error, atom()}.
+-spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:info("Validation"),
-    case run_validations(Schema, Conf) of
+    case cuttlefish_error:errorlist_maybe(run_validations(Schema, Conf)) of
+        {error, EList} ->
+            lager:error("Some validator failed, aborting"),
+            {error, validation, {error, EList}};
         true ->
             {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
-            apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop);
-        _ ->
-            lager:error("Some validator failed, aborting"),
-            {error, validation}
+            apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop)
     end.
 
--spec apply_mappings(
-    cuttlefish_schema:schema(),
-    cuttlefish_conf:conf()) -> {[proplists:property()], [string()]} | {error, atom()}.
+-spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> {[proplists:property()], [string()]}.
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -120,7 +125,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     cuttlefish_schema:schema(),
     cuttlefish_conf:conf(),
     [proplists:property()],
-    [string()]) -> [proplists:property()] | {error, atom()}.
+    [string()]) -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
 apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
     %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
@@ -186,8 +191,8 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
             lager:info("Applied Translations"),
             Proplist;
         Es ->
-            [lager:error("Error: ~p", [lists:flatten(E)]) || {error, E} <- Es],
-            {error, apply_translations}
+            %%[lager:error("Error: ~p", [lists:flatten(E)]) || {error, E} <- Es],
+            {error, apply_translations, {error, Es}}
     end.
 
 %for each token, is it special?
@@ -405,8 +410,10 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
 
+-spec run_validations(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> boolean().
 run_validations({_, Mappings, Validators}, Conf) ->
-    Validations = [ begin
+    Validations = lists:flatten([ begin
         Vs = cuttlefish_mapping:validators(M, Validators),
         Value = proplists:get_value(cuttlefish_mapping:variable(M), Conf),
         [ begin
@@ -423,19 +430,18 @@ run_validations({_, Mappings, Validators}, Conf) ->
                             cuttlefish_validator:description(V)
                         ]),
                     lager:error(LogString),
-                    false
+                    {error, LogString}
             end
         end || V <- Vs]
 
      end || M <- Mappings,
             cuttlefish_mapping:validators(M) =/= [],
             cuttlefish_mapping:default(M) =/= undefined orelse proplists:is_defined(cuttlefish_mapping:variable(M), Conf)
-            ],
-    lists:all(fun(X) -> X =:= true end, lists:flatten(Validations)).
-
--spec contains_error(list()) -> boolean().
-contains_error(List) ->
-    lists:any(fun({error, _}) -> true; (_) -> false end, List).
+            ]),
+    case lists:all(fun(X) -> X =:= true end, Validations) of
+        true -> true;
+        _ -> Validations
+    end.
 
 -ifdef(TEST).
 
@@ -465,7 +471,7 @@ bad_conf_test() ->
     NewConfig = map({Translations, Mappings, []}, Conf),
     io:format("NewConf: ~p~n", [NewConfig]),
 
-    ?assertEqual({error,transform_datatypes}, NewConfig),
+    ?assertMatch({error, transform_datatypes, _}, NewConfig),
     ok.
 
 add_defaults_test() ->
