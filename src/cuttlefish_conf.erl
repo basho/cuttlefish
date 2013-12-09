@@ -28,10 +28,9 @@
     files/1,
     is_variable_defined/2]).
 
--type variable() :: [string()].
--type conf_pair() :: {variable(), any()}.
+-type conf_pair() :: {cuttlefish_variable:variable(), any()}.
 -type conf() :: [conf_pair()].
--export_type([conf_pair/0, conf/0, variable/0]).
+-export_type([conf_pair/0, conf/0]).
 
 
 is_variable_defined(VariableDef, Conf) ->

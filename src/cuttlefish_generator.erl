@@ -38,7 +38,6 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% add_defaults/2 rolls the default values in from the schema
     lager:info("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
-
     case contains_error(DConfig) of
         true ->
             lager:info("Error adding defaults, aborting"),
@@ -156,8 +155,10 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                             {set, X}
                     catch
                         %% cuttlefish:conf_get/2 threw not_found
-                        throw:not_found ->
-                            unset;
+                        %% Still deciding what to do here...
+                        %% TODO: Decide!
+                        %% throw:not_found ->
+                        %%     unset;
                         %% For explicitly throw(unset) in translations
                         throw:unset ->
                             unset;
@@ -180,10 +181,12 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
         end,
         {DirectMappings, []},
         Translations),
-    lager:info("Applied Translations"),
     case Errorlist of
-        [] -> Proplist;
-        _Es ->
+        [] ->
+            lager:info("Applied Translations"),
+            Proplist;
+        Es ->
+            [lager:error("Error: ~p", [lists:flatten(E)]) || {error, E} <- Es],
             {error, apply_translations}
     end.
 

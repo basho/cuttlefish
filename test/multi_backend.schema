@@ -18,7 +18,7 @@
   %% for each in list, case statement on backend type
   [ begin
     BackendConfigName = ["multi_backend", Name],
-    {BackendModule, BackendConfig} = case cuttlefish_util:conf_get_value(BackendConfigName ++ ["storage_backend"], Conf) of
+    {BackendModule, BackendConfig} = case cuttlefish:conf_get(BackendConfigName ++ ["storage_backend"], Conf) of
       bitcask ->
         BackendConfigPrefix = BackendConfigName ++ ["bitcask"],
         SubConf = [ begin

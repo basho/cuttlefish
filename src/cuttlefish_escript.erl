@@ -77,7 +77,7 @@ main(Args) ->
     end,
 
     application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
-    application:start(lager),
+    lager:start(),
 
     lager:debug("Cuttlefish set to debug level logging"),
 

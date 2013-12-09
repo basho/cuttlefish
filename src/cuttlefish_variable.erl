@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_variable: handles both variable and variable definitions
+%%  handles both variable and variable definitions
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
@@ -24,13 +24,18 @@
 -type variable() :: [string()].
 -export_type([variable/0]).
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-compile(export_all).
+-endif.
+
 -export([
-	 tokenize/1,
-	 split_on_match/1,
-	 replace_match/2,
-	 extract_first_match/2,
-	 fuzzy_matches/2,
-	 is_fuzzy_match/2]).
+     tokenize/1,
+     split_on_match/1,
+     replace_match/2,
+     extract_first_match/2,
+     fuzzy_matches/2,
+     is_fuzzy_match/2]).
 
 %% @doc like string:tokens(Key, "."), but if the dot was escaped
 %% i.e. \\., don't tokenize that
@@ -109,7 +114,7 @@ extract_first_match(_,_,_) -> nomatch.
 
 %% @doc given a KeyDef "a.b.$c.d", what are the possible values for $c
 %% in the set of Keys in Conf = [{Key, Value}]?
--spec fuzzy_matches(variable(), cuttlefish_conf:conf()) -> 
+-spec fuzzy_matches(variable(), cuttlefish_conf:conf()) ->
                        [{string(), any()}].
 fuzzy_matches(VariableDef, Conf) ->
     lists:foldl(
@@ -136,3 +141,63 @@ is_fuzzy_match(Variable, VariableDef) ->
                 Zipped);
         _ -> false
     end.
+
+-ifdef(TEST).
+
+tokenize_variable_key_test() ->
+    ?assertEqual(["a", "b", "c", "d"], (tokenize("a.b.c.d"))),
+
+    ?assertEqual(["a", "b.c", "d"], (tokenize("a.b\\.c.d"))),
+
+    %% Covers GH #22
+    ?assertEqual(
+        ["listener", "http"],
+         (tokenize("listener.http."))
+    ),
+    ok.
+
+split_variable_on_match_test() ->
+    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, (split_on_match(["a", "b", "$c", "d", "e"]))),
+    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, (split_on_match(["a", "b", "c", "d", "e"]))),
+    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, (split_on_match(["$a", "b", "c", "d", "e"]))),
+    ok.
+
+variable_match_replace_test() ->
+    ?assertEqual(["a", "b", "c"], (replace_match(["a", "b", "c"], "d"))),
+    ?assertEqual(["a", "b", "c"], (replace_match(["a", "b", "c"], "e"))),
+    ?assertEqual(["a", "b", "c"], (replace_match(["a", "b", "c"], "f"))),
+    ?assertEqual(["a", "b", "c"], (replace_match(["a", "b", "c"], "g"))),
+    ?assertEqual(["a", "g", "c"], (replace_match(["a", "$b", "c"], "g"))),
+    ?assertEqual(["a", "b", "c"], (replace_match(["a", "$b", "c"], undefined))),
+
+    ok.
+
+fuzzy_variable_match_test() ->
+    ?assert(is_fuzzy_match(["alpha","bravo","charlie","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(is_fuzzy_match(["alpha","bravo","anything","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assertNot(is_fuzzy_match(["alpha","bravo.anything","delta"], ["alpha","bravo","charlie","delta"])),
+    ?assert(is_fuzzy_match(["alpha","bravo","any.thing","delta"], ["alpha","bravo","$charlie","delta"])),
+    ?assert(is_fuzzy_match(["alpha","bravo","any.thing.you.need","delta"], ["alpha","bravo","$charlie","delta"])),
+    ok.
+
+matches_for_variable_def_test() ->
+    Conf = [
+        {["multi_backend","backend1","storage_backend"], 1},
+        {["multi_backend","backend2","storage_backend"], 2},
+        {["multi_backend","backend.3","storage_backend"], 3},
+        {["multi_backend","backend4","storage_backend"], 4}
+    ],
+
+    Vars = proplists:get_all_values("$name",
+            fuzzy_matches(["multi_backend","$name","storage_backend"], Conf)
+    ),
+
+    ?assertEqual(4, (length(Vars))),
+    ?assert(lists:member("backend1", Vars)),
+    ?assert(lists:member("backend2", Vars)),
+    ?assert(lists:member("backend.3", Vars)),
+    ?assert(lists:member("backend4", Vars)),
+    ?assertEqual(4, (length(Vars))),
+    ok.
+
+-endif.

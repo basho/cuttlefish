@@ -27,8 +27,6 @@
 -endif.
 
 -export([
-    conf_get_value/2,
-    conf_get_value/3,
     replace_proplist_value/3,
     filter_by_variable_starts_with/2,
     numerify/1,
@@ -36,19 +34,6 @@
     levenshtein/2,
     print_error/1,
     print_error/2]).
-
-%% @doc it's a wrapper for proplists:get_value, a convenience function
-%% for schema writers to not have to use [] notation for varibales
--spec conf_get_value(string()|[string()], [{[string()], any()}]) -> any().
-conf_get_value(Variable, ConfigProplist) ->
-    conf_get_value(Variable, ConfigProplist, undefined).
-
--spec conf_get_value(string()|[string()], [{[string()], any()}], any()) -> any().
-conf_get_value([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
-    proplists:get_value(Variable, ConfigProplist, Default);
-conf_get_value(Variable, ConfigProplist, Default) ->
-    conf_get_value(cuttlefish_variable:tokenize(Variable), ConfigProplist, Default).
-
 
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
@@ -62,7 +47,6 @@ filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
     [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
 filter_by_variable_starts_with(StringPrefix, Proplist) ->
     filter_by_variable_starts_with(cuttlefish_variable:tokenize(StringPrefix), Proplist).
-
 
 %% @doc turn a string into a number in a way I am happy with
 -spec numerify(string()) -> integer()|float()|{error, string()}.
@@ -186,64 +170,6 @@ filter_by_variable_starts_with_test() ->
             {["prefixed","key3"], 6}
         ],
         FilteredByString),
-    ok.
-
-tokenize_variable_key_test() ->
-    ?assertEqual(["a", "b", "c", "d"], (cuttlefish_variable:tokenize("a.b.c.d"))),
-
-    ?assertEqual(["a", "b.c", "d"], (cuttlefish_variable:tokenize("a.b\\.c.d"))),
-
-    %% Covers GH #22
-    ?assertEqual(
-        ["listener", "http"],
-         (cuttlefish_variable:tokenize("listener.http."))
-    ),
-    
-    ok.
-
-split_variable_on_match_test() ->
-    ?assertEqual({["a", "b"], "$c", ["d", "e"]}, (cuttlefish_variable:split_on_match(["a", "b", "$c", "d", "e"]))),
-    ?assertEqual({["a", "b", "c", "d", "e"], [], []}, (cuttlefish_variable:split_on_match(["a", "b", "c", "d", "e"]))),
-    ?assertEqual({[], "$a", ["b", "c", "d", "e"]}, (cuttlefish_variable:split_on_match(["$a", "b", "c", "d", "e"]))),
-    ok.
-
-variable_match_replace_test() ->
-    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "d"))),
-    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "e"))),
-    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "f"))),
-    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "b", "c"], "g"))),
-    ?assertEqual(["a", "g", "c"], (cuttlefish_variable:replace_match(["a", "$b", "c"], "g"))),
-    ?assertEqual(["a", "b", "c"], (cuttlefish_variable:replace_match(["a", "$b", "c"], undefined))),
-
-    ok.
-
-fuzzy_variable_match_test() ->
-    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","charlie","delta"], ["alpha","bravo","charlie","delta"])),
-    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","anything","delta"], ["alpha","bravo","$charlie","delta"])),
-    ?assertNot(cuttlefish_variable:is_fuzzy_match(["alpha","bravo.anything","delta"], ["alpha","bravo","charlie","delta"])),
-    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","any.thing","delta"], ["alpha","bravo","$charlie","delta"])),
-    ?assert(cuttlefish_variable:is_fuzzy_match(["alpha","bravo","any.thing.you.need","delta"], ["alpha","bravo","$charlie","delta"])),
-    ok.
-
-matches_for_variable_def_test() ->
-    Conf = [
-        {["multi_backend","backend1","storage_backend"], 1},
-        {["multi_backend","backend2","storage_backend"], 2},
-        {["multi_backend","backend.3","storage_backend"], 3},
-        {["multi_backend","backend4","storage_backend"], 4}
-    ],
-
-    Vars = proplists:get_all_values("$name",
-            cuttlefish_variable:fuzzy_matches(["multi_backend","$name","storage_backend"], Conf)
-    ),
-
-    ?assertEqual(4, (length(Vars))),
-    ?assert(lists:member("backend1", Vars)),
-    ?assert(lists:member("backend2", Vars)),
-    ?assert(lists:member("backend.3", Vars)),
-    ?assert(lists:member("backend4", Vars)),
-    ?assertEqual(4, (length(Vars))),
-
     ok.
 
 levenshtein_test() ->
