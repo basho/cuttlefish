@@ -27,11 +27,10 @@
 -endif.
 
 -export([
-    replace_proplist_value/3, numerify/1,
+    replace_proplist_value/3,
+    numerify/1,
     ceiling/1,
-    levenshtein/2,
-    print_error/1,
-    print_error/2]).
+    levenshtein/2]).
 
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
@@ -63,16 +62,6 @@ ceiling(X) ->
         Neg when Neg < 0 -> T;
         Pos when Pos > 0 -> T + 1;
         _ -> T
-    end.
-
-print_error(FormatString, Args) ->
-    print_error(io_lib:format(FormatString, Args)).
-print_error(String) ->
-    case lager:error("~s", [String]) of
-        {error, lager_not_running} ->
-            io:format("~s~n", [String]),
-            ok;
-        ok -> ok
     end.
 
 %% Levenshtein code by Adam Lindberg, Fredrik Svensson via
@@ -149,7 +138,7 @@ levenshtein_test() ->
 print_error_test() ->
     case lager:error("Error") of
         {error, lager_not_running} ->
-            ?assertEqual(ok, print_error("Error"));
+            ?assertEqual(ok, (cuttlefish_error:print("Error")));
         _ ->
             ?assert(fail)
     end,

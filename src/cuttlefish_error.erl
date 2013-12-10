@@ -29,7 +29,9 @@
         contains_error/1,
         is_error/1,
         filter/1,
-        errorlist_maybe/1
+        errorlist_maybe/1,
+        print/1,
+        print/2
 ]).
 
 -ifdef(TEST).
@@ -59,6 +61,15 @@ errorlist_maybe(List) when is_list(List) ->
     end;
 errorlist_maybe(AnythingElse) -> AnythingElse.
 
+print(FormatString, Args) ->
+    print(io_lib:format(FormatString, Args)).
+print(String) ->
+    case lager:error("~s", [String]) of
+        {error, lager_not_running} ->
+            io:format("~s~n", [String]),
+            ok;
+        ok -> ok
+    end.
 
 -ifdef(TEST).
 

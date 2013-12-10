@@ -113,7 +113,7 @@ file(Filename) ->
     S = unicode:characters_to_list(B, utf8),
     case string(S) of
         {error, Errors} ->
-            cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
+            cuttlefish_error:print("Error parsing schema: ~s", [Filename]),
             {error, Errors};
         Schema ->
             Schema
@@ -133,9 +133,9 @@ string(S) ->
                     [begin
                         case Desc of
                             [H|_] when is_list(H) ->
-                                [ cuttlefish_util:print_error(D) || D <- Desc];
+                                [cuttlefish_error:print(D) || D <- Desc];
                             _ ->
-                                cuttlefish_util:print_error(Desc)
+                                cuttlefish_error:print(Desc)
                         end
                     end || {error, Desc} <- Errors],
                     {error, Errors}
