@@ -35,7 +35,9 @@
      replace_match/2,
      extract_first_match/2,
      fuzzy_matches/2,
-     is_fuzzy_match/2]).
+     is_fuzzy_match/2,
+     filter_by_prefix/2
+]).
 
 %% @doc like string:tokens(Key, "."), but if the dot was escaped
 %% i.e. \\., don't tokenize that
@@ -142,11 +144,21 @@ is_fuzzy_match(Variable, VariableDef) ->
         _ -> false
     end.
 
+
+%% @doc For Proplist, return the subset of the proplist that starts
+%% with "Key"
+-spec filter_by_prefix(string()  | [string()],
+                       [{[string()], any()}]) ->
+                          [{[string()], any()}].
+filter_by_prefix([H|_T]=Prefix, Proplist) when is_list(H) ->
+    [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
+filter_by_prefix(StringPrefix, Proplist) ->
+    filter_by_prefix(tokenize(StringPrefix), Proplist).
+
 -ifdef(TEST).
 
 tokenize_variable_key_test() ->
     ?assertEqual(["a", "b", "c", "d"], (tokenize("a.b.c.d"))),
-
     ?assertEqual(["a", "b.c", "d"], (tokenize("a.b\\.c.d"))),
 
     %% Covers GH #22
@@ -200,4 +212,30 @@ matches_for_variable_def_test() ->
     ?assertEqual(4, (length(Vars))),
     ok.
 
+filter_by_variable_starts_with_test() ->
+    Proplist = [
+        {["regular","key"], 1},
+        {["other","normal","key"], 2},
+        {["prefixed","key1"], 3},
+        {["prefixed","key2"], 4},
+        {["interleaved","key"], 5},
+        {["prefixed","key3"], 6}
+    ],
+
+    FilteredByList = filter_by_prefix(["prefixed"], Proplist),
+    ?assertEqual([
+            {["prefixed","key1"], 3},
+            {["prefixed","key2"], 4},
+            {["prefixed","key3"], 6}
+        ],
+        FilteredByList),
+
+    FilteredByString = filter_by_prefix("prefixed", Proplist),
+    ?assertEqual([
+            {["prefixed","key1"], 3},
+            {["prefixed","key2"], 4},
+            {["prefixed","key3"], 6}
+        ],
+        FilteredByString),
+    ok.
 -endif.

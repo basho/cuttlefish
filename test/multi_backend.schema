@@ -23,7 +23,7 @@
         BackendConfigPrefix = BackendConfigName ++ ["bitcask"],
         SubConf = [ begin
           {Key -- BackendConfigName, Value}
-        end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
+        end || {Key, Value} <- cuttlefish_variable:filter_by_prefix(BackendConfigPrefix, Conf)],
 
         BackendProplist = cuttlefish_generator:map(Schema, SubConf),
 
@@ -32,7 +32,7 @@
         BackendConfigPrefix = BackendConfigName ++ ["leveldb"],
         SubConf = [ begin
           {Key -- BackendConfigName, Value}
-        end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
+        end || {Key, Value} <- cuttlefish_variable:filter_by_prefix(BackendConfigPrefix, Conf)],
 
         BackendProplist = cuttlefish_generator:map(Schema, SubConf),
 
@@ -41,7 +41,7 @@
         BackendConfigPrefix = BackendConfigName ++ ["memory_backend"],
         SubConf = [ begin
           {Key -- BackendConfigName, Value}
-        end || {Key, Value} <- cuttlefish_util:filter_by_variable_starts_with(BackendConfigPrefix, Conf)],
+        end || {Key, Value} <- cuttlefish_variable:filter_by_prefix(BackendConfigPrefix, Conf)],
         BackendProplist = cuttlefish_generator:map(Schema, SubConf),
         {riak_kv_memory_backend, proplists:get_value(memory_backend, proplists:get_value(riak_kv, BackendProplist))};
       _ -> oops_all_berries

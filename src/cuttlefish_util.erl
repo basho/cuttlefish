@@ -27,9 +27,7 @@
 -endif.
 
 -export([
-    replace_proplist_value/3,
-    filter_by_variable_starts_with/2,
-    numerify/1,
+    replace_proplist_value/3, numerify/1,
     ceiling/1,
     levenshtein/2,
     print_error/1,
@@ -39,14 +37,6 @@
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
     lists:keystore(Key, 1, Proplist, {Key, Value}).
-
-%% @doc For Proplist, return the subset of the proplist that starts
-%% with "Key"
--spec filter_by_variable_starts_with(string()|[string()], [{[string()], any()}]) -> [{[string()], any()}].
-filter_by_variable_starts_with([H|_T]=Prefix, Proplist) when is_list(H) ->
-    [ T || {Key,_}=T <- Proplist, lists:prefix(Prefix, Key) ];
-filter_by_variable_starts_with(StringPrefix, Proplist) ->
-    filter_by_variable_starts_with(cuttlefish_variable:tokenize(StringPrefix), Proplist).
 
 %% @doc turn a string into a number in a way I am happy with
 -spec numerify(string()) -> integer()|float()|{error, string()}.
@@ -143,33 +133,6 @@ replace_proplist_value_when_undefined_test() ->
         3,
         proplists:get_value("test3", NewProplist)
         ),
-    ok.
-
-filter_by_variable_starts_with_test() ->
-    Proplist = [
-        {["regular","key"], 1},
-        {["other","normal","key"], 2},
-        {["prefixed","key1"], 3},
-        {["prefixed","key2"], 4},
-        {["interleaved","key"], 5},
-        {["prefixed","key3"], 6}
-    ],
-
-    FilteredByList = filter_by_variable_starts_with(["prefixed"], Proplist),
-    ?assertEqual([
-            {["prefixed","key1"], 3},
-            {["prefixed","key2"], 4},
-            {["prefixed","key3"], 6}
-        ],
-        FilteredByList),
-
-    FilteredByString = filter_by_variable_starts_with("prefixed", Proplist),
-    ?assertEqual([
-            {["prefixed","key1"], 3},
-            {["prefixed","key2"], 4},
-            {["prefixed","key3"], 6}
-        ],
-        FilteredByString),
     ok.
 
 levenshtein_test() ->

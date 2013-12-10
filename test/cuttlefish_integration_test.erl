@@ -7,14 +7,10 @@
 generated_conf_file_test() ->
     {_, Mappings, _} = cuttlefish_schema:file("../test/riak.schema"),
     cuttlefish_conf:generate_file(Mappings, "../generated.conf"),
-
     %% Schema generated a conf file, let's parse it!
     Conf = cuttlefish_conf:file("../generated.conf"),
-
     ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
-
     ok.
-
 
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
 generated_config_file_test() ->
