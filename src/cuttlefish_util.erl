@@ -32,6 +32,36 @@
     ceiling/1,
     levenshtein/2]).
 
+%% Legacy API
+-export([
+     conf_get_value/2,
+     conf_get_value/3,
+     filter_by_variable_starts_with/2,
+     matches_for_variable_def/2,
+     fuzzy_variable_match/2
+]).
+
+
+%% @depricated
+conf_get_value(Key, Conf) ->
+    cuttlefish:conf_get(Key, Conf).
+
+%% @depricated
+conf_get_value(Key, Conf, Default) ->
+    cuttlefish:conf_get(Key, Conf, Default).
+
+%% @depricated
+filter_by_variable_starts_with(Prefix, Conf) ->
+    cuttlefish_variable:filter_by_prefix(Prefix, Conf).
+
+%% @depricated
+matches_for_variable_def(VarDef, Conf) ->
+    cuttlefish_variable:fuzzy_matches(VarDef, Conf).
+
+%% @depricated
+fuzzy_variable_match(Var, VarDef) ->
+    cuttlefish_variable:is_fuzzy_match(Var, VarDef).
+
 %% @doc replace the element in a proplist
 -spec replace_proplist_value(atom() | string(), any(), [{string(), any()}]) -> [{string(), any()}].
 replace_proplist_value(Key, Value, Proplist) ->
