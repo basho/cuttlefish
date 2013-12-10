@@ -274,7 +274,13 @@ engage_cuttlefish(ParsedArgs) ->
     Schema = load_schema(ParsedArgs),
 
     Conf = load_conf(ParsedArgs),
-    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+        {error, Phase, {error, Errors}} ->
+            lager:error("Error generating configuration in phase ~s", [Phase]),
+            [ cuttlefish_error:print(E) || E <- Errors],
+            stop_deactivate();
+        ValidConfig -> ValidConfig
+    end,
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
