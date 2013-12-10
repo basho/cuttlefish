@@ -339,7 +339,7 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
 -spec transform_datatypes(
         cuttlefish_conf:conf(),
         [cuttlefish_mapping:mapping()]
-      ) -> {cuttlefish_conf:conf(), cuttlefish_error:errorlist()}.
+      ) -> {cuttlefish_conf:conf(), [cuttlefish_error:error()]}.
 transform_datatypes(Conf, Mappings) ->
     lists:foldl(
         fun({Variable, Value}, {Acc, ErrorAcc}) ->
