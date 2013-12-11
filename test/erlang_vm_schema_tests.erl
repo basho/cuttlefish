@@ -23,8 +23,8 @@ basic_schema_test() ->
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_CRASH_DUMP", "dump"),
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_ETS_TABLES", "256000"),
     cuttlefish_unit:assert_config(Config, "vm_args.+P", "256000"),
-    cuttlefish_unit:assert_config(Config, "vm_args.+zdbbl", undefined),
-    cuttlefish_unit:assert_config(Config, "vm_args.+sfwi", undefined),
+    cuttlefish_unit:assert_not_configured(Config, "vm_args.+zdbbl"),
+    cuttlefish_unit:assert_not_configured(Config, "vm_args.+sfwi"),
     ok.
 
 override_schema_test() ->

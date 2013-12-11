@@ -595,7 +595,7 @@ apply_mappings_test() ->
     ],
 
     {DirectMappings, []} = apply_mappings({[], Mappings, []}, Conf),
-    ?assertEqual("1", kvc:path("erlang.key", DirectMappings)),
+    cuttlefish_unit:assert_config(DirectMappings, "erlang.key", "1"),
     ok.
 
 find_mapping_test() ->

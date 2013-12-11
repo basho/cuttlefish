@@ -61,8 +61,13 @@ errorlist_maybe(List) when is_list(List) ->
     end;
 errorlist_maybe(AnythingElse) -> AnythingElse.
 
+-spec print(string(), [any()]) -> ok.
 print(FormatString, Args) ->
     print(io_lib:format(FormatString, Args)).
+
+-spec print(string() | error()) -> ok.
+print({error, List}) ->
+    print(lists:flatten(List));
 print(String) ->
     case lager:error("~s", [String]) of
         {error, lager_not_running} ->

@@ -46,13 +46,53 @@ generate_config(SchemaFile, Conf) ->
     Schema = cuttlefish_schema:files([SchemaFile]),
     cuttlefish_generator:map(Schema, Conf).
 
-assert_config(Config, KVCPath, Value) ->
-    ActualValue = case kvc:path(KVCPath, Config) of
-        [] -> %% if KVC can't find it, it returns []
-            undefined;
-        X -> X
+check_config_for_errors({error, Phase, {error, Errors}}) ->
+    %% What if Config is an error? It'd be nice to know what that was
+    cuttlefish_error:print("Error in phase: ~s", [Phase]),
+    [ cuttlefish_error:print(E) || E <- Errors],
+    ?assert(fail);
+check_config_for_errors(_) ->
+    ok.
+
+assert_config(Config, Path, Value) ->
+    check_config_for_errors(Config),
+    ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
+        {error, bad_nesting} ->
+            ?assert(fail);
+        notset ->
+            ?assert(fail);
+        {ok, X} -> X
     end,
-    ?assertEqual({KVCPath, Value}, {KVCPath, ActualValue}).
+    ?assertEqual({Path, Value}, {Path, ActualValue}).
+
+assert_not_configured(Config, Path) ->
+    check_config_for_errors(Config),
+    ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
+        {error, bad_nesting} ->
+            ?assert(fail);
+        {ok, _} ->
+            ?assert(fail);
+        notset -> undefined
+    end,
+    ?assertEqual({Path, undefined}, {Path, ActualValue}).
+
+-spec path(cuttlefish_variable:variable(), [proplists:property()]) ->
+                  {ok, any()} | notset | {error, bad_nesting}.
+path(_, []) ->
+    {error, bad_nesting};
+path([Last], Proplist) when is_list(Last) ->
+    path([list_to_atom(Last)], Proplist);
+path([Last], Proplist) when is_atom(Last) ->
+    case proplists:is_defined(Last, Proplist) of
+        true ->
+            {ok, proplists:get_value(Last, Proplist)};
+        _ ->
+            notset
+    end;
+path([H|T], Proplist) when is_list(H) ->
+    path([list_to_atom(H)|T], Proplist);
+path([H|T], Proplist) when is_atom(H) ->
+    path(T, proplists:get_value(H, Proplist)).
 
 -spec dump_to_file(any(), string()) -> ok.
 dump_to_file(ErlangTerm, Filename) ->
@@ -60,3 +100,13 @@ dump_to_file(ErlangTerm, Filename) ->
     io:format(S, "~p~n", [ErlangTerm]),
     file:close(S),
     ok.
+
+-ifdef(TEST).
+
+path_test() ->
+    ?assertEqual(
+       {ok, "disable"},
+       path(["vm_args", "-smp"], [{vm_args, [{'-smp', "disable"}]}])),
+    ok.
+
+-endif.
