@@ -80,6 +80,8 @@ assert_not_configured(Config, Path) ->
                   {ok, any()} | notset | {error, bad_nesting}.
 path(_, []) ->
     {error, bad_nesting};
+path(_, undefined) ->
+    notset;
 path([Last], Proplist) when is_list(Last) ->
     path([list_to_atom(Last)], Proplist);
 path([Last], Proplist) when is_atom(Last) ->
