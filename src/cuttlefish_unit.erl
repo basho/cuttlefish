@@ -76,38 +76,32 @@ assert_not_configured(Config, Path) ->
     end,
     ?assertEqual({Path, undefined}, {Path, ActualValue}).
 
--spec path(cuttlefish_variable:variable(), [proplists:property()]) ->
+-spec path(cuttlefish_variable:variable(),
+           [{ string() | atom() | binary() , term()}]) ->
                   {ok, any()} | notset | {error, bad_nesting}.
 path(_, []) ->
     {error, bad_nesting};
 path(_, undefined) ->
     notset;
 path([Last], Proplist) ->
-    case is_defined(Last, Proplist) of
-        true ->
-            {ok, get_value(Last, Proplist)};
-        _ ->
-            notset
+    case lists:dropwhile(key_no_match(Last), Proplist) of
+        [] -> notset;
+        [{_, V}|_] -> {ok, V}
     end;
-path([H|T], Proplist) ->
-    path(T, get_value(H, Proplist)).
+path([H|T], Proplist) when is_list(H)->
+    case path([H], Proplist) of
+        {ok, SmallerProplist} ->
+            path(T, SmallerProplist);
+        Other ->
+            Other
+    end.
 
--spec is_defined(string(), [proplists:property()]) -> boolean().
-is_defined(K, Props) ->
-    proplists:is_defined(K, Props) orelse
-    proplists:is_defined(list_to_atom(K), Props) orelse
-    proplists:is_defined(list_to_binary(K), Props).
-
--spec get_value(string(), [proplists:property()]) -> any().
-get_value(K, Props) ->
-    get_values([list_to_atom(K), K, list_to_binary(K)], Props).
-
-get_values([], _) -> undefined;
-get_values([K|T], Props) ->
-    case proplists:get_value(K, Props) of
-        undefined ->
-            get_values(T, Props);
-        V -> V
+-spec key_no_match(string()) -> fun((atom() | string() | binary()) -> boolean()).
+key_no_match(Key) ->
+    fun({E, _}) when is_atom(E) -> E =/= list_to_atom(Key);
+       ({E, _}) when is_list(E) -> E =/= Key;
+       ({E, _}) when is_binary(E) -> E =/= list_to_binary(Key);
+       (_) -> true
     end.
 
 -spec dump_to_file(any(), string()) -> ok.
@@ -118,6 +112,8 @@ dump_to_file(ErlangTerm, Filename) ->
     ok.
 
 -ifdef(TEST).
+
+
 
 path_test() ->
     ?assertEqual(
