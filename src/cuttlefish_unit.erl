@@ -50,7 +50,7 @@ check_config_for_errors({error, Phase, {error, Errors}}) ->
     %% What if Config is an error? It'd be nice to know what that was
     cuttlefish_error:print("Error in phase: ~s", [Phase]),
     [ cuttlefish_error:print(E) || E <- Errors],
-    ?assert(fail);
+    ?assert(false);
 check_config_for_errors(_) ->
     ok.
 
@@ -58,9 +58,9 @@ assert_config(Config, Path, Value) ->
     check_config_for_errors(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
-            ?assert(fail);
+            ?assert(false);
         notset ->
-            ?assert(fail);
+            ?assert(false);
         {ok, X} -> X
     end,
     ?assertEqual({Path, Value}, {Path, ActualValue}).
@@ -69,9 +69,9 @@ assert_not_configured(Config, Path) ->
     check_config_for_errors(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
-            ?assert(fail);
+            ?assert(false);
         {ok, _} ->
-            ?assert(fail);
+            ?assert(false);
         notset -> undefined
     end,
     ?assertEqual({Path, undefined}, {Path, ActualValue}).
