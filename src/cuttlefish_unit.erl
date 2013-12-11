@@ -82,19 +82,33 @@ path(_, []) ->
     {error, bad_nesting};
 path(_, undefined) ->
     notset;
-path([Last], Proplist) when is_list(Last) ->
-    path([list_to_atom(Last)], Proplist);
-path([Last], Proplist) when is_atom(Last) ->
-    case proplists:is_defined(Last, Proplist) of
+path([Last], Proplist) ->
+    case is_defined(Last, Proplist) of
         true ->
-            {ok, proplists:get_value(Last, Proplist)};
+            {ok, get_value(Last, Proplist)};
         _ ->
             notset
     end;
-path([H|T], Proplist) when is_list(H) ->
-    path([list_to_atom(H)|T], Proplist);
-path([H|T], Proplist) when is_atom(H) ->
-    path(T, proplists:get_value(H, Proplist)).
+path([H|T], Proplist) ->
+    path(T, get_value(H, Proplist)).
+
+-spec is_defined(string(), [proplists:property()]) -> boolean().
+is_defined(K, Props) ->
+    proplists:is_defined(K, Props) orelse
+    proplists:is_defined(list_to_atom(K), Props) orelse
+    proplists:is_defined(list_to_binary(K), Props).
+
+-spec get_value(string(), [proplists:property()]) -> any().
+get_value(K, Props) ->
+    get_values([list_to_atom(K), K, list_to_binary(K)], Props).
+
+get_values([], _) -> undefined;
+get_values([K|T], Props) ->
+    case proplists:get_value(K, Props) of
+        undefined ->
+            get_values(T, Props);
+        V -> V
+    end.
 
 -spec dump_to_file(any(), string()) -> ok.
 dump_to_file(ErlangTerm, Filename) ->
