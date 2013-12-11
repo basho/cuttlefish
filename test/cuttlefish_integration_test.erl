@@ -7,14 +7,10 @@
 generated_conf_file_test() ->
     {_, Mappings, _} = cuttlefish_schema:file("../test/riak.schema"),
     cuttlefish_conf:generate_file(Mappings, "../generated.conf"),
-
     %% Schema generated a conf file, let's parse it!
     Conf = cuttlefish_conf:file("../generated.conf"),
-
     ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
-
     ok.
-
 
 %% This test generates a .config file from the riak.schema. view it at ../generated.config
 generated_config_file_test() ->
@@ -28,19 +24,19 @@ generated_config_file_test() ->
 breaks_on_fuzzy_and_strict_match_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [{["listener", "protobuf", "$name"], "127.0.0.1:8087"}],
-    ?assertEqual({error, add_defaults}, cuttlefish_generator:map(Schema, Conf)),
+    ?assertMatch({error, add_defaults, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
 breaks_on_bad_enum_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [{["storage_backend"], penguin}],
-    ?assertEqual({error, transform_datatypes}, cuttlefish_generator:map(Schema, Conf)),
+    ?assertMatch({error, transform_datatypes, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
 breaks_on_bad_validation_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [{["ring_size"], 10}],
-    ?assertEqual({error, validation}, cuttlefish_generator:map(Schema, Conf)),
+    ?assertMatch({error, validation, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
 %% Tests that the schema can generate a default app.config from nothing
@@ -146,7 +142,7 @@ not_found_error_test() ->
     Schema = cuttlefish_schema:files(["../test/throw_not_found.schema"]),
     Conf = [],
     NewConfig = cuttlefish_generator:map(Schema, Conf),
-    ?assertEqual({error, apply_translations}, NewConfig).
+    ?assertMatch({error, apply_translations, _}, NewConfig).
 
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),

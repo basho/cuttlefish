@@ -79,7 +79,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
     end,
 
     #mapping{
-        variable = cuttlefish_util:tokenize_variable_key(Variable),
+        variable = cuttlefish_variable:tokenize(Variable),
         default = proplists:get_value(default, Proplist),
         commented = proplists:get_value(commented, Proplist),
         mapping = Mapping,
@@ -106,7 +106,7 @@ parse(X) ->
 -spec parse_and_merge(
     raw_mapping(), [mapping()]) -> [mapping()].
 parse_and_merge({mapping, Variable, _Mapping, Props} = MappingSource, Mappings) ->
-    Var = cuttlefish_util:tokenize_variable_key(Variable),
+    Var = cuttlefish_variable:tokenize(Variable),
     case lists:keyfind(Var, #mapping.variable, Mappings) of
         false ->
             [ parse(MappingSource) | Mappings];

@@ -23,7 +23,7 @@
 { translation,
   "riak_kv.anti_entropy",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("anti_entropy", Conf),
+    Setting = cuttlefish:conf_get("anti_entropy", Conf),
     case Setting of
       on -> {on, []};
       debug -> {on, [debug]};
@@ -71,11 +71,11 @@
 { translation,
   "lager.handlers",
   fun(Conf) ->
-    SyslogHandler = case cuttlefish_util:conf_get_value("log.syslog", Conf) of
+    SyslogHandler = case cuttlefish:conf_get("log.syslog", Conf) of
       on ->  [{lager_syslog_backend, ["riak", daemon, info]}];
       _ -> []
     end,
-    ErrorHandler = case cuttlefish_util:conf_get_value("log.error.file", Conf) of
+    ErrorHandler = case cuttlefish:conf_get("log.error.file", Conf) of
       undefined -> [];
       ErrorFilename -> [{lager_file_backend, [{file, ErrorFilename},
                                               {level, error},
@@ -84,8 +84,8 @@
                                               {count, 5}]}]
     end,
 
-    ConsoleLogLevel = cuttlefish_util:conf_get_value("log.console.level", Conf),
-    ConsoleLogFile = cuttlefish_util:conf_get_value("log.console.file", Conf),
+    ConsoleLogLevel = cuttlefish:conf_get("log.console.level", Conf),
+    ConsoleLogFile = cuttlefish:conf_get("log.console.file", Conf),
 
     ConsoleHandler = {lager_console_handler, ConsoleLogLevel},
     ConsoleFileHandler = {lager_file_backend, [{file, ConsoleLogFile},
@@ -94,7 +94,7 @@
                                                 {date, "$D0"},
                                                 {count, 5}]},
 
-    ConsoleHandlers = case cuttlefish_util:conf_get_value("log.console", Conf) of
+    ConsoleHandlers = case cuttlefish:conf_get("log.console", Conf) of
       off -> [];
       file -> [ConsoleFileHandler];
       console -> [ConsoleHandler];
@@ -116,7 +116,7 @@
 { translation,
   "sasl.sasl_error_logger",
   fun(Conf) ->
-    case cuttlefish_util:conf_get_value("sasl", Conf) of %%how to pull default?
+    case cuttlefish:conf_get("sasl", Conf) of %%how to pull default?
         on -> true;
         _ -> false
     end
@@ -135,7 +135,7 @@
 { translation,
   "riak_core.http",
     fun(Conf) ->
-        HTTP = cuttlefish_util:filter_by_variable_starts_with("listener.http", Conf),
+        HTTP = cuttlefish_variable:filter_by_prefix("listener.http", Conf),
         [ IP || {_, IP} <- HTTP]
     end
 }.
@@ -152,7 +152,7 @@
 { translation,
   "riak_api.pb",
     fun(Conf) ->
-        PB = cuttlefish_util:filter_by_variable_starts_with("listener.protobuf", Conf),
+        PB = cuttlefish_variable:filter_by_prefix("listener.protobuf", Conf),
         [ IP || {_, IP} <- PB]
     end
 }.
@@ -183,7 +183,7 @@
 { translation,
   "riak_core.https",
     fun(Conf) ->
-        HTTPS = cuttlefish_util:filter_by_variable_starts_with("listener.https", Conf),
+        HTTPS = cuttlefish_variable:filter_by_prefix("listener.https", Conf),
         [ IP || {_, IP} <- HTTPS]
     end
 }.
@@ -233,7 +233,7 @@
 { translation,
   "riak_core.dtrace_support",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("dtrace", Conf),
+    Setting = cuttlefish:conf_get("dtrace", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -272,7 +272,7 @@
 
 { translation,
   "riak_search.enabled", fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("search", Conf),
+    Setting = cuttlefish:conf_get("search", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -348,7 +348,7 @@ end}.
 
 { translation,
   "lager.error_logger_redirect", fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("log.error.redirect", Conf),
+    Setting = cuttlefish:conf_get("log.error.redirect", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -374,7 +374,7 @@ end}.
 { translation,
   "riak_kv.storage_backend",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("storage_backend", Conf),
+    Setting = cuttlefish:conf_get("storage_backend", Conf),
     case Setting of
       bitcask -> riak_kv_bitcask_backend;
       leveldb -> riak_kv_eleveldb_backend;
@@ -410,8 +410,8 @@ end}.
 {translation,
  "riak_kv.anti_entropy_build_limit",
  fun(Conf) ->
-    {cuttlefish_util:conf_get_value("anti_entropy.build_limit.number", Conf),
-     cuttlefish_util:conf_get_value("anti_entropy.build_limit.per_timespan", Conf)}
+    {cuttlefish:conf_get("anti_entropy.build_limit.number", Conf),
+     cuttlefish:conf_get("anti_entropy.build_limit.per_timespan", Conf)}
  end}.
 
 %% @doc Determine how often hash trees are expired after being built.
@@ -477,7 +477,7 @@ end}.
 { translation,
   "riak_kv.mapred_2i_pipe",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("mapred_2i_pipe", Conf),
+    Setting = cuttlefish:conf_get("mapred_2i_pipe", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -547,7 +547,7 @@ end}.
 { translation,
   "riak_kv.vnode_vclocks",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("vnode_vclocks", Conf),
+    Setting = cuttlefish:conf_get("vnode_vclocks", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -568,7 +568,7 @@ end}.
 { translation,
   "riak_kv.listkeys_backpressure",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("listkeys_backpressure", Conf),
+    Setting = cuttlefish:conf_get("listkeys_backpressure", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -649,7 +649,7 @@ end}.
 {translation,
  "riak_control.enabled",
  fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("riak_control", Conf),
+    Setting = cuttlefish:conf_get("riak_control", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -667,7 +667,7 @@ end}.
 {translation,
 "riak_control.auth",
 fun(Conf) ->
-  case cuttlefish_util:conf_get_value("riak_control.auth", Conf) of
+  case cuttlefish:conf_get("riak_control.auth", Conf) of
     userlist -> userlist;
     off -> none;
     _ -> none
@@ -687,7 +687,7 @@ end}.
 fun(Conf) ->
   UserList1 = lists:filter(
     fun({Var, _V}) ->
-      cuttlefish_util:fuzzy_variable_match(Var, ["riak_control","user","$username","password"])
+      cuttlefish_variable:is_fuzzy_match(Var, ["riak_control","user","$username","password"])
     end,
     Conf),
   UserList = [ begin
@@ -708,7 +708,7 @@ end}.
 {translation,
  "riak_control.admin",
  fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("riak_control.admin", Conf),
+    Setting = cuttlefish:conf_get("riak_control.admin", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -772,12 +772,12 @@ end}.
 {translation,
  "bitcask.sync_strategy",
  fun(Conf) ->
-  Setting = cuttlefish_util:conf_get_value("bitcask.sync_strategy", Conf),
+  Setting = cuttlefish:conf_get("bitcask.sync_strategy", Conf),
     case Setting of
       none -> none;
       o_sync -> o_sync;
       interval ->
-        Interval = cuttlefish_util:conf_get_value("bitcask.sync_interval", Conf, undefined),
+        Interval = cuttlefish:conf_get("bitcask.sync_interval", Conf, undefined),
         {seconds, Interval};
       _Default -> none
     end
@@ -828,13 +828,13 @@ end}.
 {translation,
  "bitcask.merge_window",
  fun(Conf) ->
-  Setting = cuttlefish_util:conf_get_value("bitcask.merge_window", Conf),
+  Setting = cuttlefish:conf_get("bitcask.merge_window", Conf),
     case Setting of
       always -> always;
       never -> never;
       window ->
-        Start = cuttlefish_util:conf_get_value("bitcask.merge_window.start", Conf, undefined),
-        End = cuttlefish_util:conf_get_value("bitcask.merge_window.end", Conf, undefined),
+        Start = cuttlefish:conf_get("bitcask.merge_window.start", Conf, undefined),
+        End = cuttlefish:conf_get("bitcask.merge_window.end", Conf, undefined),
         {Start, End};
       _Default -> always
     end
@@ -1051,7 +1051,7 @@ end}.
 { translation,
   "eleveldb.use_bloomfilter",
   fun(Conf) ->
-    case cuttlefish_util:conf_get_value("leveldb.bloomfilter", Conf) of
+    case cuttlefish:conf_get("leveldb.bloomfilter", Conf) of
         on -> true;
         off -> false;
         _ -> true
@@ -1104,7 +1104,7 @@ end}.
 {translation,
  "riak_kv.memory_backend.max_memory",
  fun(Conf) ->
-  Bytes = cuttlefish_util:conf_get_value("memory_backend.max_memory", Conf),
+  Bytes = cuttlefish:conf_get("memory_backend.max_memory", Conf),
   cuttlefish_util:ceiling(Bytes / 1048576)
  end
 }.
@@ -1178,7 +1178,7 @@ end}.
 
 {translation, "vm_args.+P",
 fun(Conf) ->
-  Procs = cuttlefish_util:conf_get_value("process_limit", Conf),
+  Procs = cuttlefish:conf_get("process_limit", Conf),
   integer_to_list(Procs)
 end}.
 

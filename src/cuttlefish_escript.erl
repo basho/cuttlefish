@@ -77,7 +77,7 @@ main(Args) ->
     end,
 
     application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
-    application:start(lager),
+    lager:start(),
 
     lager:debug("Cuttlefish set to debug level logging"),
 
@@ -134,9 +134,9 @@ describe(ParsedArgs, Query) when is_list(Query) ->
 
      Results = lists:filter(
         fun(X) ->
-            cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
-        end,
-        Mappings),
+         cuttlefish_variable:is_fuzzy_match(QDef, cuttlefish_mapping:variable(X))
+       end,
+       Mappings),
 
     case length(Results) of
         0 ->
@@ -274,7 +274,13 @@ engage_cuttlefish(ParsedArgs) ->
     Schema = load_schema(ParsedArgs),
 
     Conf = load_conf(ParsedArgs),
-    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+        {error, Phase, {error, Errors}} ->
+            lager:error("Error generating configuration in phase ~s", [Phase]),
+            [ cuttlefish_error:print(E) || E <- Errors],
+            stop_deactivate();
+        ValidConfig -> ValidConfig
+    end,
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of

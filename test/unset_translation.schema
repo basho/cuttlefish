@@ -3,7 +3,7 @@
 ]}.
 
 {translation, "erlang.key",
-    fun(Conf) -> cuttlefish_util:conf_get_value("a.b", Conf) * 17 end
+    fun(Conf) -> cuttlefish:conf_get("a.b", Conf) * 17 end
 }.
 
 %% nevermind, I don't want this translated.

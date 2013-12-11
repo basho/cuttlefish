@@ -29,20 +29,19 @@
 -compile(export_all).
 -endif.
 
--type error() :: {error, string()|[string()]}.
--type errorlist() :: {error, [error()]}.
 -type schema() :: {[cuttlefish_translation:translation()], [cuttlefish_mapping:mapping()], [cuttlefish_validator:validator()]}.
 -export_type([schema/0]).
 
--spec files([string()]) -> schema() | errorlist().
+-spec files([string()]) -> schema() | cuttlefish_error:errorlist().
 files(ListOfSchemaFiles) ->
     merger(fun file/1, ListOfSchemaFiles).
 
--spec strings([string()]) -> schema() | errorlist().
+-spec strings([string()]) -> schema() | cuttlefish_error:errorlist().
 strings(ListOfStrings) ->
     merger(fun string/1, ListOfStrings).
 
--spec merger(fun((string()) -> schema() | errorlist()), [string()]) -> schema() | errorlist().
+-spec merger(fun((string()) -> schema() | cuttlefish_error:errorlist()), [string()]) ->
+                    schema() | cuttlefish_error:errorlist().
 merger(Fun, ListOfInputs) ->
     Schema = lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
@@ -79,7 +78,7 @@ merger(Fun, ListOfInputs) ->
 
 %% This filter is *ONLY* for the case of multiple mappings to a single erlang
 %% app setting, *AND* there's no corresponding translation for that app setting
--spec filter(schema() | errorlist()) -> schema() | errorlist().
+-spec filter(schema() | cuttlefish_error:errorlist()) -> schema() | cuttlefish_error:errorlist().
 filter({error, Errorlist}) ->
     {error, Errorlist};
 filter({Translations, Mappings, Validators}) ->
@@ -107,20 +106,20 @@ count_mappings(Mappings) ->
         orddict:new(),
         Mappings).
 
--spec file(string()) -> schema() | errorlist().
+-spec file(string()) -> schema() | cuttlefish_error:errorlist().
 file(Filename) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
     case string(S) of
         {error, Errors} ->
-            cuttlefish_util:print_error("Error parsing schema: ~s", [Filename]),
+            cuttlefish_error:print("Error parsing schema: ~s", [Filename]),
             {error, Errors};
         Schema ->
             Schema
     end.
 
--spec string(string()) -> schema() | errorlist().
+-spec string(string()) -> schema() | cuttlefish_error:errorlist().
 string(S) ->
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
@@ -134,9 +133,9 @@ string(S) ->
                     [begin
                         case Desc of
                             [H|_] when is_list(H) ->
-                                [ cuttlefish_util:print_error(D) || D <- Desc];
+                                [cuttlefish_error:print(D) || D <- Desc];
                             _ ->
-                                cuttlefish_util:print_error(Desc)
+                                cuttlefish_error:print(Desc)
                         end
                     end || {error, Desc} <- Errors],
                     {error, Errors}
@@ -156,12 +155,12 @@ parse_schema(Tokens, Comments) ->
     {[cuttlefish_translation:translation()],
      [cuttlefish_mapping:mapping()],
      [cuttlefish_validator:validator()],
-     [errorlist()]}
+     [cuttlefish_error:errorlist()]}
     ) ->
         {[cuttlefish_translation:translation()],
          [cuttlefish_mapping:mapping()],
          [cuttlefish_validator:validator()],
-         [errorlist()]}.
+         [cuttlefish_error:errorlist()]}.
 %% We're done! We don't care about any comments after the last schema item
 parse_schema([], _LeftoverComments, {TAcc, MAcc, VAcc, EAcc}) ->
     {lists:reverse(TAcc), lists:reverse(MAcc), lists:reverse(VAcc), lists:reverse(EAcc)};
@@ -207,7 +206,7 @@ parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
 parse_schema_tokens([H|Scanned], Acc) ->
     parse_schema_tokens(Scanned, [H|Acc]).
 
--spec parse(list()) -> { mapping | translation | validator, tuple()} | errorlist().
+-spec parse(list()) -> { mapping | translation | validator, tuple()} | cuttlefish_error:errorlist().
 parse(Scanned) ->
     case erl_parse:parse_exprs(Scanned) of
         {ok, Parsed} ->

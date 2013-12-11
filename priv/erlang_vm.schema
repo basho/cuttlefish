@@ -1,3 +1,4 @@
+%%-*- mode: erlang -*-
 %%% Things that need to be in vm.args, but never tuned
 
 {mapping, "erlang.smp", "vm_args.-smp", [
@@ -19,7 +20,7 @@
 %% @doc Name of the riak node
 {mapping, "nodename", "vm_args.-name", [
   {default, "{{node}}"}
-]}. 
+]}.
 
 %% @doc Cookie for distributed node communication.  All nodes in the same cluster
 %% should use the same cookie or they will not be able to communicate.
@@ -36,7 +37,7 @@
   {default, "64000"}
 ]}.
 
-%% @doc Tweak GC to run more often 
+%% @doc Tweak GC to run more often
 {mapping, "erlang.fullsweep_after", "vm_args.-env ERL_FULLSWEEP_AFTER", [
   {default, "0"},
   {level, advanced}
@@ -52,15 +53,15 @@
   {default, "256000"}
 ]}.
 
-%% @doc Raise the default erlang process limit 
+%% @doc Raise the default erlang process limit
 {mapping, "erlang.process_limit", "vm_args.+P", [
   {datatype, integer},
   {default, 256000}
 ]}.
 
-{translation, "vm_args.+P", 
-fun(Conf) -> 
-  Procs = cuttlefish_util:conf_get_value("erlang.process_limit", Conf),
+{translation, "vm_args.+P",
+fun(Conf) ->
+  Procs = cuttlefish:conf_get("erlang.process_limit", Conf),
   integer_to_list(Procs)
 end}.
 
@@ -77,8 +78,8 @@ end}.
 ]}.
 
 {translation, "vm_args.+zdbbl",
- fun(Conf) -> 
-  ZDBBL = cuttlefish_util:conf_get_value("erlang.zdbbl", Conf, undefined),
+ fun(Conf) ->
+  ZDBBL = cuttlefish:conf_get("erlang.zdbbl", Conf, undefined),
   case ZDBBL of
     undefined -> undefined;
     X when is_integer(X) -> cuttlefish_util:ceiling(X / 1024); %% Bytes to Kilobytes;
@@ -87,8 +88,8 @@ end}.
  end
 }.
 
-{validator, "zdbbl_range", "+zddbl must be between 1KB and 2097151KB", 
- fun(ZDBBL) -> 
+{validator, "zdbbl_range", "+zddbl must be between 1KB and 2097151KB",
+ fun(ZDBBL) ->
   %% 2097151KB = 2147482624
   ZDBBL >= 1024 andalso ZDBBL =< 2147482624
  end
