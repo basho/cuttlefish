@@ -76,25 +76,33 @@ assert_not_configured(Config, Path) ->
     end,
     ?assertEqual({Path, undefined}, {Path, ActualValue}).
 
--spec path(cuttlefish_variable:variable(), [proplists:property()]) ->
+-spec path(cuttlefish_variable:variable(),
+           [{ string() | atom() | binary() , term()}]) ->
                   {ok, any()} | notset | {error, bad_nesting}.
 path(_, []) ->
     {error, bad_nesting};
 path(_, undefined) ->
     notset;
-path([Last], Proplist) when is_list(Last) ->
-    path([list_to_atom(Last)], Proplist);
-path([Last], Proplist) when is_atom(Last) ->
-    case proplists:is_defined(Last, Proplist) of
-        true ->
-            {ok, proplists:get_value(Last, Proplist)};
-        _ ->
-            notset
+path([Last], Proplist) ->
+    case lists:dropwhile(key_no_match(Last), Proplist) of
+        [] -> notset;
+        [{_, V}|_] -> {ok, V}
     end;
-path([H|T], Proplist) when is_list(H) ->
-    path([list_to_atom(H)|T], Proplist);
-path([H|T], Proplist) when is_atom(H) ->
-    path(T, proplists:get_value(H, Proplist)).
+path([H|T], Proplist) when is_list(H)->
+    case path([H], Proplist) of
+        {ok, SmallerProplist} ->
+            path(T, SmallerProplist);
+        Other ->
+            Other
+    end.
+
+-spec key_no_match(string()) -> fun((atom() | string() | binary()) -> boolean()).
+key_no_match(Key) ->
+    fun({E, _}) when is_atom(E) -> E =/= list_to_atom(Key);
+       ({E, _}) when is_list(E) -> E =/= Key;
+       ({E, _}) when is_binary(E) -> E =/= list_to_binary(Key);
+       (_) -> true
+    end.
 
 -spec dump_to_file(any(), string()) -> ok.
 dump_to_file(ErlangTerm, Filename) ->
@@ -104,6 +112,8 @@ dump_to_file(ErlangTerm, Filename) ->
     ok.
 
 -ifdef(TEST).
+
+
 
 path_test() ->
     ?assertEqual(
