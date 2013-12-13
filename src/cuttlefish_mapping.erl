@@ -31,7 +31,7 @@
         mapping::string(),
         default::term(),
         commented::term(),
-        datatype = string :: cuttlefish_datatypes:datatype(),
+        datatype = [string] :: cuttlefish_datatypes:datatype_list(),
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
@@ -76,21 +76,32 @@ parse({mapping, Variable, Mapping, Proplist}) ->
                     _ -> E
                 end
             end || E <- Enums ],
-            {enum, AtomEnums};
-        D -> D
+            [{enum, AtomEnums}];
+        L when is_list(L) ->
+            case cuttlefish_datatypes:is_valid_list(L) of
+                true -> L;
+                _ -> {error, "Invalid datatype list for mapping: " ++ Variable ++ "."}
+            end;
+        D -> [D]
     end,
-    #mapping{
-        variable = cuttlefish_variable:tokenize(Variable),
-        default = proplists:get_value(default, Proplist),
-        commented = proplists:get_value(commented, Proplist),
-        mapping = Mapping,
-        level = proplists:get_value(level, Proplist, basic),
-        datatype = Datatype,
-        doc = proplists:get_value(doc, Proplist, []),
-        see = proplists:get_value(see, Proplist, []),
-        include_default = proplists:get_value(include_default, Proplist),
-        validators = proplists:get_value(validators, Proplist, [])
-    };
+
+    case Datatype of
+        {error, _} ->
+            Datatype;
+        _ ->
+            #mapping{
+                variable = cuttlefish_variable:tokenize(Variable),
+                default = proplists:get_value(default, Proplist),
+                commented = proplists:get_value(commented, Proplist),
+                mapping = Mapping,
+                level = proplists:get_value(level, Proplist, basic),
+                datatype = Datatype,
+                doc = proplists:get_value(doc, Proplist, []),
+                see = proplists:get_value(see, Proplist, []),
+                include_default = proplists:get_value(include_default, Proplist),
+                validators = proplists:get_value(validators, Proplist, [])
+            }
+    end;
 parse(X) ->
     {error,
      io_lib:format(
@@ -241,7 +252,7 @@ mapping_test() ->
     ?assertEqual("default value", Record#mapping.default),
     ?assertEqual("erlang.key", Record#mapping.mapping),
     ?assertEqual(advanced, Record#mapping.level),
-    ?assertEqual({enum, [on, off]}, Record#mapping.datatype),
+    ?assertEqual([{enum, [on, off]}], Record#mapping.datatype),
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
     ?assertEqual("default_substitution", Record#mapping.include_default),
     ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
@@ -251,7 +262,7 @@ mapping_test() ->
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
     ?assertEqual(advanced, level(Record)),
-    ?assertEqual({enum, [on, off]}, datatype(Record)),
+    ?assertEqual([{enum, [on, off]}], datatype(Record)),
     ?assertEqual(["documentation", "for feature"], doc(Record)),
     ?assertEqual("default_substitution", include_default(Record)),
     ?assertEqual(["valid.the.impailer"], validators(Record)),
@@ -403,7 +414,7 @@ smart_merge_test() ->
     ?assertEqual(undefined, default(NewUnMergedMapping)),
     ?assertEqual("some.new_other_key", mapping(NewUnMergedMapping)),
     ?assertEqual(advanced, level(NewUnMergedMapping)),
-    ?assertEqual(string, datatype(NewUnMergedMapping)),
+    ?assertEqual([string], datatype(NewUnMergedMapping)),
     ?assertEqual([], doc(NewUnMergedMapping)),
     ?assertEqual(undefined, include_default(NewUnMergedMapping)),
     ?assertEqual([], validators(NewUnMergedMapping)),
@@ -417,7 +428,7 @@ smart_merge_test() ->
     ?assertEqual(7, default(NewMergedMapping)),
     ?assertEqual("some.new_key", mapping(NewMergedMapping)),
     ?assertEqual(advanced, level(NewMergedMapping)),
-    ?assertEqual(integer, datatype(NewMergedMapping)),
+    ?assertEqual([integer], datatype(NewMergedMapping)),
     ?assertEqual(["documentation", "for feature"], doc(NewMergedMapping)),
     ?assertEqual(undefined, include_default(NewMergedMapping)),
     ?assertEqual([], validators(NewMergedMapping)),
@@ -432,7 +443,7 @@ smart_merge_test() ->
     ?assertEqual(42, default(NewerMergedMapping)),
     ?assertEqual("some.third_key", mapping(NewerMergedMapping)),
     ?assertEqual(advanced, level(NewerMergedMapping)),
-    ?assertEqual(integer, datatype(NewerMergedMapping)),
+    ?assertEqual([integer], datatype(NewerMergedMapping)),
     ?assertEqual(["documentation", "for feature"], doc(NewerMergedMapping)),
     ?assertEqual(undefined, include_default(NewerMergedMapping)),
     ?assertEqual([], validators(NewerMergedMapping)),
@@ -447,7 +458,7 @@ accidentally_used_strings_for_enums_test() ->
             {datatype, {enum, ["on", "off"]}}
         ]
     }),
-    ?assertEqual({enum, [on, off]}, cuttlefish_mapping:datatype(Mapping)),
+    ?assertEqual([{enum, [on, off]}], cuttlefish_mapping:datatype(Mapping)),
     ok.
 
 parse_error_test() ->
@@ -470,6 +481,32 @@ is_mapping_test() ->
         ]
     }),
     ?assert(is_mapping(M)),
+    ok.
+
+%% conf.key can be any integer or the atom undefined.
+extended_types_parse_test() ->
+    Mapping = parse({
+        mapping,
+        "conf.key",
+        "erlang.key",
+        [
+         {datatype, [integer, {atom, undefined}]}
+        ]
+    }),
+
+    ?assertEqual([integer, {atom, undefined}], cuttlefish_mapping:datatype(Mapping)),
+    ok.
+
+datatype_cannot_be_empty_list_test() ->
+    Mapping = parse({
+        mapping,
+        "conf.key",
+        "erlang.key",
+        [
+         {datatype, []}
+        ]
+    }),
+    ?assertMatch({error, _}, Mapping),
     ok.
 
 -endif.

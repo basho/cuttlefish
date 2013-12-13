@@ -26,11 +26,29 @@
 -compile(export_all).
 -endif.
 
--type datatype() :: integer | string | {enum, [atom()]} | ip | {duration, cuttlefish_duration:time_unit() } | bytesize.
--export_type([datatype/0]).
+-type datatype() :: integer |
+                    string |
+                    {enum, [atom()]} |
+                    ip |
+                    {duration, cuttlefish_duration:time_unit() } |
+                    bytesize.
+-type extended() :: { integer, integer() } |
+                    { string, string() } |
+                    { atom, atom() } |
+                    { ip, { string(), integer() } } |
+                    { {duration, cuttlefish_duration:time_unit() }, string() } |
+                    { bytesize, string() }.
+-type datatype_list() :: [ datatype() | extended() ].
 
--export([is_supported/1, from_string/2, to_string/2]).
+-export_type([datatype/0, extended/0, datatype_list/0]).
 
+-export([
+         is_supported/1,
+         is_extended/1,
+         is_valid_list/1,
+         from_string/2,
+         to_string/2
+]).
 
 -spec is_supported(any()) -> boolean().
 is_supported(integer) -> true;
@@ -48,8 +66,33 @@ is_supported({duration, ms}) -> true;
 is_supported(bytesize) -> true;
 is_supported(_) -> false.
 
+-spec is_extended(any()) -> boolean().
+is_extended({integer, I}) when is_integer(I) -> true;
+is_extended({string, S}) when is_list(S) -> true;
+is_extended({atom, A}) when is_atom(A) -> true;
+is_extended({ip, {IP, Port}}) when is_list(IP) andalso is_integer(Port) -> true;
+is_extended({{duration, f}, D}) when is_list(D) -> true;
+is_extended({{duration, w}, D}) when is_list(D) -> true;
+is_extended({{duration, d}, D}) when is_list(D) -> true;
+is_extended({{duration, g}, D}) when is_list(D) -> true;
+is_extended({{duration, m}, D}) when is_list(D) -> true;
+is_extended({{duration, s}, D}) when is_list(D) -> true;
+is_extended({{duration, ms}, D}) when is_list(D) -> true;
+is_extended({bytesize, B}) when is_list(B) -> true;
+is_extended(_) -> false.
 
--spec to_string(term(), datatype()) -> string().
+-spec is_valid_list(any()) -> boolean().
+is_valid_list(NotList) when not is_list(NotList) ->
+    false;
+is_valid_list([]) -> false;
+is_valid_list(List) ->
+    lists:all(fun(X) ->
+                  is_supported(X)
+                      orelse
+                  is_extended(X)
+              end, List).
+
+-spec to_string(term(), datatype()) -> string() | cuttlefish_error:error().
 to_string(Atom, atom) when is_list(Atom) -> Atom;
 to_string(Atom, atom) when is_atom(Atom) -> atom_to_list(Atom);
 
@@ -72,10 +115,9 @@ to_string(String, string) when is_list(String) -> String;
 
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(X, InvalidDatatype) ->
-    lager:error("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]),
-    error.
+    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]))}.
 
--spec from_string(term(), datatype()) -> term().
+-spec from_string(term(), datatype()) -> term() | cuttlefish_error:error().
 from_string(Atom, atom) when is_atom(Atom) -> Atom;
 from_string(String, atom) -> list_to_atom(String);
 
@@ -114,8 +156,7 @@ from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:pa
 
 from_string(String, string) when is_list(String) -> String;
 from_string(Thing, InvalidDatatype) ->
-   lager:error("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]),
-   error.
+   {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
 
 -ifdef(TEST).
 
@@ -147,7 +188,7 @@ to_string_bytesize_test() ->
     ?assertEqual("1GB", to_string("1GB", bytesize)).
 
 to_string_unsupported_datatype_test() ->
-    ?assertEqual(error, to_string("Something", unsupported_datatype)).
+    ?assertEqual({error, "Tried to convert \"Something\", an invalid datatype unsupported_datatype to_string."}, to_string("Something", unsupported_datatype)).
 
 from_string_atom_test() ->
     ?assertEqual(split_the, from_string(split_the, atom)),
@@ -193,7 +234,7 @@ from_string_string_test() ->
     ?assertEqual("string", from_string("string", string)).
 
 from_string_unsupported_datatype_test() ->
-    ?assertEqual(error, from_string("string", unsupported_datatype)).
+    ?assertEqual({error, "Tried to convert \"string\", an invalid datatype unsupported_datatype from_string."}, from_string("string", unsupported_datatype)).
 
 is_supported_test() ->
     ?assert(is_supported(integer)),
@@ -211,6 +252,34 @@ is_supported_test() ->
     ?assert(is_supported({duration, ms})),
     ?assert(is_supported(bytesize)),
     ?assert(not(is_supported(some_unsupported_type))),
+    ok.
+
+is_extended_test() ->
+    ?assertEqual(true, is_extended({integer, 10})),
+    ?assertEqual(true, is_extended({integer, -10})),
+    ?assertEqual(false, is_extended({integer, "ten"})),
+
+    ?assertEqual(true, is_extended({string, "string"})),
+    ?assertEqual(false, is_extended({string, string})),
+    ?assertEqual(false, is_extended({string, 10})),
+
+    ?assertEqual(true, is_extended({atom, atom})),
+    ?assertEqual(false, is_extended({atom, "atom"})),
+    ?assertEqual(false, is_extended({atom, 10})),
+
+    ?assertEqual(true, is_extended({ip, {"1.2.3.4", 1234}})),
+    ?assertEqual(false, is_extended({ip, {1234, 1234}})),
+    ?assertEqual(false, is_extended({ip, {"1.2.3.4", "1234"}})),
+
+    ?assertEqual(true, is_extended({{duration, f}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, w}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, d}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, g}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, m}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, s}, "10f"})),
+    ?assertEqual(true, is_extended({{duration, ms}, "10ms"})),
+    ?assertEqual(true, is_extended({bytesize, "10GB"})),
+
     ok.
 
 -endif.

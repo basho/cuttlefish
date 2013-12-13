@@ -88,7 +88,7 @@ generate_element(MappingRecord) ->
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
-    Datatype = cuttlefish_mapping:datatype(MappingRecord),
+    [Datatype|_] = cuttlefish_mapping:datatype(MappingRecord),
     %% level != basic: leave out of generated .conf file
     %% commeneted $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
