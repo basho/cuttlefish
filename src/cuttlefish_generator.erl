@@ -364,26 +364,84 @@ transform_datatypes(Conf, Mappings) ->
                     [ lager:warning("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
                     {Acc, ErrorAcc};
                 MappingRecord ->
-                    DT = cuttlefish_mapping:datatype(MappingRecord),
-                    case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
-                        {_, {error, Message}} ->
-                            lager:error("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]),
-                            {Acc, [{error, Message}|ErrorAcc]};
-                        {{enum, PossibleValues}, NewValue} ->
-                            case lists:member(NewValue, PossibleValues) of
-                                true -> {[{Variable, NewValue}|Acc], ErrorAcc};
-                                false ->
-                                    ErrStr = io_lib:format("Bad value: ~s for enum ~s", [NewValue, Variable]),
-                                    lager:error(ErrStr),
-                                    {Acc, [{error, ErrStr}|ErrorAcc]}
-                            end;
-                        {_, NewValue} -> {[{Variable, NewValue}|Acc], ErrorAcc}
+                    DTs = cuttlefish_mapping:datatype(MappingRecord),
+
+                    %% DTs is a list now!
+                    case transform_type(DTs, Value) of
+                        {ok, NewValue} ->
+                            {[{Variable, NewValue}|Acc], ErrorAcc};
+                        {error, EList} ->
+                            ErrorMsg = lists:flatten(io_lib:format("Error transforming datatype for: ~s", [string:join(Variable, ".")])),
+                            {Acc, [{error, ErrorMsg} | (EList ++ ErrorAcc)]}
                     end
             end
         end,
         {[], []},
         Conf).
 
+
+-spec transform_type(
+        cuttlefish_datatypes:datatype_list(),
+        string()) -> {ok, term()} | [cuttlefish_error:errorlist()].
+transform_type(DTs, Value) ->
+    transform_type(DTs, Value, []).
+
+-spec transform_type(
+        cuttlefish_datatypes:datatype_list(),
+        string(), [cuttlefish_error:error()]) -> {ok, term()} | [cuttlefish_error:errorlist()].
+transform_type([], _, Errors) -> {error, Errors};
+transform_type([DT|DatatypeTail], Value, Errors) ->
+    case {cuttlefish_datatypes:is_supported(DT), cuttlefish_datatypes:is_extended(DT)} of
+        {true, _} ->
+            transform_supported_type(DT, DatatypeTail, Value, Errors);
+        {_ , true} ->
+            transform_extended_type(DT, DatatypeTail, Value, Errors);
+        {false, false} ->
+            Error = {error, lists:flatten(io_lib:format(
+                "~p is not a supported datatype.", [DT]
+            ))},
+            {error, [Error]}
+    end.
+
+-spec transform_supported_type(cuttlefish_datatypes:datatype(),
+                               cuttlefish_datatypes:datatype_list(),
+                               any(),
+                               [cuttlefish_error:error()]) ->
+                                     {ok, term()} | [cuttlefish_error:error()].
+transform_supported_type(DT, Tail, Value, ErrorAcc) ->
+    case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
+        {_, {error, Message}} ->
+            transform_type(Tail, Value, [{error, Message}|ErrorAcc]);
+        {{enum, PossibleValues}, NewValue} ->
+            case lists:member(NewValue, PossibleValues) of
+                true -> {ok, NewValue};
+                false ->
+                    transform_type(Tail, Value, [
+                        {error, lists:flatten(io_lib:format("Bad value for enum: ~s", [Value]))}|ErrorAcc])
+            end;
+        {_, NewValue} -> {ok, NewValue}
+    end.
+
+-spec transform_extended_type(cuttlefish_datatypes:extended(),
+                              cuttlefish_datatypes:datatype_list(),
+                              any(),
+                              [cuttlefish_error:error()]) ->
+                                     {ok, term()} | [cuttlefish_error:error()].
+transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
+    case transform_supported_type(DT, [], Value, Errors) of
+        {ok, NewValue} ->
+            case NewValue =:= AcceptableValue of
+                true -> {ok, NewValue};
+                _ -> transform_type(Tail, Value,
+                                    [{error,
+                                      lists:flatten(
+                                        io_lib:format("~s is not accepted value: ~p",
+                                                      [Value, AcceptableValue])
+                                       )} |Errors])
+            end;
+        {error, EList} ->
+            EList
+    end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
 %% 1. The mapping is there! -> return mapping
@@ -787,6 +845,37 @@ bad_prefix_match_test() ->
     VariableDef = ["prefix", "one", "other_thing", "$name"],
 
     ?assertEqual([], add_fuzzy_default(Prefixes, Conf, Default, VariableDef)),
+    ok.
+
+assert_extended_datatype(
+  Datatype,
+  Setting,
+  Expected) ->
+    Mappings = [
+        cuttlefish_mapping:parse({mapping, "a.b", "e.k", [
+            {datatype, Datatype}
+        ]})
+    ],
+    Conf = [
+        {["a","b"], Setting}
+    ],
+
+    Actual = map({[], Mappings, []}, Conf),
+
+    case Expected of
+        {error, Phase, EMsg} ->
+            ?assertMatch({error, Phase, _}, Actual),
+            ?assertEqual({error, EMsg}, hd(element(2, element(3, Actual))));
+        _ ->
+            ?assertEqual([{e, [{k, Expected}]}], map({[], Mappings, []}, Conf))
+    end,
+    ok.
+
+extended_datatypes_test() ->
+    assert_extended_datatype([integer, {atom, never}], "1", 1),
+    assert_extended_datatype([integer, {atom, never}], "never", never),
+    assert_extended_datatype([integer, {atom, never}], "always", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
+    %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
     ok.
 
 -endif.
