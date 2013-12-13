@@ -161,7 +161,7 @@ describe(ParsedArgs, Query) when is_list(Query) ->
                 {Docs, See} ->
                     [ ?STDOUT("~s", [Line]) || Line <- Docs],
                     ?STDOUT("See also:", []),
-                    [?STDOUT("    ~s", [string:join(S, ",")]) || S <- See]
+                    [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
             end,
             ?STDOUT("", []),
             ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
