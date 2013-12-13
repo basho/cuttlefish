@@ -27,7 +27,7 @@
 -endif.
 
 -record(mapping, {
-        variable::[string()],
+        variable::cuttlefish_variable:variable(),
         mapping::string(),
         default::term(),
         commented::term(),
@@ -36,7 +36,8 @@
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
         validators = [] :: [string()],
-        is_merge = false :: boolean()
+        is_merge = false :: boolean(),
+        see = [] :: [cuttlefish_variable:variable()]
     }).
 
 -type mapping() :: #mapping{}.
@@ -56,6 +57,7 @@
     datatype/1,
     level/1,
     doc/1,
+    see/1,
     include_default/1,
     replace/2,
     validators/1,
@@ -77,7 +79,6 @@ parse({mapping, Variable, Mapping, Proplist}) ->
             {enum, AtomEnums};
         D -> D
     end,
-
     #mapping{
         variable = cuttlefish_variable:tokenize(Variable),
         default = proplists:get_value(default, Proplist),
@@ -86,6 +87,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         level = proplists:get_value(level, Proplist, basic),
         datatype = Datatype,
         doc = proplists:get_value(doc, Proplist, []),
+        see = proplists:get_value(see, Proplist, []),
         include_default = proplists:get_value(include_default, Proplist),
         validators = proplists:get_value(validators, Proplist, [])
     };
@@ -132,7 +134,8 @@ merge(NewMappingSource, OldMapping) ->
         level = choose(level, NewMappingSource, MergeMapping, OldMapping),
         doc = choose(doc, NewMappingSource, MergeMapping, OldMapping),
         include_default = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
-        validators = choose(validators, NewMappingSource, MergeMapping, OldMapping)
+        validators = choose(validators, NewMappingSource, MergeMapping, OldMapping),
+        see = choose(see, NewMappingSource, MergeMapping, OldMapping)
     }.
 
 choose(Field, {_, _, _, OriginalProps} = _RawMapping, MergeMapping, OldMapping) ->
@@ -175,6 +178,9 @@ level(M) -> M#mapping.level.
 
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
+
+-spec see(mapping()) -> [cuttlefish_variable:variable()].
+see(M) -> M#mapping.see.
 
 -spec include_default(mapping()) -> string() | undefined.
 include_default(M) -> M#mapping.include_default.

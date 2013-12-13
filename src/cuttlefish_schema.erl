@@ -29,7 +29,10 @@
 -compile(export_all).
 -endif.
 
--type schema() :: {[cuttlefish_translation:translation()], [cuttlefish_mapping:mapping()], [cuttlefish_validator:validator()]}.
+-type schema() :: {
+              [cuttlefish_translation:translation()],
+              [cuttlefish_mapping:mapping()],
+              [cuttlefish_validator:validator()]}.
 -export_type([schema/0]).
 
 -spec files([string()]) -> schema() | cuttlefish_error:errorlist().
@@ -183,7 +186,8 @@ parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
         {mapping, {mapping, Variable, Mapping, Proplist}} ->
             Attributes = comment_parser(Comments),
             Doc = proplists:get_value(doc, Attributes, []),
-            MappingSource = {mapping, Variable, Mapping, [{doc, Doc}|Proplist]},
+            See = get_see(Attributes),
+            MappingSource = {mapping, Variable, Mapping, [{see, See},{doc, Doc}|Proplist]},
             {TAcc, cuttlefish_mapping:parse_and_merge(MappingSource, MAcc), VAcc, EAcc};
         {translation, Return} ->
             {cuttlefish_translation:parse_and_merge(Return, TAcc), MAcc, VAcc, EAcc};
@@ -217,6 +221,12 @@ parse(Scanned) ->
         E ->
             {error, E}
     end.
+
+-spec get_see([proplists:property()]) -> [cuttlefish_variable:variable()].
+get_see(Proplist) ->
+    [ cuttlefish_variable:tokenize(Line)
+      || [Line] <- proplists:get_all_values(see, Proplist)].
+
 
 comment_parser(Comments) ->
     StrippedComments =
@@ -278,13 +288,17 @@ comment_parser_test() ->
         "%% @datatype enum on, off",
         "%% @advanced",
         "%% @include_default name_substitution",
-        "%% @mapping riak_kv.anti_entropy"
+        "%% @mapping riak_kv.anti_entropy",
+        "%% @see mapping.a",
+        "%% @see mapping.b"
     ],
     ParsedComments = comment_parser(Comments),
     ?assertEqual(["this is a sample doc",
                   "it spans multiple lines",
                   "there can be line breaks"],
                   proplists:get_value(doc, ParsedComments)),
+    ?assertEqual([["mapping.a"], ["mapping.b"]],
+                 proplists:get_all_values(see, ParsedComments)),
     ok.
 
 bad_file_test() ->
@@ -406,6 +420,26 @@ files_test() ->
     AssertVal("b.validator1", V4, false),
     AssertVal("b.validator2", V5, true),
 
+    ok.
+
+get_see_test() ->
+    Proplist = [
+                {doc, ["line1", "line2", "line3"]},
+                {see, ["a.b"]},
+                {see, ["a.c"]}
+               ],
+    ?assertEqual([["a","b"],["a","c"]], get_see(Proplist)),
+    ok.
+
+see_test() ->
+    String = "{mapping, \"a.b\", \"e.k\", []}.\n"
+        ++ "%% @see a.b\n"
+        ++ "{mapping, \"a.c\", \"e.j\", []}.\n",
+    {_, Mappings, _} = strings([String]),
+    ?assertEqual(2, length(Mappings)),
+    [M1, M2] = Mappings,
+    ?assertEqual([], cuttlefish_mapping:see(M1)),
+    ?assertEqual([["a", "b"]], cuttlefish_mapping:see(M2)),
     ok.
 
 strings_filtration_test() ->
