@@ -131,12 +131,15 @@ describe(ParsedArgs, Query) when is_list(Query) ->
     lager:debug("cuttlefish describe '~s'", [Q]),
     {_, Mappings, _} = load_schema(ParsedArgs),
 
-
-     Results = lists:filter(
+    FindResults = fun(QueryVar) ->
+    lists:filter(
         fun(X) ->
-         cuttlefish_variable:is_fuzzy_match(QDef, cuttlefish_mapping:variable(X))
-       end,
-       Mappings),
+            cuttlefish_variable:is_fuzzy_match(QueryVar, cuttlefish_mapping:variable(X))
+        end,
+        Mappings)
+    end,
+
+    Results = FindResults(QDef),
 
     case length(Results) of
         0 ->
@@ -144,7 +147,22 @@ describe(ParsedArgs, Query) when is_list(Query) ->
         _X ->
             Match = hd(Results),
             ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
-            [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(Match)],
+            case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
+                {[], []} ->
+                    ok;
+                {[], See} ->
+                    [ begin
+                          M = hd(FindResults(S)),
+                          [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(M)]
+                    end || S <- See],
+                    ok;
+                {Docs, []} ->
+                    [ ?STDOUT("~s", [Line]) || Line <- Docs];
+                {Docs, See} ->
+                    [ ?STDOUT("~s", [Line]) || Line <- Docs],
+                    ?STDOUT("See also:", []),
+                    [?STDOUT("    ~s", [string:join(S, ",")]) || S <- See]
+            end,
             ?STDOUT("", []),
             ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
             ?STDOUT("   Default Value: ~p", [cuttlefish_mapping:default(Match)]),
