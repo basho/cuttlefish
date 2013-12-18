@@ -22,37 +22,38 @@
 -module(cuttlefish_conf).
 
 -export([
-    generate/1,
-    generate_file/2,
-    file/1,
-    files/1,
-    is_variable_defined/2]).
+         generate/1,
+         generate_file/2,
+         file/1,
+         files/1,
+         is_variable_defined/2]).
 
 -type conf_pair() :: {cuttlefish_variable:variable(), any()}.
 -type conf() :: [conf_pair()].
 -export_type([conf_pair/0, conf/0]).
 
+-define(FMT(F, Args), lists:flatten(io_lib:format(F, Args))).
 
 is_variable_defined(VariableDef, Conf) ->
     lists:any(fun({X, _}) -> cuttlefish_variable:is_fuzzy_match(X, VariableDef) end, Conf).
 
 files(ListOfConfFiles) ->
     lists:foldl(
-        fun(ConfFile, ConfAcc) ->
-            case cuttlefish_conf:file(ConfFile) of
-                {error, _Reason} ->
-                    ConfAcc;
-                Conf ->
-                    lists:foldl(
+      fun(ConfFile, ConfAcc) ->
+              case cuttlefish_conf:file(ConfFile) of
+                  {error, _Reason} ->
+                      ConfAcc;
+                  Conf ->
+                      lists:foldl(
                         fun({K,V}, MiniAcc) ->
-                            cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
+                                cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
                         end,
                         ConfAcc,
                         Conf)
-            end
-        end,
-        [],
-        ListOfConfFiles).
+              end
+      end,
+      [],
+      ListOfConfFiles).
 
 file(Filename) ->
     case conf_parse:file(Filename) of
@@ -66,9 +67,9 @@ file(Filename) ->
 -spec generate([cuttlefish_mapping:mapping()]) -> [string()].
 generate(Mappings) ->
     lists:foldl(
-        fun(Mapping, ConfFile) ->
-            ConfFile ++ generate_element(Mapping)
-        end, [], Mappings).
+      fun(Mapping, ConfFile) ->
+              ConfFile ++ generate_element(Mapping)
+      end, [], Mappings).
 
 -spec generate_file([cuttlefish_mapping:mapping()], string()) -> ok.
 generate_file(Mappings, Filename) ->
@@ -76,8 +77,8 @@ generate_file(Mappings, Filename) ->
 
     {ok, S} = file:open(Filename, [write]),
     [ begin
-        io:format(S, "~s~n", [lists:flatten(Line)])
-    end || Line <- ConfFileLines],
+          io:format(S, "~s~n", [lists:flatten(Line)])
+      end || Line <- ConfFileLines],
     file:close(S),
     ok.
 
@@ -118,29 +119,41 @@ generate_comments(M) ->
     DocString = cuttlefish_mapping:doc(M),
 
     Default = case cuttlefish_mapping:default(M) of
-        undefined -> [];
-        Other ->
-            [ "", lists:flatten(
-                io_lib:format("Default: ~p", [Other]))
-            ]
-    end,
+                  undefined -> [];
+                  Other ->
+                      [ "", ?FMT("Default: ~p", [Other]) ]
+              end,
 
-    Datatypes = ["", "Valid Datatypes:" | [ begin
-        lists:flatten(
-          io_lib:format("  ~p", [DT])
-         )
-    end || DT <- cuttlefish_mapping:datatype(M)]],
+    Datatypes = ["", "Acceptable values:" |
+                 [ ?FMT("  - ~s", [pretty_datatype(DT)])
+                   || DT <- cuttlefish_mapping:datatype(M)]],
 
     Doc = DocString ++ Default ++ Datatypes,
     [ "## " ++ D || D <- Doc].
 
+-spec pretty_datatype(cuttlefish_datatypes:datatype() |
+                      cuttlefish_datatypes:extended()) -> string().
+pretty_datatype(integer) -> "an integer";
+pretty_datatype({enum, L}) ->
+    "one of: " ++ string:join([ atom_to_list(A) || A <- L], ", ");
+pretty_datatype(ip) -> "an IP/port pair, e.g. 127.0.0.1:10011";
+pretty_datatype({duration, _}) -> "a time duration with units, e.g. '10s' for 10 seconds";
+pretty_datatype(bytesize) -> "a byte size with units, e.g. 10GB";
+pretty_datatype({integer, I}) -> "the integer " ++ integer_to_list(I);
+pretty_datatype({string, S}) -> "the text \"" ++ S ++ "\"";
+pretty_datatype({atom, A}) -> "the text \"" ++ atom_to_list(A) ++ "\"";
+pretty_datatype({ip, {IP, Port}}) -> ?FMT("the address ~s:~p", [IP, Port]);
+pretty_datatype({{duration,_}, D}) -> "the time duration " ++ D;
+pretty_datatype({bytesize, B}) -> "the bytesize " ++ B;
+pretty_datatype(_) -> "text". %% string and atom
+
 remove_duplicates(Conf) ->
     lists:foldl(
-        fun({K,V}, MiniAcc) ->
-            cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
-        end,
-        [],
-        Conf).
+      fun({K,V}, MiniAcc) ->
+              cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
+      end,
+      [],
+      Conf).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -153,62 +166,62 @@ generate_element_test() ->
 
     TestSchemaElement =
         cuttlefish_mapping:parse({mapping, "ring_size", "riak_core.ring_creation_size",
-            [
-             {datatype, integer},
-             {commented, 64},
-             {doc, ["Default ring creation size.  Make sure it is a power of 2,",
-                    "e.g. 16, 32, 64, 128, 256, 512 etc"]}
-            ]
-        }),
+                                  [
+                                   {datatype, integer},
+                                   {commented, 64},
+                                   {doc, ["Default ring creation size.  Make sure it is a power of 2,",
+                                          "e.g. 16, 32, 64, 128, 256, 512 etc"]}
+                                  ]
+                                 }),
 
 
     GeneratedConf = generate_element(TestSchemaElement),
 
     ?assertEqual(7, length(GeneratedConf)),
     ?assertEqual(
-        "## Default ring creation size.  Make sure it is a power of 2,",
-        lists:nth(1, GeneratedConf)
-        ),
+       "## Default ring creation size.  Make sure it is a power of 2,",
+       lists:nth(1, GeneratedConf)
+      ),
     ?assertEqual(
-        "## e.g. 16, 32, 64, 128, 256, 512 etc",
-        lists:nth(2, GeneratedConf)
-        ),
+       "## e.g. 16, 32, 64, 128, 256, 512 etc",
+       lists:nth(2, GeneratedConf)
+      ),
     ?assertEqual(
-        "## ",
-        lists:nth(3, GeneratedConf)
-        ),
+       "## ",
+       lists:nth(3, GeneratedConf)
+      ),
     ?assertEqual(
-        "## Valid Datatypes:",
-        lists:nth(4, GeneratedConf)
-        ),
+       "## Acceptable values:",
+       lists:nth(4, GeneratedConf)
+      ),
     ?assertEqual(
-        "##   integer",
-        lists:nth(5, GeneratedConf)
-        ),
+       "##   - an integer",
+       lists:nth(5, GeneratedConf)
+      ),
     ?assertEqual(
-        "## ring_size = 64",
-        lists:nth(6, GeneratedConf)
-        ),
+       "## ring_size = 64",
+       lists:nth(6, GeneratedConf)
+      ),
     ok.
 
 generate_dollar_test() ->
     TestSchemaElement =
         cuttlefish_mapping:parse({ mapping, "listener.http.$name", "riak_core.http", [
-             {datatype, ip},
-             {default, "127.0.0.1:8098"},
-             {mapping, "riak_core.http"},
-             {include_default,"internal"}
-            ]}),
+                                                                                      {datatype, ip},
+                                                                                      {default, "127.0.0.1:8098"},
+                                                                                      {mapping, "riak_core.http"},
+                                                                                      {include_default,"internal"}
+                                                                                     ]}),
     _GeneratedConf = generate_element(TestSchemaElement),
 
     ok.
 
 generate_comments_test() ->
     SchemaElement = cuttlefish_mapping:parse({ mapping, "dont.care", "undefined", [
-        {doc, ["Hi!", "Bye!"]}
-    ]}),
+                                                                                   {doc, ["Hi!", "Bye!"]}
+                                                                                  ]}),
     Comments = generate_comments(SchemaElement),
-    ?assertEqual(["## Hi!", "## Bye!", "## ", "## Valid Datatypes:", "##   string"], Comments).
+    ?assertEqual(["## Hi!", "## Bye!", "## ", "## Acceptable values:", "##   - text"], Comments).
 
 duplicates_test() ->
     Conf = file("../test/multi1.conf"),
