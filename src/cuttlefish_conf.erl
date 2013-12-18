@@ -114,8 +114,24 @@ generate_element(basic, _, _Comment) -> commented;
 generate_element(_Level, _Default, _Commented) -> no.
 
 -spec generate_comments(cuttlefish_mapping:mapping()) -> [string()].
-generate_comments(MappingRecord) ->
-    Doc = cuttlefish_mapping:doc(MappingRecord),
+generate_comments(M) ->
+    DocString = cuttlefish_mapping:doc(M),
+
+    Default = case cuttlefish_mapping:default(M) of
+        undefined -> [];
+        Other ->
+            [ "", lists:flatten(
+                io_lib:format("Default: ~p", [Other]))
+            ]
+    end,
+
+    Datatypes = ["", "Valid Datatypes:" | [ begin
+        lists:flatten(
+          io_lib:format("  ~p", [DT])
+         )
+    end || DT <- cuttlefish_mapping:datatype(M)]],
+
+    Doc = DocString ++ Default ++ Datatypes,
     [ "## " ++ D || D <- Doc].
 
 remove_duplicates(Conf) ->
@@ -148,7 +164,7 @@ generate_element_test() ->
 
     GeneratedConf = generate_element(TestSchemaElement),
 
-    ?assertEqual(4, length(GeneratedConf)),
+    ?assertEqual(7, length(GeneratedConf)),
     ?assertEqual(
         "## Default ring creation size.  Make sure it is a power of 2,",
         lists:nth(1, GeneratedConf)
@@ -158,12 +174,20 @@ generate_element_test() ->
         lists:nth(2, GeneratedConf)
         ),
     ?assertEqual(
-        "## ring_size = 64",
+        "## ",
         lists:nth(3, GeneratedConf)
         ),
     ?assertEqual(
-        "",
+        "## Valid Datatypes:",
         lists:nth(4, GeneratedConf)
+        ),
+    ?assertEqual(
+        "##   integer",
+        lists:nth(5, GeneratedConf)
+        ),
+    ?assertEqual(
+        "## ring_size = 64",
+        lists:nth(6, GeneratedConf)
         ),
     ok.
 
@@ -184,7 +208,7 @@ generate_comments_test() ->
         {doc, ["Hi!", "Bye!"]}
     ]}),
     Comments = generate_comments(SchemaElement),
-    ?assertEqual(["## Hi!", "## Bye!"], Comments).
+    ?assertEqual(["## Hi!", "## Bye!", "## ", "## Valid Datatypes:", "##   string"], Comments).
 
 duplicates_test() ->
     Conf = file("../test/multi1.conf"),
