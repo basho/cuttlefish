@@ -28,12 +28,16 @@
 
 -type datatype() :: integer |
                     string |
+                    file |
+                    directory |
                     {enum, [atom()]} |
                     ip |
                     {duration, cuttlefish_duration:time_unit() } |
                     bytesize.
 -type extended() :: { integer, integer() } |
                     { string, string() } |
+                    { file, file:filename() } |
+                    { directory, file:filename() } |
                     { atom, atom() } |
                     { ip, { string(), integer() } } |
                     { {duration, cuttlefish_duration:time_unit() }, string() } |
@@ -53,6 +57,8 @@
 -spec is_supported(any()) -> boolean().
 is_supported(integer) -> true;
 is_supported(string) -> true;
+is_supported(file) -> true;
+is_supported(directory) -> true;
 is_supported(atom) -> true;
 is_supported({enum, E}) when is_list(E) -> true;
 is_supported(ip) -> true;
@@ -70,6 +76,8 @@ is_supported(_) -> false.
 is_extended({integer, I}) when is_integer(I) -> true;
 is_extended({string, S}) when is_list(S) -> true;
 is_extended({atom, A}) when is_atom(A) -> true;
+is_extended({file, F}) when is_list(F) -> true;
+is_extended({directory, D}) when is_list(D) -> true;
 is_extended({ip, {IP, Port}}) when is_list(IP) andalso is_integer(Port) -> true;
 is_extended({{duration, f}, D}) when is_list(D) -> true;
 is_extended({{duration, w}, D}) when is_list(D) -> true;
@@ -113,6 +121,10 @@ to_string(Bytesize, bytesize) when is_integer(Bytesize) -> cuttlefish_bytesize:t
 
 to_string(String, string) when is_list(String) -> String;
 
+to_string(File, file) when is_list(File) -> File;
+
+to_string(Directory, directory) when is_list(Directory) -> Directory;
+
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(X, InvalidDatatype) ->
     {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]))}.
@@ -155,6 +167,11 @@ from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
 from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize);
 
 from_string(String, string) when is_list(String) -> String;
+
+from_string(File, file) when is_list(File) -> File;
+
+from_string(Directory, directory) when is_list(Directory) -> Directory;
+
 from_string(Thing, InvalidDatatype) ->
    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
 
@@ -240,6 +257,8 @@ is_supported_test() ->
     ?assert(is_supported(integer)),
     ?assert(is_supported(string)),
     ?assert(is_supported(atom)),
+    ?assert(is_supported(file)),
+    ?assert(is_supported(directory)),
     ?assert(is_supported({enum, [one, two, three]})),
     ?assert(not(is_supported({enum, not_a_list}))),
     ?assert(is_supported(ip)),
@@ -266,6 +285,14 @@ is_extended_test() ->
     ?assertEqual(true, is_extended({atom, atom})),
     ?assertEqual(false, is_extended({atom, "atom"})),
     ?assertEqual(false, is_extended({atom, 10})),
+
+    ?assertEqual(true, is_extended({file, "/tmp/foo.txt"})),
+    ?assertEqual(true, is_extended({file, ""})),
+    ?assertEqual(false, is_extended({file, this})),
+
+    ?assertEqual(true, is_extended({directory, "/tmp/foo.txt"})),
+    ?assertEqual(true, is_extended({directory, ""})),
+    ?assertEqual(false, is_extended({directory, this})),
 
     ?assertEqual(true, is_extended({ip, {"1.2.3.4", 1234}})),
     ?assertEqual(false, is_extended({ip, {1234, 1234}})),

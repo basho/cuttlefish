@@ -146,6 +146,10 @@ pretty_datatype({atom, A}) -> "the text \"" ++ atom_to_list(A) ++ "\"";
 pretty_datatype({ip, {IP, Port}}) -> ?FMT("the address ~s:~p", [IP, Port]);
 pretty_datatype({{duration,_}, D}) -> "the time duration " ++ D;
 pretty_datatype({bytesize, B}) -> "the bytesize " ++ B;
+pretty_datatype(file) -> "the path to a file";
+pretty_datatype(directory) -> "the path to a directory";
+pretty_datatype({file, F}) -> "the file " ++ F;
+pretty_datatype({directory, D}) -> "the directory " ++ D;
 pretty_datatype(_) -> "text". %% string and atom
 
 remove_duplicates(Conf) ->
