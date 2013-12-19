@@ -118,10 +118,11 @@ generate_element(_Level, _Default, _Commented) -> no.
 generate_comments(M) ->
     DocString = cuttlefish_mapping:doc(M),
 
+    [DefaultDT|_] = cuttlefish_mapping:datatype(M),
     Default = case cuttlefish_mapping:default(M) of
                   undefined -> [];
                   Other ->
-                      [ "", ?FMT("Default: ~p", [Other]) ]
+                      [ "", ?FMT("Default: ~s", [cuttlefish_datatypes:to_string(Other, DefaultDT)]) ]
               end,
 
     Datatypes = ["", "Acceptable values:" |
