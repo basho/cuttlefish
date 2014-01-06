@@ -182,7 +182,10 @@ from_string(File, file) when is_list(File) -> File;
 from_string(Directory, directory) when is_list(Directory) -> Directory;
 
 from_string(Flag, flag) when is_list(Flag) -> cuttlefish_flag:parse(Flag);
+from_string(Flag, flag) when is_atom(Flag) -> cuttlefish_flag:parse(Flag);
+
 from_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:parse(Flag, Type);
+from_string(Flag, {flag, _, _}=Type) when is_atom(Flag) -> cuttlefish_flag:parse(Flag, Type);
 
 from_string(Thing, InvalidDatatype) ->
    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
