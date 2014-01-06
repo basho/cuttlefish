@@ -150,6 +150,11 @@ pretty_datatype(file) -> "the path to a file";
 pretty_datatype(directory) -> "the path to a directory";
 pretty_datatype({file, F}) -> "the file " ++ F;
 pretty_datatype({directory, D}) -> "the directory " ++ D;
+pretty_datatype(flag) -> "on or off";
+pretty_datatype({flag, On, Off}) when is_atom(On), is_atom(Off) ->
+    ?FMT("~p or ~p", [On, Off]);
+pretty_datatype({flag, {On,_}, {Off,_}}) ->
+    ?FMT("~p or ~p", [On, Off]);
 pretty_datatype(_) -> "text". %% string and atom
 
 remove_duplicates(Conf) ->

@@ -30,6 +30,9 @@
                     string |
                     file |
                     directory |
+                    flag |
+                    {flag, atom(), atom()} |
+                    {flag, {atom(), term()}, {atom(), term()}} |
                     {enum, [atom()]} |
                     ip |
                     {duration, cuttlefish_duration:time_unit() } |
@@ -59,6 +62,9 @@ is_supported(integer) -> true;
 is_supported(string) -> true;
 is_supported(file) -> true;
 is_supported(directory) -> true;
+is_supported(flag) -> true;
+is_supported({flag, On, Off}) when is_atom(On), is_atom(Off) -> true;
+is_supported({flag, {On, _}, {Off, _}}) when is_atom(On), is_atom(Off) -> true;
 is_supported(atom) -> true;
 is_supported({enum, E}) when is_list(E) -> true;
 is_supported(ip) -> true;
@@ -125,6 +131,9 @@ to_string(File, file) when is_list(File) -> File;
 
 to_string(Directory, directory) when is_list(Directory) -> Directory;
 
+to_string(Flag, flag) when is_atom(Flag) -> cuttlefish_flag:to_string(Flag, flag);
+to_string(Flag, {flag, _, _}=Type) -> cuttlefish_flag:to_string(Flag, Type);
+
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(X, InvalidDatatype) ->
     {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]))}.
@@ -171,6 +180,9 @@ from_string(String, string) when is_list(String) -> String;
 from_string(File, file) when is_list(File) -> File;
 
 from_string(Directory, directory) when is_list(Directory) -> Directory;
+
+from_string(Flag, flag) when is_list(Flag) -> cuttlefish_flag:parse(Flag);
+from_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:parse(Flag, Type);
 
 from_string(Thing, InvalidDatatype) ->
    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
