@@ -58,9 +58,9 @@ assert_config(Config, Path, Value) ->
     check_config_for_errors(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
-            ?assert(false);
+            ?assertEqual({Path, Value}, {Path, nesting_error});
         notset ->
-            ?assert(false);
+            ?assertEqual({Path, Value}, {Path, notset});
         {ok, X} -> X
     end,
     ?assertEqual({Path, Value}, {Path, ActualValue}).

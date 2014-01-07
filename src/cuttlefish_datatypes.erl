@@ -147,7 +147,7 @@ from_string(Atom, {enum, Enum}) when is_atom(Atom) ->
         true -> Atom;
         _ -> {error, lists:flatten(io_lib:format("~p is not a valid enum value, acceptable values are ~p.", [Atom, Enum]))}
     end;
-from_string(String, {enum, Enum}) -> from_string(list_to_atom(String), {enum, Enum});
+from_string(String, {enum, Enum}) when is_list(String) -> from_string(list_to_atom(String), {enum, Enum});
 
 from_string(Integer, integer) when is_integer(Integer) -> Integer;
 from_string(String, integer) when is_list(String) ->

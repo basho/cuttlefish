@@ -435,7 +435,7 @@ transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
                 _ -> transform_type(Tail, Value,
                                     [{error,
                                       lists:flatten(
-                                        io_lib:format("~s is not accepted value: ~p",
+                                        io_lib:format("~p is not accepted value: ~p",
                                                       [Value, AcceptableValue])
                                        )} |Errors])
             end;
