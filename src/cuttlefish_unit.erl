@@ -76,6 +76,41 @@ assert_not_configured(Config, Path) ->
     end,
     ?assertEqual({Path, undefined}, {Path, ActualValue}).
 
+%% @doc Asserts that the generated configuration is in error.
+assert_error(Config) ->
+    ?assertMatch({error, _, {error, _}}, Config).
+
+%% @doc Asserts that the generated configuration is in error, with the
+%% error occurring in a specific phase.
+assert_error_in_phase(Config, Phase) when is_atom(Phase) ->
+    ?assertMatch({error, Phase, {error, _}}, Config).
+
+%% @doc Asserts that the generated configuration is in error, and the
+%% given error message was emitted by the given phase.
+assert_error(Config, Phase, Message) ->
+    assert_error_in_phase(Config, Phase),
+    assert_error_message(Config, Message).
+
+%% @doc Asserts that the generated configuration is in error and has
+%% the given error messages.
+assert_errors(Config, [H|_]=Messages) when is_list(H) ->
+    [ assert_error_message(Config, Message) || Message <- Messages ].
+
+%% @doc Asserts that the generated configuration is in error, with
+%% errors occuring in the given phase and containing the given
+%% messages.
+assert_errors(Config, Phase, [H|_]=Messages) when is_list(H) ->
+    assert_error_in_phase(Config, Phase),
+    [ assert_error_message(Config, Message) || Message <- Messages ].
+
+%% @doc Asserts that the generated configuration is in error and
+%% contains the given error message.
+assert_error_message(Config, Message) ->
+    assert_error(Config),
+    {error, Messages} = element(3, Config),
+    ?assert(lists:member({error, Message}, Messages)).
+
+
 -spec path(cuttlefish_variable:variable(),
            [{ string() | atom() | binary() , term()}]) ->
                   {ok, any()} | notset | {error, bad_nesting}.
