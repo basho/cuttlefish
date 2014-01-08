@@ -24,7 +24,9 @@
 
 -export([
     conf_get/2,
-    conf_get/3
+    conf_get/3,
+    unset/0,
+    invalid/1
 ]).
 
 % @doc conf_get/2 is a convenience wrapper for  proplists:get_value/2 for schema
@@ -44,7 +46,7 @@ conf_get([H|_T]=Variable, ConfigProplist) when is_list(H) ->
         true ->
             proplists:get_value(Variable, ConfigProplist);
         false ->
-            throw(not_found)
+            throw({not_found, Variable})
     end;
 conf_get(Variable, ConfigProplist) ->
     conf_get(
@@ -61,3 +63,15 @@ conf_get([H|_T]=Variable, ConfigProplist, Default) when is_list(H) ->
     proplists:get_value(Variable, ConfigProplist, Default);
 conf_get(Variable, ConfigProplist, Default) ->
     conf_get(cuttlefish_variable:tokenize(Variable), ConfigProplist, Default).
+
+%% @doc When called inside a translation, tells cuttlefish to omit the
+%% Erlang setting from the generated configuration.
+-spec unset() -> no_return().
+unset() ->
+    throw(unset).
+
+%% @doc When called inside a translation, informs the user that input
+%% configuration is invalid, using the supplied reason string.
+-spec invalid(string()) -> no_return().
+invalid(Reason) ->
+    throw({invalid, Reason}).
