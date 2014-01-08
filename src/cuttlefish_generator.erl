@@ -26,6 +26,8 @@
 -compile(export_all).
 -endif.
 
+-define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
+
 -export([map/2, find_mapping/2, add_defaults/2]).
 
 -spec map(
@@ -139,10 +141,11 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                          2 -> {Xlat, [Conf, Schema]};
                          OtherArity ->
                              {fun(_) ->
-                                 {error, io_lib:format(
-                                     "~p is not a valid arity for translation fun() ~s. Try 1 or 2.",
-                                     [OtherArity, Mapping]
-                                     )
+                                 {error, ?FMT("~p is not a valid arity for "
+                                              "translation fun() ~s. Try 1 or "
+                                              "2.",
+                                              [OtherArity, Mapping]
+                                             )
                                  }
                              end, error}
                     end,
@@ -155,15 +158,29 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                             {set, X}
                     catch
                         %% cuttlefish:conf_get/2 threw not_found
-                        %% Still deciding what to do here...
-                        %% TODO: Decide!
-                        %% throw:not_found ->
-                        %%     unset;
-                        %% For explicitly throw(unset) in translations
+                        throw:{not_found, NotFound} ->
+                            {error,
+                             ?FMT("Translation for '~s' expected to find"
+                                  " setting '~s' but was missing",
+                                  [Mapping,
+                                   string:join(NotFound, ".")])};
+                        %% For explicitly omitting an output setting.
+                        %% See cuttlefish:unset/0
                         throw:unset ->
                             unset;
+                        %% For translations that found invalid
+                        %% settings, even after mapping. See
+                        %% cuttlefish:invalid/1.
+                        throw:{invalid, Invalid} ->
+                            {error,
+                             ?FMT("Translation for '~s' found "
+                                  "invalid configuration: ~s",
+                                  [Mapping, Invalid])};
+                        %% Any unknown error, perhaps caused by stdlib
+                        %% stuff.
                         E:R ->
-                            {error, io_lib:format("Error running translation for ~s, [~p, ~p].", [Mapping, E, R])}
+                            {error, ?FMT("Error running translation for ~s, "
+                                         "[~p, ~p].", [Mapping, E, R])}
                     end,
 
                     case Translated of
@@ -246,7 +263,8 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
         _ ->
             %% TODO: Handle with more style and grace
             lager:error("Both fuzzy and strict match! should not happen"),
-            [{error, io_lib:format("~p has both a fuzzy and strict match", [VariableDef])}|Acc]
+            [{error, ?FMT("~p has both a fuzzy and strict match",
+                          [VariableDef])}|Acc]
     end.
 
 is_strict_prefix([H|T1], [H|T2]) ->
@@ -371,7 +389,8 @@ transform_datatypes(Conf, Mappings) ->
                         {ok, NewValue} ->
                             {[{Variable, NewValue}|Acc], ErrorAcc};
                         {error, EList} ->
-                            ErrorMsg = lists:flatten(io_lib:format("Error transforming datatype for: ~s", [string:join(Variable, ".")])),
+                            ErrorMsg = ?FMT("Error transforming datatype for: "
+                                            "~s", [string:join(Variable, ".")]),
                             {Acc, [{error, ErrorMsg} | (EList ++ ErrorAcc)]}
                     end
             end
@@ -397,9 +416,7 @@ transform_type([DT|DatatypeTail], Value, Errors) ->
         {_ , true} ->
             transform_extended_type(DT, DatatypeTail, Value, Errors);
         {false, false} ->
-            Error = {error, lists:flatten(io_lib:format(
-                "~p is not a supported datatype.", [DT]
-            ))},
+            Error = {error, ?FMT("~p is not a supported datatype.", [DT])},
             {error, [Error]}
     end.
 
@@ -417,7 +434,7 @@ transform_supported_type(DT, Tail, Value, ErrorAcc) ->
                 true -> {ok, NewValue};
                 false ->
                     transform_type(Tail, Value, [
-                        {error, lists:flatten(io_lib:format("Bad value for enum: ~s", [Value]))}|ErrorAcc])
+                        {error, ?FMT("Bad value for enum: ~s", [Value])}|ErrorAcc])
             end;
         {_, NewValue} -> {ok, NewValue}
     end.
@@ -434,10 +451,9 @@ transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
                 true -> {ok, NewValue};
                 _ -> transform_type(Tail, Value,
                                     [{error,
-                                      lists:flatten(
-                                        io_lib:format("~p is not accepted value: ~p",
-                                                      [Value, AcceptableValue])
-                                       )} |Errors])
+                                      ?FMT("~p is not accepted value: ~p",
+                                           [Value, AcceptableValue])}
+                                     |Errors])
             end;
         {error, EList} ->
             EList
@@ -466,8 +482,9 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, lists:flatten(io_lib:format("~s not_found", [string:join(Variable, ".")]))};
-        {X, Y} -> {error, lists:flatten(io_lib:format("~p hard mappings and ~p fuzzy mappings found for ~s", [X, Y, string:join(Variable, ".")]))}
+        {0, 0} -> {error, ?FMT("~s not_found", [string:join(Variable, ".")])};
+        {X, Y} -> {error, ?FMT("~p hard mappings and ~p fuzzy mappings found "
+                               "for ~s", [X, Y, string:join(Variable, ".")])}
     end;
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
@@ -485,7 +502,7 @@ run_validations({_, Mappings, Validators}, Conf) ->
                 {_, true} ->
                     true;
                 _ ->
-                    LogString = io_lib:format(
+                    LogString = ?FMT(
                         "~s invalid, ~s",
                         [
                             cuttlefish_mapping:variable(M),
@@ -829,7 +846,7 @@ throw_unset_test() ->
     Mappings = [cuttlefish_mapping:parse({mapping, "a", "b.c", []})],
     Translations = [cuttlefish_translation:parse(
         {translation, "b.c",
-        fun(_X) -> throw(unset) end})
+        fun(_X) -> cuttlefish:unset() end})
     ],
     AppConf = map({Translations, Mappings, []}, []),
     ?assertEqual([], AppConf),
@@ -877,5 +894,30 @@ extended_datatypes_test() ->
     assert_extended_datatype([integer, {atom, never}], "always", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
     %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
     ok.
+
+not_found_test() ->
+    Mappings = [cuttlefish_mapping:parse({mapping, "a", "b.c", []})],
+    Translations = [cuttlefish_translation:parse(
+        {translation, "b.c",
+        fun(Conf) -> cuttlefish:conf_get("d", Conf) end})
+    ],
+    AppConf = map({Translations, Mappings, []}, [{["a"], "foo"}]),
+    ?assertEqual({error, apply_translations,
+                  {error, [{error,
+                            "Translation for 'b.c' expected to find"
+                    " setting 'd' but was missing"}]}},
+                AppConf).
+
+invalid_test() ->
+    Mappings = [cuttlefish_mapping:parse({mapping, "a", "b.c", []})],
+    Translations = [cuttlefish_translation:parse(
+        {translation, "b.c",
+        fun(_Conf) -> cuttlefish:invalid("review all files") end})
+    ],
+    AppConf = map({Translations, Mappings, []}, [{["a"], "foo"}]),
+    ?assertEqual({error, apply_translations,
+                  {error, [{error, "Translation for 'b.c' found invalid "
+                            "configuration: review all files"}]}},
+                 AppConf).
 
 -endif.
