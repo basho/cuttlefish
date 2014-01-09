@@ -86,6 +86,7 @@ is_extended({atom, A}) when is_atom(A) -> true;
 is_extended({file, F}) when is_list(F) -> true;
 is_extended({directory, D}) when is_list(D) -> true;
 is_extended({ip, {IP, Port}}) when is_list(IP) andalso is_integer(Port) -> true;
+is_extended({ip, StringIP}) when is_list(StringIP) -> true;
 is_extended({{duration, f}, D}) when is_list(D) -> true;
 is_extended({{duration, w}, D}) when is_list(D) -> true;
 is_extended({{duration, d}, D}) when is_list(D) -> true;
@@ -155,8 +156,10 @@ to_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:to_stri
 
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(Value, MaybeExtendedDatatype) ->
+    io:format("is_extended(~p) = ~p~n", [MaybeExtendedDatatype, is_extended(MaybeExtendedDatatype)]),
     case is_extended(MaybeExtendedDatatype) of
         true ->
+            io:format("~p: ~p is extended from ~p~n", [Value, MaybeExtendedDatatype, extended_from(MaybeExtendedDatatype)]),
             to_string(Value, extended_from(MaybeExtendedDatatype));
         _ ->
             {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [Value, MaybeExtendedDatatype]))}
@@ -242,6 +245,19 @@ to_string_duration_test() ->
 to_string_bytesize_test() ->
     ?assertEqual("1GB", to_string(1073741824, bytesize)),
     ?assertEqual("1GB", to_string("1GB", bytesize)).
+
+to_string_extended_type_test() ->
+    ?assertEqual("split_the", to_string(split_the, {atom, split_the})),
+    ?assertEqual("split_the", to_string("split_the", {atom, split_the})),
+    ?assertEqual("32", to_string(32, {integer, 32})),
+    ?assertEqual("32", to_string("32", {integer, 32})),
+    ?assertEqual("127.0.0.1:8098", to_string("127.0.0.1:8098", {ip, "127.0.0.1:8098"})),
+    ?assertEqual("127.0.0.1:8098", to_string({"127.0.0.1", 8098}, {ip, {"127.0.0.1", 8098}})),
+    ?assertEqual("string", to_string("string", {string, "string"})),
+    ?assertEqual("1w", to_string("1w", {{duration, s}, "1w"})),
+    ?assertEqual("1w", to_string(604800000, {{duration, ms}, "1w"})),
+    ?assertEqual("1GB", to_string(1073741824, {bytesize, "1GB"})),
+    ?assertEqual("1GB", to_string("1GB", {bytesize, "1GB"})).
 
 to_string_unsupported_datatype_test() ->
     ?assertEqual({error, "Tried to convert \"Something\", an invalid datatype unsupported_datatype to_string."}, to_string("Something", unsupported_datatype)).

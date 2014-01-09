@@ -85,15 +85,28 @@ parse_test() ->
 
 to_string_test() ->
     ?assertEqual(to_string(true, flag), "on"),
+    ?assertEqual(to_string(on, flag), "on"),
     ?assertEqual(to_string(false, flag), "off"),
+    ?assertEqual(to_string(off, flag), "off"),
     ?assertEqual(to_string(true, {flag, enabled, disabled}), "enabled"),
+    ?assertEqual(to_string(enabled, {flag, enabled, disabled}), "enabled"),
     ?assertEqual(to_string(false, {flag, enabled, disabled}), "disabled"),
+    ?assertEqual(to_string(disabled, {flag, enabled, disabled}), "disabled"),
     ?assertEqual(to_string(tyk, {flag, {on, tyk}, {off, torp}}), "on"),
+    ?assertEqual(to_string(on, {flag, {on, tyk}, {off, torp}}), "on"),
     ?assertEqual(to_string(torp, {flag, {on, tyk}, {off, torp}}), "off"),
+    ?assertEqual(to_string(off, {flag, {on, tyk}, {off, torp}}), "off"),
     ?assertEqual(to_string({long, tuple, value}, {flag, {simple, ok},
+                               {foo, {long, tuple, value}}}),
+                 "foo"),
+    ?assertEqual(to_string(foo, {flag, {simple, ok},
                                {foo, {long, tuple, value}}}),
                  "foo"),
     ?assertEqual(to_string(ok, {flag, {simple, ok},
                                {foo, {long, tuple, value}}}),
+                 "simple"),
+    ?assertEqual(to_string(simple, {flag, {simple, ok},
+                               {foo, {long, tuple, value}}}),
                  "simple").
+
 -endif.
