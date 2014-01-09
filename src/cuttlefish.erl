@@ -29,15 +29,16 @@
     invalid/1
 ]).
 
-% @doc conf_get/2 is a convenience wrapper for  proplists:get_value/2 for schema
-% writers. Keys to a Conf proplist are variable()s which are a list of strings.
-% This function will look for those, but if you pass it a string() instead, it
-% will be nice and split that string on "." since that's how cuttlefish do.
-% Also, it will  throw(not_found) if the key is not found in the list which is
-% different that  proplists:get_value/2's default behavior of returning
-% 'undefined'. This makes it easy for cuttlefish translations to abort and on
-% error, and not assume a value. If that's what you want, please use conf_get/3.
-% formerly cuttlefish_util:conf_get_value/2
+% @doc conf_get/2 is a convenience wrapper for proplists:get_value/2
+% for schema writers. Keys to a Conf proplist are variable()s which
+% are a list of strings.  This function will look for those, but if
+% you pass it a string() instead, it will be nice and split that
+% string on "." since that's how cuttlefish do.  Also, it will
+% throw(not_found) if the key is not found in the list which is
+% different that proplists:get_value/2's default behavior of returning
+% 'undefined'. This makes it easy for cuttlefish translations to abort
+% and on error, and not assume a value. If that's what you want,
+% please use conf_get/3.  formerly cuttlefish_util:conf_get_value/2
 -spec conf_get(
         string() | cuttlefish_variable:variable(),
         cuttlefish_conf:conf()) -> any().
@@ -53,9 +54,9 @@ conf_get(Variable, ConfigProplist) ->
       cuttlefish_variable:tokenize(Variable),
       ConfigProplist).
 
-% @doc conf_get/3 works just like proplists:get_value/3. It expects a variable()
-% as the Key, but is nice enough to take a string() and split it on "."
-% formerly cuttlefish_util:conf_get_value/3
+% @doc conf_get/3 works just like proplists:get_value/3. It expects a
+% variable() as the Key, but is nice enough to take a string() and
+% split it on "."  formerly cuttlefish_util:conf_get_value/3
 -spec conf_get(
         string() | cuttlefish_variable:variable(),
         cuttlefish_conf:conf(), any()) -> any().
