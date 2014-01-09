@@ -50,20 +50,22 @@ parse(Value, {flag, {On,OnValue}, {Off,OffValue}}) ->
                           " ~p", [Value, On, Off])}
     end.
 
-to_string(true, flag) ->
-    "on";
-to_string(false, flag) ->
-    "off";
-to_string(true, {flag, On, _}) when is_atom(On) ->
+to_string(Value, Flag) when is_list(Value) ->
+    to_string(list_to_atom(Value), Flag);
+to_string(Value, flag) ->
+    to_string(Value, {flag, {on, true}, {off, false}});
+to_string(On, {flag, {On, _}, _}) ->
     atom_to_list(On);
-to_string(false, {flag, _, Off}) when is_atom(Off) ->
-    atom_to_list(Off);
 to_string(OnValue, {flag, {On, OnValue}, _}) when is_atom(On) ->
     atom_to_list(On);
+to_string(Off, {flag, _, {Off, _}}) when is_atom(Off) ->
+    atom_to_list(Off);
 to_string(OffValue, {flag, _, {Off, OffValue}}) when is_atom(Off) ->
     atom_to_list(Off);
+to_string(Value, {flag, On, Off}) ->
+    to_string(Value, {flag, {On, true}, {Off, false}});
 to_string(Value, Flag) ->
-    {error, ?FMT("could not convert ~p of type ~p to a string", [Value, Flag])}.
+    {error, ?FMT("could not convert '~p' of type ~p to a string", [Value, Flag])}.
 
 
 -ifdef(TEST).

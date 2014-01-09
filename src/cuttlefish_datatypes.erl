@@ -54,7 +54,8 @@
          is_extended/1,
          is_valid_list/1,
          from_string/2,
-         to_string/2
+         to_string/2,
+         extended_from/1
 ]).
 
 -spec is_supported(any()) -> boolean().
@@ -95,6 +96,22 @@ is_extended({{duration, ms}, D}) when is_list(D) -> true;
 is_extended({bytesize, B}) when is_list(B) -> true;
 is_extended(_) -> false.
 
+-spec extended_from(extended()) -> datatype().
+extended_from({integer, _}) -> integer;
+extended_from({string, _}) -> string;
+extended_from({atom, _}) -> atom;
+extended_from({file, _}) -> file;
+extended_from({directory, _}) -> directory;
+extended_from({ip, _}) -> ip;
+extended_from({{duration, Unit}, _}) -> {duration, Unit};
+extended_from({bytesize, _}) -> bytesize;
+extended_from(Other) ->
+    case is_supported(Other) of
+        true ->
+            Other;
+        _ -> error
+    end.
+
 -spec is_valid_list(any()) -> boolean().
 is_valid_list(NotList) when not is_list(NotList) ->
     false;
@@ -132,11 +149,18 @@ to_string(File, file) when is_list(File) -> File;
 to_string(Directory, directory) when is_list(Directory) -> Directory;
 
 to_string(Flag, flag) when is_atom(Flag) -> cuttlefish_flag:to_string(Flag, flag);
-to_string(Flag, {flag, _, _}=Type) -> cuttlefish_flag:to_string(Flag, Type);
+to_string(Flag, flag) when is_list(Flag) -> cuttlefish_flag:to_string(Flag, flag);
+to_string(Flag, {flag, _, _}=Type) when is_atom(Flag) -> cuttlefish_flag:to_string(Flag, Type);
+to_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:to_string(Flag, Type);
 
 %% The Pokemon Clause: Gotta Catch 'em all!
-to_string(X, InvalidDatatype) ->
-    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [X, InvalidDatatype]))}.
+to_string(Value, MaybeExtendedDatatype) ->
+    case is_extended(MaybeExtendedDatatype) of
+        true ->
+            to_string(Value, extended_from(MaybeExtendedDatatype));
+        _ ->
+            {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [Value, MaybeExtendedDatatype]))}
+    end.
 
 -spec from_string(term(), datatype()) -> term() | cuttlefish_error:error().
 from_string(Atom, atom) when is_atom(Atom) -> Atom;
