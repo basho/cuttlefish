@@ -156,10 +156,8 @@ to_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:to_stri
 
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(Value, MaybeExtendedDatatype) ->
-    io:format("is_extended(~p) = ~p~n", [MaybeExtendedDatatype, is_extended(MaybeExtendedDatatype)]),
     case is_extended(MaybeExtendedDatatype) of
         true ->
-            io:format("~p: ~p is extended from ~p~n", [Value, MaybeExtendedDatatype, extended_from(MaybeExtendedDatatype)]),
             to_string(Value, extended_from(MaybeExtendedDatatype));
         _ ->
             {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [Value, MaybeExtendedDatatype]))}
