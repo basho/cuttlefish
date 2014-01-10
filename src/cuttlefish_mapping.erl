@@ -150,10 +150,16 @@ merge(NewMappingSource, OldMapping) ->
     }.
 
 choose(Field, {_, _, _, OriginalProps} = _RawMapping, MergeMapping, OldMapping) ->
-    case proplists:is_defined(Field, OriginalProps) of
-        true ->
+    Which = case {Field, proplists:is_defined(Field, OriginalProps),  proplists:get_value(Field, OriginalProps)} of
+                {see, _, []} -> old;
+                {doc, _, []} -> old;
+                {_, true, _} -> new;
+                _ -> old
+    end,
+    case Which of
+        new ->
             ?MODULE:Field(MergeMapping);
-        _ ->
+        old ->
             ?MODULE:Field(OldMapping)
     end.
 

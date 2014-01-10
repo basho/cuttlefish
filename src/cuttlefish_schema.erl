@@ -477,13 +477,14 @@ error_test() ->
 
 merge_across_multiple_schemas_test() ->
     StringSchema1 = "{mapping, \"a.b\", \"erlang.key\", [merge, {default, on}]}.",
-    StringSchema2 = "{mapping, \"a.b\", \"erlang.key\", [{default, off}, {datatype, flag}]}.",
+    StringSchema2 = "%%@doc hi\n{mapping, \"a.b\", \"erlang.key\", [{default, off}, {datatype, flag}]}.",
 
     {_, Mappings, _} = strings([StringSchema1, StringSchema2]),
     ?assertEqual(1, length(Mappings)),
     [Mapping] = Mappings,
     ?assertEqual([flag], cuttlefish_mapping:datatype(Mapping)),
     ?assertEqual(on, cuttlefish_mapping:default(Mapping)),
+    ?assertEqual(["hi"], cuttlefish_mapping:doc(Mapping)),
     ok.
 
 -endif.
