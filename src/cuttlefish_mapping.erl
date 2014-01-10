@@ -149,8 +149,10 @@ merge(NewMappingSource, OldMapping) ->
         see = choose(see, NewMappingSource, MergeMapping, OldMapping)
     }.
 
-choose(Field, {_, _, _, OriginalProps} = _RawMapping, MergeMapping, OldMapping) ->
-    Which = case {Field, proplists:is_defined(Field, OriginalProps),  proplists:get_value(Field, OriginalProps)} of
+choose(Field, {_, _, _, PreParseMergeProps}, MergeMapping, OldMapping) ->
+    Which = case {Field,
+                  proplists:is_defined(Field, PreParseMergeProps),
+                  proplists:get_value(Field, PreParseMergeProps)} of
                 {see, _, []} -> old;
                 {doc, _, []} -> old;
                 {_, true, _} -> new;
