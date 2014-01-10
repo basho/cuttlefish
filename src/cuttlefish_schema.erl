@@ -56,7 +56,6 @@ merger(Fun, ListOfInputs) ->
                     %% with io:format, since it doesn't have lager.
                     {error, Errors};
                 {Translations, Mappings, Validators} ->
-%                    {Translations, Mappings, Validators}
                     NewMappings = lists:foldr(
                         fun cuttlefish_mapping:replace/2,
                         MappingAcc,
