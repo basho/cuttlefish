@@ -46,16 +46,19 @@ generate_config(SchemaFile, Conf) ->
     Schema = cuttlefish_schema:files([SchemaFile]),
     cuttlefish_generator:map(Schema, Conf).
 
-check_config_for_errors({error, Phase, {error, Errors}}) ->
+assert_valid_config({error, Phase, {error, Errors}}) ->
     %% What if Config is an error? It'd be nice to know what that was
     cuttlefish_error:print("Error in phase: ~s", [Phase]),
     [ cuttlefish_error:print(E) || E <- Errors],
     ?assert(false);
-check_config_for_errors(_) ->
-    ok.
+assert_valid_config(List) when is_list(List) ->
+    ok;
+assert_valid_config(_) ->
+    ?assert(false).
 
+assert_config({error, _, _}=Config, _, _) ->
+    assert_valid_config(Config);
 assert_config(Config, Path, Value) ->
-    check_config_for_errors(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
             ?assertEqual({Path, Value}, {Path, nesting_error});
@@ -65,8 +68,9 @@ assert_config(Config, Path, Value) ->
     end,
     ?assertEqual({Path, Value}, {Path, ActualValue}).
 
+assert_not_configured({error, _, _}=Config, _) ->
+    assert_valid_config(Config);
 assert_not_configured(Config, Path) ->
-    check_config_for_errors(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
             ?assert(false);
