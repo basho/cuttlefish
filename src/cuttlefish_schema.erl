@@ -37,11 +37,11 @@
 
 -spec files([string()]) -> schema() | cuttlefish_error:errorlist().
 files(ListOfSchemaFiles) ->
-    merger(fun file/1, ListOfSchemaFiles).
+    merger(fun file/2, ListOfSchemaFiles).
 
 -spec strings([string()]) -> schema() | cuttlefish_error:errorlist().
 strings(ListOfStrings) ->
-    merger(fun string/1, ListOfStrings).
+    merger(fun string/2, ListOfStrings).
 
 -spec merger(fun((string()) -> schema() | cuttlefish_error:errorlist()), [string()]) ->
                     schema() | cuttlefish_error:errorlist().
@@ -49,14 +49,13 @@ merger(Fun, ListOfInputs) ->
     Schema = lists:foldr(
         fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
 
-            case Fun(Input) of
+            case Fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
                     %% but, return them anyway so the rebar plugin can display them
                     %% with io:format, since it doesn't have lager.
                     {error, Errors};
                 {Translations, Mappings, Validators} ->
-
                     NewMappings = lists:foldr(
                         fun cuttlefish_mapping:replace/2,
                         MappingAcc,
@@ -109,25 +108,25 @@ count_mappings(Mappings) ->
         orddict:new(),
         Mappings).
 
--spec file(string()) -> schema() | cuttlefish_error:errorlist().
-file(Filename) ->
+-spec file(string(), schema()) -> schema() | cuttlefish_error:errorlist().
+file(Filename, Schema) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
     S = unicode:characters_to_list(B, utf8),
-    case string(S) of
+    case string(S, Schema) of
         {error, Errors} ->
             cuttlefish_error:print("Error parsing schema: ~s", [Filename]),
             {error, Errors};
-        Schema ->
-            Schema
+        NewSchema ->
+            NewSchema
     end.
 
--spec string(string()) -> schema() | cuttlefish_error:errorlist().
-string(S) ->
+-spec string(string(), schema()) -> schema() | cuttlefish_error:errorlist().
+string(S, {T, M, V}) ->
     case erl_scan:string(S) of
         {ok, Tokens, _} ->
             CommentTokens = erl_comment_scan:string(S),
-            {Translations, Mappings, Validators, Errors} = parse_schema(Tokens, CommentTokens),
+            {Translations, Mappings, Validators, Errors} = parse_schema(Tokens, CommentTokens, {T, M, V, []}),
 
             case length(Errors) of
                 0 ->
@@ -148,9 +147,6 @@ string(S) ->
             lager:error(ErrStr),
             {error, [{error, [ErrStr]}]}
     end.
-
-parse_schema(Tokens, Comments) ->
-    parse_schema(Tokens, Comments, {[], [], [], []}).
 
 -spec parse_schema(
     [any()],
@@ -267,6 +263,14 @@ percent_stripper_r(Line) ->
         percent_stripper_l(
             lists:reverse(Line))).
 -ifdef(TEST).
+
+%% Test helpers
+-spec file(string()) -> schema() | cuttlefish_error:errorlist().
+file(Filename) ->
+    file(Filename, {[], [], []}).
+-spec string(string()) -> schema() | cuttlefish_error:errorlist().
+string(S) ->
+    string(S, {[], [], []}).
 
 percent_stripper_test() ->
     ?assertEqual("hi!", percent_stripper("%%% hi!")),
@@ -469,6 +473,17 @@ error_test() ->
     ?assertEqual(
         "Unknown parse return: {mapping,\n                          {mapping,\"a\",[{datatype,unsupported_datatype}]}}",
         Error),
+    ok.
+
+merge_across_multiple_schemas_test() ->
+    StringSchema1 = "{mapping, \"a.b\", \"erlang.key\", [merge, {default, on}]}.",
+    StringSchema2 = "{mapping, \"a.b\", \"erlang.key\", [{default, off}, {datatype, flag}]}.",
+
+    {_, Mappings, _} = strings([StringSchema1, StringSchema2]),
+    ?assertEqual(1, length(Mappings)),
+    [Mapping] = Mappings,
+    ?assertEqual([flag], cuttlefish_mapping:datatype(Mapping)),
+    ?assertEqual(on, cuttlefish_mapping:default(Mapping)),
     ok.
 
 -endif.
