@@ -148,9 +148,6 @@ string(S, {T, M, V}) ->
             {error, [{error, [ErrStr]}]}
     end.
 
-%parse_schema(Tokens, Comments) ->
-%    parse_schema(Tokens, Comments, {[], [], [], []}).
-
 -spec parse_schema(
     [any()],
     [any()],
