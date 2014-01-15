@@ -24,7 +24,7 @@ stringify_test() ->
     VMArgsProplist = [
       {'-name', "dev1@127.0.0.1"},
       {'-setcookie', 'riak'},
-      {'-smp',"enable"},
+      {'-smp', enable},
       {'+W',"w"},
       {'+K',"true"},
       {'+A',"64"},

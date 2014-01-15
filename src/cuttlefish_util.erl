@@ -171,11 +171,12 @@ levenshtein_test() ->
     ok.
 
 print_error_test() ->
+    application:stop(lager),
     case lager:error("Error") of
         {error, lager_not_running} ->
             ?assertEqual(ok, (cuttlefish_error:print("Error")));
-        _ ->
-            ?assert(fail)
+        Other ->
+            ?assertEqual({error, lager_not_running}, Other)
     end,
     ok.
 
