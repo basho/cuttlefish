@@ -19,7 +19,10 @@
   {level, advanced}
 ]}.
 
-%% Undocumented.
+%% @doc Sets the mapping of warning messages for error_logger.
+%% Messages sent to the error logger using one of the warning
+%% routines can be mapped either to errors (default), warnings
+%% (w - default), or info reports (i).
 {mapping, "erlang.W", "vm_args.+W", [
   {default, "w"},
   {level, advanced}
