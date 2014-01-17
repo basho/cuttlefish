@@ -156,7 +156,7 @@
   {level, advanced}
 ]}.
 
-%% @doc Raise the ETS table limit (the cheat is to the limit!)
+%% @doc Raise the ETS table limit
 {mapping, "erlang.max_ets_tables", "vm_args.+e", [
   {default, 256000},
   {datatype, integer},
@@ -173,10 +173,10 @@
 %% @doc For nodes with many busy_dist_port events, Basho recommends
 %% raising the sender-side network distribution buffer size.
 %% 32MB may not be sufficient for some workloads and is a suggested
-%% starting point.
+%% starting point. Erlangers may know this as +zdbbl.
 %% The Erlang/OTP default is 1024 (1 megabyte).
 %% See: http://www.erlang.org/doc/man/erl.html#%2bzdbbl
-{mapping, "erlang.zdbbl", "vm_args.+zdbbl", [
+{mapping, "erlang.distribution_buffer_size", "vm_args.+zdbbl", [
   {datatype, bytesize},
   {commented, "32MB"},
   {level, advanced},
@@ -185,7 +185,7 @@
 
 {translation, "vm_args.+zdbbl",
  fun(Conf) ->
-  ZDBBL = cuttlefish:conf_get("erlang.zdbbl", Conf, undefined),
+  ZDBBL = cuttlefish:conf_get("erlang.distribution_buffer_size", Conf, undefined),
   case ZDBBL of
     undefined -> undefined;
     X when is_integer(X) -> cuttlefish_util:ceiling(X / 1024); %% Bytes to Kilobytes;
@@ -194,7 +194,7 @@
  end
 }.
 
-{validator, "zdbbl_range", "+zddbl must be between 1KB and 2097151KB",
+{validator, "zdbbl_range", "must be between 1KB and 2097151KB",
  fun(ZDBBL) ->
   %% 2097151KB = 2147482624
   ZDBBL >= 1024 andalso ZDBBL =< 2147482624
@@ -211,7 +211,7 @@
 %% native code that do not bump reductions properly.
 %%
 %% More information: http://www.erlang.org/doc/man/erl.html#+sfwi
-{mapping, "erlang.sfwi", "vm_args.+sfwi", [
+{mapping, "erlang.sleepy_scheduler_coffee_injection_timer", "vm_args.+sfwi", [
   {commented, 500},
   {datatype, integer},
   {level, advanced}
