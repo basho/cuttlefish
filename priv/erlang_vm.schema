@@ -211,7 +211,7 @@
 %% native code that do not bump reductions properly.
 %%
 %% More information: http://www.erlang.org/doc/man/erl.html#+sfwi
-{mapping, "erlang.sleepy_scheduler_coffee_injection_timer", "vm_args.+sfwi", [
+{mapping, "erlang.schedulers.force_wakeup_interval", "vm_args.+sfwi", [
   {commented, 500},
   {datatype, integer},
   {level, advanced}
