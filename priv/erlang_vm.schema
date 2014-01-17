@@ -2,9 +2,10 @@
 
 %% @doc Starts the Erlang runtime system with SMP support
 %% enabled. This may fail if no runtime system with SMP support is
-%% available. auto starts the Erlang runtime system with SMP support
-%% enabled if it is available and more than one logical processor are
-%% detected. -smp disable starts a runtime system without SMP support.
+%% available. The 'auto' setting starts the Erlang runtime system with
+%% SMP support enabled if it is available and more than one logical
+%% processor are detected. -smp disable starts a runtime system
+%% without SMP support.
 %%
 %% NOTE: The runtime system with SMP support will not be available on
 %% all supported platforms. See also the erlang.schedulers settings.
