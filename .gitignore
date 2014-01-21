@@ -9,3 +9,4 @@ cuttlefish
 *.sublime-project
 *.sublime-workspace
 log
+.local_dialyzer_plt
