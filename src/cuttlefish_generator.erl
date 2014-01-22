@@ -892,6 +892,7 @@ extended_datatypes_test() ->
     assert_extended_datatype([integer, {atom, never}], "1", 1),
     assert_extended_datatype([integer, {atom, never}], "never", never),
     assert_extended_datatype([integer, {atom, never}], "always", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
+    assert_extended_datatype([{duration, s}, {atom, never}], "never", never),
     %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
     ok.
 

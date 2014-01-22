@@ -144,6 +144,13 @@ not_found_error_test() ->
     NewConfig = cuttlefish_generator:map(Schema, Conf),
     ?assertMatch({error, apply_translations, _}, NewConfig).
 
+extended_type_test() ->
+    lager:start(),
+    Schema = cuttlefish_schema:files(["../test/extended_types.schema"]),
+    Conf = conf_parse:parse(<<"a.b.c = foo\n">>),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    ?assertEqual(foo, proplists:get_value(extended, proplists:get_value(cuttlefish, NewConfig))).
+
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
     ActualKeys = lists:sort(proplists:get_keys(Actual)),
