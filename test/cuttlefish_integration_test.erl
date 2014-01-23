@@ -144,6 +144,22 @@ not_found_error_test() ->
     NewConfig = cuttlefish_generator:map(Schema, Conf),
     ?assertMatch({error, apply_translations, _}, NewConfig).
 
+duration_test() ->
+    lager:start(),
+    Schema = cuttlefish_schema:files(["../test/durations.schema"]),
+    
+    %% Test that the duration parsing doesn't emit "error" into the
+    %% config instead of the extended type.
+    Conf = conf_parse:parse(<<"a.b.c = foo\n">>),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    ?assertEqual(foo, proplists:get_value(duration_extended, proplists:get_value(cuttlefish, NewConfig))),
+
+    %% Test that for a non-extended duration, a bad value results in
+    %% an erroroneous config, not emitting error.
+    Conf2 = conf_parse:parse(<<"b.c = fish\n">>),
+    ErrConfig = cuttlefish_generator:map(Schema, Conf2),
+    ?assertMatch({error, transform_datatypes, _}, ErrConfig).
+
 proplist_equals(Expected, Actual) ->
     ExpectedKeys = lists:sort(proplists:get_keys(Expected)),
     ActualKeys = lists:sort(proplists:get_keys(Actual)),

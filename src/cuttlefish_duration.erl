@@ -24,12 +24,7 @@
 -opaque time_unit() :: f | w | d | h | m | s | ms.
 -export_type([time_unit/0]).
 
--define(FORTNIGHT, 1209600000).
--define(WEEK,      604800000).
--define(DAY,       86400000).
--define(HOUR,      3600000).
--define(MINUTE,    60000).
--define(SECOND,    1000).
+-include("cuttlefish_duration.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -61,83 +56,29 @@ milliseconds(Millis) ->
     || {N, Unit} <- Units]).
 
 -spec parse(string(), time_unit()) -> integer().
-parse(DurationString, f) -> cuttlefish_util:ceiling(parse(DurationString) / ?FORTNIGHT);
-parse(DurationString, w) -> cuttlefish_util:ceiling(parse(DurationString) / ?WEEK);
-parse(DurationString, d) -> cuttlefish_util:ceiling(parse(DurationString) / ?DAY);
-parse(DurationString, h) -> cuttlefish_util:ceiling(parse(DurationString) / ?HOUR);
-parse(DurationString, m) -> cuttlefish_util:ceiling(parse(DurationString) / ?MINUTE);
-parse(DurationString, s) -> cuttlefish_util:ceiling(parse(DurationString) / ?SECOND);
-parse(DurationString, ms) -> parse(DurationString).
-
--spec parse(string()) -> integer().
-parse(InputDurationString) ->
-    DurationString = string:to_lower(InputDurationString),
-    DurationTokens = tokens(DurationString),
-
-    ParsedTokens = [parse_token(T) || T <- DurationTokens],
-
-    case lists:any(fun(X) -> X =:= error end, ParsedTokens) of
-        true ->
-            error;
-        false ->
-            Millis = lists:sum(ParsedTokens),
-            round(Millis)
+parse(DurationString, ms) -> parse(DurationString);
+parse(DurationString, Unit) ->
+    case parse(DurationString) of
+        {error, _}=Err ->
+            Err;
+        Num when is_number(Num) ->
+            {Unit, Multiplier} = lists:keyfind(Unit, 1, ?MULTIPLIERS),
+            cuttlefish_util:ceiling(Num / Multiplier)
     end.
 
-tokens(DurationString) ->
-    {LastWorking, List} = lists:foldl(
-        fun(Char, {Working, Acc}) ->
-            case {length(string:tokens(Working, "1234567890.")), is_digit(Char)} of
-                {0, _} ->
-                    {Working ++ [Char], Acc};
-                {_, true} ->
-                    {[Char], [Working|Acc]};
-                {_, false} ->
-                    {Working ++ [Char], Acc}
-            end
-        end,
-        {[], []},
-        DurationString),
-    [LastWorking|List].
 
-parse_token(T) -> parse_token_r(lists:reverse(T)).
+-spec parse(string()) -> integer() | cuttlefish_error:error().
+parse(InputDurationString) ->
+    DurationString = string:to_lower(InputDurationString),
+    case cuttlefish_duration_parse:parse(DurationString) of
+        Float when is_float(Float) ->
+            cuttlefish_util:ceiling(Float);
+        Int when is_integer(Int) ->
+            Int;
+        _ ->
+            {error, ?FMT("Invalid duration value: ~s", [InputDurationString])}
+    end.
 
-parse_token_r([$s,$m|BackwardMillis]) ->
-    MilliStr = lists:reverse(BackwardMillis),
-    cuttlefish_util:numerify(MilliStr);
-parse_token_r([$s|BackwardsSeconds]) ->
-    SecondStr = lists:reverse(BackwardsSeconds),
-    ?SECOND * cuttlefish_util:numerify(SecondStr);
-parse_token_r([$m|BackwardsMinutes]) ->
-    MinuteStr = lists:reverse(BackwardsMinutes),
-    ?MINUTE * cuttlefish_util:numerify(MinuteStr);
-parse_token_r([$h|BackwardsHours]) ->
-    HourStr = lists:reverse(BackwardsHours),
-    ?HOUR * cuttlefish_util:numerify(HourStr);
-parse_token_r([$d|BackwardsDays]) ->
-    DayStr = lists:reverse(BackwardsDays),
-    cuttlefish_util:numerify(DayStr) * ?DAY;
-parse_token_r([$w|BackwardsWeeks]) ->
-    WeekStr = lists:reverse(BackwardsWeeks),
-    cuttlefish_util:numerify(WeekStr) * ?WEEK;
-parse_token_r([$f|BackwardsFortnights]) ->
-    FortnightStr = lists:reverse(BackwardsFortnights),
-    cuttlefish_util:numerify(FortnightStr) * ?FORTNIGHT;
-parse_token_r(_UnknownUnit) ->
-    error.
-
-is_digit(Char) ->
-    Char =:= $1 orelse
-    Char =:= $2 orelse
-    Char =:= $3 orelse
-    Char =:= $4 orelse
-    Char =:= $5 orelse
-    Char =:= $6 orelse
-    Char =:= $7 orelse
-    Char =:= $8 orelse
-    Char =:= $9 orelse
-    Char =:= $0 orelse
-    Char =:= $..
 -ifdef(TEST).
 
 milliseconds_test() ->
@@ -221,7 +162,10 @@ to_string_test() ->
     ok.
 
 parse_error_test() ->
-    ?assertEqual(error, parse("1q")),
+    ?assertMatch({error, _}, parse("1q")),
+    %% This previously raised badarith because it did not check the
+    %% return value of parse/1.
+    ?assertMatch({error, _}, catch parse("1q", h)),
     ok.
 
 -endif.
