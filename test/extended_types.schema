@@ -1,4 +1,0 @@
-{mapping, "a.b.c", "cuttlefish.extended", [
-  {default, "1m"},
-  {datatype, [{duration, s}, {atom, foo}]}
-]}.

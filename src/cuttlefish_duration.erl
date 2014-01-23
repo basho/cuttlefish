@@ -163,6 +163,9 @@ to_string_test() ->
 
 parse_error_test() ->
     ?assertMatch({error, _}, parse("1q")),
+    %% This previously raised badarith because it did not check the
+    %% return value of parse/1.
+    ?assertMatch({error, _}, catch parse("1q", h)),
     ok.
 
 -endif.
