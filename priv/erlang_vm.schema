@@ -238,3 +238,24 @@
   {datatype, integer},
   {level, advanced}
 ]}.
+
+%% The +Q and +e flags are not supported in Erlang R15. Do not let erlang docs
+%% fool you into believing +e being supported, beam will fail if you attempt to pass it.
+%% These translations remove those flags if you use R15
+{translation, "vm_args.+Q",
+ fun(Conf) ->
+    case erlang:system_info(otp_release) of
+        [$R,$1,N|_] when N >= $6->
+             cuttlefish:conf_get("erlang.max_ports", Conf);
+                _ ->            cuttlefish:unset()
+    end
+end}.
+
+{translation, "vm_args.+e",
+ fun(Conf) ->
+    case erlang:system_info(otp_release) of
+        [$R,$1,N|_] when N >= $6->
+             cuttlefish:conf_get("erlang.max_ets_tables", Conf);
+                _ ->            cuttlefish:unset()
+    end
+end}.
