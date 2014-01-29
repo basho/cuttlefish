@@ -26,7 +26,9 @@
          generate_file/2,
          file/1,
          files/1,
-         is_variable_defined/2]).
+         is_variable_defined/2,
+         pretty_datatype/1,
+         pretty_doc/1]).
 
 -type conf_pair() :: {cuttlefish_variable:variable(), any()}.
 -type conf() :: [conf_pair()].
@@ -163,6 +165,11 @@ pretty_datatype({flag, On, Off}) when is_atom(On), is_atom(Off) ->
 pretty_datatype({flag, {On,_}, {Off,_}}) ->
     ?FMT("~p or ~p", [On, Off]);
 pretty_datatype(_) -> "text". %% string and atom
+
+
+-spec pretty_doc([string()]) -> string().
+pretty_doc(D) ->
+    string:join(D, " ").
 
 remove_duplicates(Conf) ->
     lists:foldl(
