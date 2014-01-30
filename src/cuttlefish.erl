@@ -48,32 +48,24 @@ otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
 
 % @doc is ActualOTPVersion >= DesiredMinimumOTPVersion?
 -spec otp(string(), string()) -> boolean().
-otp(DesiredMinimumOTPVersion, ActualOTPVersion) ->
-    Result = lists:foldl(
-        fun(_, true) -> true;
-           (_, false) -> false;
-           (E, [H|TAcc]) ->
-            case {E =:= H, E < H, E > H, TAcc} of
-                {true, _, _, []} ->
-                    %% Our Actual version is shorter than desired version
-                    %% e.g. "R16" >= "R16B01"
-                    false;
-                {true, _, _, _} -> TAcc;
-                {false, true, _, _} -> true;
-                {false, false, true, _} -> false
-            end
-        end,
-        ActualOTPVersion,
-        DesiredMinimumOTPVersion
-    ),
-
-    case is_boolean(Result) of
-        true -> Result;
-        false ->
-            %% false means that the begining matched, but unequal legnths
-            %% e.g. is "R16B03" >= "R16". The answer is yes!
-            true
-    end.
+otp([], []) ->
+    %% They're the same length AND all previous chars were matches
+    true;
+otp([H|TMin], [H|TVer]) ->
+    %% The head chars are equal, test the tails
+    otp(TMin, TVer);
+otp([HMin|_], [HVer|_]) ->
+    %% The heads are different, check which is greater
+    HVer >= HMin;
+otp([], _Ver) ->
+    %% The actual OTP release is a longer string, but
+    %% everything matched up until this point
+    %% e.g. R16B02, R16B02-basho4
+    true;
+otp(_Min, []) ->
+    %% Our Min is a longer string
+    %% e.g. R16B02-basho4, R16B02
+    false.
 
 % @doc conf_get/2 is a convenience wrapper for proplists:get_value/2
 % for schema writers. Keys to a Conf proplist are variable()s which
@@ -134,8 +126,8 @@ otp_test() ->
     ?assert(not(otp("R16B01", "R15B02"))),
     ?assert(otp("R16", "R16B03")),
     ?assert(otp("R16", "R16A")),
-    ?assert(not(otp("R16A", "R16"))),
-    ?assert(not(otp("R16", "R16"))),
+    ?assert(not(otp("R16B01", "R16A"))),
+    ?assert(otp("R16A", "R16A")),
     ok.
 
 -endif.
