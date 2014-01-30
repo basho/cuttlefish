@@ -22,12 +22,58 @@
 
 -module(cuttlefish).
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-compile(export_all).
+-endif.
+
 -export([
     conf_get/2,
     conf_get/3,
     unset/0,
-    invalid/1
+    invalid/1,
+    otp/2,
+    otp/3
 ]).
+
+% @doc If DesiredMinimum =< the OTP you're running, then return
+% IfGreaterOrEqual, otherwise IfLessThan.
+-spec otp(string(), any(), any()) -> any().
+otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
+    ActualOTPVersion = erlang:system_info(otp_release),
+    case otp(DesiredMinimumOTPVersion, ActualOTPVersion) of
+        true -> IfGreaterOrEqual;
+        _ -> IfLessThan
+    end.
+
+% @doc is ActualOTPVersion >= DesiredMinimumOTPVersion?
+-spec otp(string(), string()) -> boolean().
+otp(DesiredMinimumOTPVersion, ActualOTPVersion) ->
+    Result = lists:foldl(
+        fun(_, true) -> true;
+           (_, false) -> false;
+           (E, [H|TAcc]) ->
+            case {E =:= H, E < H, E > H, TAcc} of
+                {true, _, _, []} ->
+                    %% Our Actual version is shorter than desired version
+                    %% e.g. "R16" >= "R16B01"
+                    false;
+                {true, _, _, _} -> TAcc;
+                {false, true, _, _} -> true;
+                {false, false, true, _} -> false
+            end
+        end,
+        ActualOTPVersion,
+        DesiredMinimumOTPVersion
+    ),
+
+    case is_boolean(Result) of
+        true -> Result;
+        false ->
+            %% false means that the begining matched, but unequal legnths
+            %% e.g. is "R16B03" >= "R16". The answer is yes!
+            true
+    end.
 
 % @doc conf_get/2 is a convenience wrapper for proplists:get_value/2
 % for schema writers. Keys to a Conf proplist are variable()s which
@@ -76,3 +122,14 @@ unset() ->
 -spec invalid(string()) -> no_return().
 invalid(Reason) ->
     throw({invalid, Reason}).
+
+-ifdef(TEST).
+
+otp_test() ->
+    ?assert(otp("R15B01", "R15B02")),
+    ?assert(otp("R15B01", "R15B02-basho3")),
+    ?assert(not(otp("R16B01", "R15B02"))),
+    ?assert(otp("R16", "R16B03")),
+    ok.
+
+-endif.
