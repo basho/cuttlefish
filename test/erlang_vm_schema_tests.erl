@@ -18,15 +18,21 @@ basic_schema_test() ->
     cuttlefish_unit:assert_config(Config, "vm_args.-name", "node@host"),
     cuttlefish_unit:assert_config(Config, "vm_args.-setcookie", "erlang"),
     cuttlefish_unit:assert_config(Config, "vm_args.+A", 64),
-    cuttlefish_unit:assert_config(Config, "vm_args.+Q", 65536),
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_FULLSWEEP_AFTER", 0),
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_CRASH_DUMP", "dump"),
-    cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000),
     cuttlefish_unit:assert_config(Config, "vm_args.+P", 256000),
     cuttlefish_unit:assert_not_configured(Config, "vm_args.+zdbbl"),
     cuttlefish_unit:assert_not_configured(Config, "vm_args.+sfwi"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_min"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_max"),
+    case erlang:system_info(otp_release) of
+        [$R, $1, N|_] when N >= $6 ->
+            cuttlefish_unit:assert_config(Config, "vm_args.+Q", 65536),
+            cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000);
+        _ ->
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 65536),
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_ETS_TABLES", 256000)
+    end,
     ok.
 
 override_schema_test() ->
@@ -62,15 +68,25 @@ override_schema_test() ->
     cuttlefish_unit:assert_config(Config, "vm_args.-name", "mynode@myhost"),
     cuttlefish_unit:assert_config(Config, "vm_args.-setcookie", "riak"),
     cuttlefish_unit:assert_config(Config, "vm_args.+A", 22),
-    cuttlefish_unit:assert_config(Config, "vm_args.+Q", 32000),
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_FULLSWEEP_AFTER", 1),
     cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_CRASH_DUMP", "place"),
-    cuttlefish_unit:assert_config(Config, "vm_args.+e", 128000),
     cuttlefish_unit:assert_config(Config, "vm_args.+P", 128001),
     cuttlefish_unit:assert_config(Config, "vm_args.+zdbbl", 1),
     cuttlefish_unit:assert_config(Config, "vm_args.+sfwi", 500),
     cuttlefish_unit:assert_config(Config, "kernel.inet_dist_listen_min", 6000),
     cuttlefish_unit:assert_config(Config, "kernel.inet_dist_listen_max", 7999),
+
+    %% These settings are version dependent, so we won't even test them here
+    %% because we don't know what version you're running, so we'll cover it
+    %% in two tests below
+    case erlang:system_info(otp_release) of
+        [$R, $1, N|_] when N >= $6 ->
+            cuttlefish_unit:assert_config(Config, "vm_args.+Q", 32000),
+            cuttlefish_unit:assert_config(Config, "vm_args.+e", 128000);
+        _ ->
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 32000),
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_ETS_TABLES", 128000)
+    end,
     ok.
 
 erlang_scheduler_test() ->

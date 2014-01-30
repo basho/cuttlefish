@@ -22,12 +22,50 @@
 
 -module(cuttlefish).
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-compile(export_all).
+-endif.
+
 -export([
     conf_get/2,
     conf_get/3,
     unset/0,
-    invalid/1
+    invalid/1,
+    otp/2,
+    otp/3
 ]).
+
+% @doc If DesiredMinimum =< the OTP you're running, then return
+% IfGreaterOrEqual, otherwise IfLessThan.
+-spec otp(string(), any(), any()) -> any().
+otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
+    ActualOTPVersion = erlang:system_info(otp_release),
+    case otp(DesiredMinimumOTPVersion, ActualOTPVersion) of
+        true -> IfGreaterOrEqual;
+        _ -> IfLessThan
+    end.
+
+% @doc is ActualOTPVersion >= DesiredMinimumOTPVersion?
+-spec otp(string(), string()) -> boolean().
+otp([], []) ->
+    %% They're the same length AND all previous chars were matches
+    true;
+otp([H|TMin], [H|TVer]) ->
+    %% The head chars are equal, test the tails
+    otp(TMin, TVer);
+otp([HMin|_], [HVer|_]) ->
+    %% The heads are different, check which is greater
+    HVer >= HMin;
+otp([], _Ver) ->
+    %% The actual OTP release is a longer string, but
+    %% everything matched up until this point
+    %% e.g. R16B02, R16B02-basho4
+    true;
+otp(_Min, []) ->
+    %% Our Min is a longer string
+    %% e.g. R16B02-basho4, R16B02
+    false.
 
 % @doc conf_get/2 is a convenience wrapper for proplists:get_value/2
 % for schema writers. Keys to a Conf proplist are variable()s which
@@ -76,3 +114,20 @@ unset() ->
 -spec invalid(string()) -> no_return().
 invalid(Reason) ->
     throw({invalid, Reason}).
+
+-ifdef(TEST).
+
+otp_test() ->
+    ?assert(otp("R15B02", "R15B02-basho3")),
+    ?assert(not(otp("R15B02-basho3", "R15B02"))),
+    ?assert(otp("R16B02-basho3", "R16B03")),
+    ?assert(otp("R15B01", "R15B02")),
+    ?assert(otp("R15B01", "R15B02-basho3")),
+    ?assert(not(otp("R16B01", "R15B02"))),
+    ?assert(otp("R16", "R16B03")),
+    ?assert(otp("R16", "R16A")),
+    ?assert(not(otp("R16B01", "R16A"))),
+    ?assert(otp("R16A", "R16A")),
+    ok.
+
+-endif.
