@@ -126,10 +126,16 @@ invalid(Reason) ->
 -ifdef(TEST).
 
 otp_test() ->
+    ?assert(otp("R15B02", "R15B02-basho3")),
+    ?assert(not(otp("R15B02-basho3", "R15B02"))),
+    ?assert(otp("R16B02-basho3", "R16B03")),
     ?assert(otp("R15B01", "R15B02")),
     ?assert(otp("R15B01", "R15B02-basho3")),
     ?assert(not(otp("R16B01", "R15B02"))),
     ?assert(otp("R16", "R16B03")),
+    ?assert(otp("R16", "R16A")),
+    ?assert(not(otp("R16A", "R16"))),
+
     ok.
 
 -endif.
