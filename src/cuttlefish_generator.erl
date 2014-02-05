@@ -462,7 +462,8 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                                           [string:join(Var, "."), StrToSub])};
                          {NewValToSub, AlmostNewConf} ->
                              NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+?RSUBLEN),
-                             {NewValue, [{Var, NewValue}|proplists:delete(Var, AlmostNewConf)]}
+                             {PossiblyEvenMoreSubbedValue, EvenMoreAlmostNewConf} = value_sub(Var, NewValue, AlmostNewConf, []),
+                             {PossiblyEvenMoreSubbedValue, [{Var, PossiblyEvenMoreSubbedValue}|proplists:delete(Var, EvenMoreAlmostNewConf)]}
                      end;
                  _ ->
                      {Value, Conf}
@@ -1043,4 +1044,13 @@ value_sub_whitespace_test() ->
     ?assertEqual("/tyktorp/svagen", proplists:get_value(["d"], NewConf)),
     ok.
 
+value_sub_multiple_sub_test() ->
+    Conf = [
+            {["a"], "/a"},
+            {["b"], "/b"},
+            {["c"], "#(a)#(b)"}
+           ],
+    {NewConf, []} = value_sub(Conf),
+    ?assertEqual("/a/b", proplists:get_value(["c"], NewConf)),
+    ok.
 -endif.
