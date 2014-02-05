@@ -27,6 +27,21 @@ breaks_on_fuzzy_and_strict_match_test() ->
     ?assertMatch({error, add_defaults, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
+breaks_on_rhs_not_found_test() ->
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [{["ring", "state_dir"], "#(tyktorp)/ring"}],
+    ?assertMatch({error, rhs_subs, _}, cuttlefish_generator:map(Schema, Conf)),
+    ok.
+
+breaks_on_rhs_infinite_loop_test() ->
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [
+            {["ring", "state_dir"], "#(platform_data_dir)/ring"},
+            {["platform_data_dir"], "#(ring.state_dir)/data"}
+           ],
+    ?assertMatch({error, rhs_subs, _}, cuttlefish_generator:map(Schema, Conf)),
+    ok.
+
 breaks_on_bad_enum_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [{["storage_backend"], penguin}],
@@ -147,7 +162,7 @@ not_found_error_test() ->
 duration_test() ->
     lager:start(),
     Schema = cuttlefish_schema:files(["../test/durations.schema"]),
-    
+
     %% Test that the duration parsing doesn't emit "error" into the
     %% config instead of the extended type.
     Conf = conf_parse:parse(<<"a.b.c = foo\n">>),

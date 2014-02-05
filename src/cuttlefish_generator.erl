@@ -63,7 +63,7 @@ map_value_sub(Schema, Config) ->
      case value_sub(Config) of
          {SubbedConfig, []} ->
             map_transform_datatypes(Schema, SubbedConfig);
-         {[], EList} ->
+         {_, EList} ->
             {error, rhs_subs, {error, EList}}
     end.
 
