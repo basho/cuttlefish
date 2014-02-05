@@ -437,7 +437,7 @@ value_sub(Var, Value, Conf) ->
                 string(),
                 cuttlefish_conf:conf(),
                 [string()]) ->
-      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
+      {string() | undefined, cuttlefish_conf:conf()} | cuttlefish_error:error().
 value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
@@ -450,8 +450,8 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                  true -> %% RHS Alert
                      %% 1. get the var to find
                      StrToSub = string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN)),
-                     %% 2. pull var from Conf
                      VarToSub = cuttlefish_variable:tokenize(StrToSub),
+                     %% 2. pull var from Conf
                      ValueSub = proplists:get_value(VarToSub, Conf),
                      %% 3. does that var need a sub too?
                      case value_sub(VarToSub, ValueSub, Conf, [Var|History]) of
