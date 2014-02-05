@@ -446,11 +446,10 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
          _ ->
              L = string:str(Value, ?LSUB),
              R = string:str(Value, ?RSUB),
-             io:format("~s L: ~p; R: ~p~n", [Value, L, R]),
              case L > 0 andalso L < R of
                  true -> %% RHS Alert
                      %% 1. get the var to find
-                     StrToSub = string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN),
+                     StrToSub = string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN)),
                      %% 2. pull var from Conf
                      VarToSub = cuttlefish_variable:tokenize(StrToSub),
                      ValueSub = proplists:get_value(VarToSub, Conf),
@@ -1027,6 +1026,21 @@ value_sub_not_found_test() ->
     ?assertEqual([
                    {error, "'a' requires config variable 'b' is set"}
                  ], Errors),
+    ok.
+
+value_sub_whitespace_test() ->
+    Conf = [
+            {["a", "b", "c"], "/tyktorp"},
+            {["a"], "#(a.b.c)/svagen"},
+            {["b"], "#(  a.b.c)/svagen"},
+            {["c"], "#(a.b.c  )/svagen"},
+            {["d"], "#(  a.b.c )/svagen"}
+           ],
+    {NewConf, []} = value_sub(Conf),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["a"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["b"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["c"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["d"], NewConf)),
     ok.
 
 -endif.
