@@ -28,6 +28,11 @@
 
 -define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 
+-define(LSUB, "#(").
+-define(RSUB, ")").
+-define(LSUBLEN, 2).
+-define(RSUBLEN, 1).
+
 -export([map/2, find_mapping/2, add_defaults/2]).
 
 -spec map(
@@ -437,14 +442,15 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
-             {error, lists:flatten(io_lib:format("Circular substitutions: ~p", [History]))};
+             {error, ?FMT("Circular substitutions: ~p", [History])};
          _ ->
-             L = string:str(Value, "<<"),
-             R = string:str(Value, ">>"),
+             L = string:str(Value, ?LSUB),
+             R = string:str(Value, ?RSUB),
+             io:format("~s L: ~p; R: ~p~n", [Value, L, R]),
              case L > 0 andalso L < R of
                  true -> %% RHS Alert
                      %% 1. get the var to find
-                     StrToSub = string:substr(Value, L+2, R-3),
+                     StrToSub = string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN),
                      %% 2. pull var from Conf
                      VarToSub = cuttlefish_variable:tokenize(StrToSub),
                      ValueSub = proplists:get_value(VarToSub, Conf),
@@ -453,10 +459,10 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                          {error, _EMsg} = Error ->
                              Error;
                          {undefined, _} ->
-                             {error, lists:flatten(io_lib:format("'~s' requires config variable '~s' is set",
-                                                                 [string:join(Var, "."), StrToSub]))};
+                             {error, ?FMT("'~s' requires config variable '~s' is set",
+                                          [string:join(Var, "."), StrToSub])};
                          {NewValToSub, AlmostNewConf} ->
-                             NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+2),
+                             NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+?RSUBLEN),
                              {NewValue, [{Var, NewValue}|proplists:delete(Var, AlmostNewConf)]}
                      end;
                  _ ->
@@ -990,7 +996,7 @@ invalid_test() ->
 
 value_sub_test() ->
     Conf = [
-            {["a","b","c"], "<<a.b>>/c"},
+            {["a","b","c"], "#(a.b)/c"},
             {["a","b"], "/a/b"}
            ],
     {NewConf, Errors} = value_sub(Conf),
@@ -1001,9 +1007,9 @@ value_sub_test() ->
 
 value_sub_infinite_loop_test() ->
     Conf = [
-            {["a"], "<<c>>/d"},
-            {["b"], "<<a>>/d"},
-            {["c"], "<<b>>/d"}
+            {["a"], "#(c)/d"},
+            {["b"], "#(a)/d"},
+            {["c"], "#(b)/d"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
@@ -1015,7 +1021,7 @@ value_sub_infinite_loop_test() ->
 
 value_sub_not_found_test() ->
     Conf = [
-            {["a"], "<<b>>/c"}
+            {["a"], "#(b)/c"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
