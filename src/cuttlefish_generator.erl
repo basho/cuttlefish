@@ -452,6 +452,9 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                      case value_sub(VarToSub, ValueSub, Conf, [Var|History]) of
                          {error, _EMsg} = Error ->
                              Error;
+                         {undefined, _} ->
+                             {error, lists:flatten(io_lib:format("'~s' requires config variable '~s' is set",
+                                                                 [string:join(Var, "."), StrToSub]))};
                          {NewValToSub, AlmostNewConf} ->
                              NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+2),
                              {NewValue, [{Var, NewValue}|proplists:delete(Var, AlmostNewConf)]}
@@ -996,7 +999,7 @@ value_sub_test() ->
     ?assertEqual("/a/b/c", ABC),
     ok.
 
-value_infinite_loop_test() ->
+value_sub_infinite_loop_test() ->
     Conf = [
             {["a"], "<<c>>/d"},
             {["b"], "<<a>>/d"},
@@ -1004,9 +1007,19 @@ value_infinite_loop_test() ->
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
-                     {error,"Circular substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
-                     {error,"Circular substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
-                     {error,"Circular substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
+                     {error, "Circular substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
+                     {error, "Circular substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
+                     {error, "Circular substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
+                 ], Errors),
+    ok.
+
+value_sub_not_found_test() ->
+    Conf = [
+            {["a"], "<<b>>/c"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                   {error, "'a' requires config variable 'b' is set"}
                  ], Errors),
     ok.
 
