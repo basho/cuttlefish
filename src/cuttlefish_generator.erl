@@ -48,7 +48,18 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
         {error, EList} ->
             {error, add_defaults, {error, EList}};
         _ ->
-            map_transform_datatypes(Schema, DConfig)
+            map_value_sub(Schema, DConfig)
+    end.
+
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+map_value_sub(Schema, Config) ->
+    lager:debug("Right Hand Side Substitutions"),
+     case value_sub(Config) of
+         {SubbedConfig, []} ->
+            map_transform_datatypes(Schema, SubbedConfig);
+         {[], EList} ->
+            {error, rhs_subs, {error, EList}}
     end.
 
 -spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf())
@@ -398,6 +409,59 @@ transform_datatypes(Conf, Mappings) ->
         {[], []},
         Conf).
 
+-spec value_sub(cuttlefish_conf:conf()) -> {cuttlefish_conf:conf(), [cuttlefish_error:error()]}.
+value_sub(Conf) ->
+    lists:foldr(
+        fun({Var, Val}, {Acc, ErrorAcc}) ->
+            case value_sub(Var, Val, Conf) of
+                {error, _E} = Error -> {Acc, [Error|ErrorAcc]};
+                {NewVal, _NewConf} -> {[{Var, NewVal}|Acc], ErrorAcc}
+            end
+        end,
+        {[],[]},
+        Conf).
+
+-spec value_sub(cuttlefish_variable:variable(),
+                string(),
+                cuttlefish_conf:conf()) ->
+      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
+value_sub(Var, Value, Conf) ->
+    value_sub(Var, Value, Conf, []).
+
+-spec value_sub(cuttlefish_variable:variable(),
+                string(),
+                cuttlefish_conf:conf(),
+                [string()]) ->
+      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
+value_sub(Var, Value, Conf, History) when is_list(Value) ->
+     %% Check if history contains duplicates. if so error
+     case erlang:length(History) == sets:size(sets:from_list(History)) of
+         false ->
+             {error, lists:flatten(io_lib:format("Circular substitutions: ~p", [History]))};
+         _ ->
+             L = string:str(Value, "<<"),
+             R = string:str(Value, ">>"),
+             case L > 0 andalso L < R of
+                 true -> %% RHS Alert
+                     %% 1. get the var to find
+                     StrToSub = string:substr(Value, L+2, R-3),
+                     %% 2. pull var from Conf
+                     VarToSub = cuttlefish_variable:tokenize(StrToSub),
+                     ValueSub = proplists:get_value(VarToSub, Conf),
+                     %% 3. does that var need a sub too?
+                     case value_sub(VarToSub, ValueSub, Conf, [Var|History]) of
+                         {error, _EMsg} = Error ->
+                             Error;
+                         {NewValToSub, AlmostNewConf} ->
+                             NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+2),
+                             {NewValue, [{Var, NewValue}|proplists:delete(Var, AlmostNewConf)]}
+                     end;
+                 _ ->
+                     {Value, Conf}
+             end
+     end;
+value_sub(_Var, Value, Conf, _History) ->
+    {Value, Conf}.
 
 -spec transform_type(
         cuttlefish_datatypes:datatype_list(),
@@ -920,5 +984,30 @@ invalid_test() ->
                   {error, [{error, "Translation for 'b.c' found invalid "
                             "configuration: review all files"}]}},
                  AppConf).
+
+value_sub_test() ->
+    Conf = [
+            {["a","b","c"], "<<a.b>>/c"},
+            {["a","b"], "/a/b"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([], Errors),
+    ABC = proplists:get_value(["a","b","c"], NewConf),
+    ?assertEqual("/a/b/c", ABC),
+    ok.
+
+value_infinite_loop_test() ->
+    Conf = [
+            {["a"], "<<c>>/d"},
+            {["b"], "<<a>>/d"},
+            {["c"], "<<b>>/d"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                     {error,"Circular substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
+                     {error,"Circular substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
+                     {error,"Circular substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
+                 ], Errors),
+    ok.
 
 -endif.
