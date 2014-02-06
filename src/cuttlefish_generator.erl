@@ -472,15 +472,20 @@ value_sub(_Var, Value, Conf, _History) ->
 -spec head_sub(string()) -> none | {sub, cuttlefish_variable:variable(), {string(), string()}}.
 head_sub(Value) ->
     L = string:str(Value, ?LSUB),
-    R = string:str(Value, ?RSUB),
-    case L > 0 andalso L < R of
+    case L > 0 of
         false ->
             none;
         _ ->
-            Var = cuttlefish_variable:tokenize(string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN))),
-            Front = string:substr(Value, 1, L-1),
-            Back =  string:substr(Value, R+?RSUBLEN),
-            {sub, Var, {Front, Back}}
+            R = string:str(string:substr(Value, L + ?RSUBLEN), ?RSUB) + L,
+            case L < R of
+                false ->
+                    none;
+                _ ->
+                    Var = cuttlefish_variable:tokenize(string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN))),
+                    Front = string:substr(Value, 1, L-1),
+                    Back =  string:substr(Value, R+?RSUBLEN),
+                    {sub, Var, {Front, Back}}
+            end
     end.
 
 -spec transform_type(
@@ -1086,6 +1091,16 @@ value_sub_false_circle_test() ->
     {NewConf, Errors} = value_sub(Conf),
     ?assertEqual([], Errors),
     ?assertEqual("C/C", proplists:get_value(["a"], NewConf)),
+    ok.
+
+value_sub_paren_test() ->
+    Conf = [
+            {["a"], "#(c)/#(c)"},
+            {["c"], "C)"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([], Errors),
+    ?assertEqual("C)/C)", proplists:get_value(["a"], NewConf)),
     ok.
 
 -endif.
