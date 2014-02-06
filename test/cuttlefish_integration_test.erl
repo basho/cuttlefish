@@ -102,7 +102,7 @@ multibackend_test() ->
     ?assertEqual(10485760,            proplists:get_value(small_file_threshold, BitcaskProps)),
     ?assertEqual(-1,                  proplists:get_value(max_fold_age, BitcaskProps)),
     ?assertEqual(0,                   proplists:get_value(max_fold_puts, BitcaskProps)),
-    ?assertEqual(-1,                  proplists:get_value(expiry_secs, BitcaskProps)),
+    ?assertEqual(off,                 proplists:get_value(expiry_secs, BitcaskProps)),
     ?assertEqual(true,                proplists:get_value(require_hint_crc, BitcaskProps)),
     ?assertEqual(0,                   proplists:get_value(expiry_grace_time, BitcaskProps)),
     ?assertEqual(erlang,              proplists:get_value(io_mode, BitcaskProps)),

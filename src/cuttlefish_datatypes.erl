@@ -182,7 +182,7 @@ from_string(String, integer) when is_list(String) ->
         _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to an integer", [String]))}
     end;
 
-from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
+from_string({IP, Port}, ip) when is_list(IP), is_integer(Port), Port >= 0 -> {IP, Port};
 from_string(String, ip) ->
     try begin
         Parts = string:tokens(String, ":"),
@@ -194,10 +194,10 @@ from_string(String, ip) ->
         _:_ -> {error, lists:flatten(io_lib:format("~p cannot be converted into an IP", [String]))}
     end;
 
-from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
+from_string(Duration, {duration, _}) when is_integer(Duration), Duration >= 0 -> Duration;
 from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit);
 
-from_string(Bytesize, bytesize) when is_integer(Bytesize) -> Bytesize;
+from_string(Bytesize, bytesize) when is_integer(Bytesize), Bytesize >= 0 -> Bytesize;
 from_string(Bytesize, bytesize) when is_list(Bytesize) -> cuttlefish_bytesize:parse(Bytesize);
 
 from_string(String, string) when is_list(String) -> String;

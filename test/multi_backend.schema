@@ -244,9 +244,9 @@
 %%
 %% Default is: `-1` which disables automatic expiration
 {mapping, "multi_backend.$name.bitcask.expiry", "riak_kv.multi_backend", [
-  {datatype, {duration, s}},
+  {datatype, [{atom, off}, {duration, s}]},
   {level, advanced},
-  {default, -1}
+  {default, off}
 ]}.
 
 

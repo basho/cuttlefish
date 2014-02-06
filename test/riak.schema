@@ -934,11 +934,11 @@ end}.
 %% set the `expiry_secs` option. If you needed to purge data automatically
 %% after 1 day, set the value to `1d`.
 %%
-%% Default is: `-1` which disables automatic expiration
+%% Default is: `off` which disables automatic expiration
 {mapping, "bitcask.expiry", "bitcask.expiry_secs", [
-  {datatype, {duration, s}},
+  {datatype, [{atom, off}, {duration, s}]},
   {level, advanced},
-  {default, -1}
+  {default, off}
 ]}.
 
 
