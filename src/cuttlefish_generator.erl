@@ -439,11 +439,9 @@ value_sub(Var, Value, Conf) ->
                 [string()]) ->
       {string() | undefined, cuttlefish_conf:conf()} | cuttlefish_error:error().
 value_sub(Var, Value, Conf, History) when is_list(Value) ->
-     io:format("value_sub(~p, ~p, Conf, ~p)~n", [Var, Value, History]),
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
-             io:format("Error: ~p~n", [History]),
              {error, ?FMT("Circular RHS substitutions: ~p", [History])};
          _ ->
              case head_sub(Value) of
@@ -454,7 +452,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                          {error, _EMsg} = Error ->
                              Error;
                          {undefined, _} ->
-                             {error, ?FMT("'~s' requires config variable '~s' is set",
+                             {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
                                           [string:join(Var, "."), string:join(NextVar, ".")])};
                          {NewValToSub, AlmostNewConf} ->
                              NewValue = SubFront ++ NewValToSub ++ SubBack,
@@ -1032,7 +1030,7 @@ value_sub_not_found_test() ->
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
-                   {error, "'a' requires config variable 'b' is set"}
+                   {error, "'a' substitution requires a config variable 'b' to be set"}
                  ], Errors),
     ok.
 
