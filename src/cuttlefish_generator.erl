@@ -28,6 +28,11 @@
 
 -define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 
+-define(LSUB, "#(").
+-define(RSUB, ")").
+-define(LSUBLEN, 2).
+-define(RSUBLEN, 1).
+
 -export([map/2, find_mapping/2, add_defaults/2]).
 
 -spec map(
@@ -48,7 +53,18 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
         {error, EList} ->
             {error, add_defaults, {error, EList}};
         _ ->
-            map_transform_datatypes(Schema, DConfig)
+            map_value_sub(Schema, DConfig)
+    end.
+
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf())
+    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+map_value_sub(Schema, Config) ->
+    lager:debug("Right Hand Side Substitutions"),
+     case value_sub(Config) of
+         {SubbedConfig, []} ->
+            map_transform_datatypes(Schema, SubbedConfig);
+         {_, EList} ->
+            {error, rhs_subs, {error, EList}}
     end.
 
 -spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf())
@@ -398,6 +414,74 @@ transform_datatypes(Conf, Mappings) ->
         {[], []},
         Conf).
 
+-spec value_sub(cuttlefish_conf:conf()) -> {cuttlefish_conf:conf(), [cuttlefish_error:error()]}.
+value_sub(Conf) ->
+    lists:foldr(
+        fun({Var, Val}, {Acc, ErrorAcc}) ->
+            case value_sub(Var, Val, Conf) of
+                {error, _E} = Error -> {Acc, [Error|ErrorAcc]};
+                {NewVal, _NewConf} -> {[{Var, NewVal}|Acc], ErrorAcc}
+            end
+        end,
+        {[],[]},
+        Conf).
+
+-spec value_sub(cuttlefish_variable:variable(),
+                string(),
+                cuttlefish_conf:conf()) ->
+      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
+value_sub(Var, Value, Conf) ->
+    value_sub(Var, Value, Conf, []).
+
+-spec value_sub(cuttlefish_variable:variable(),
+                string(),
+                cuttlefish_conf:conf(),
+                [string()]) ->
+      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
+value_sub(Var, Value, Conf, History) when is_list(Value) ->
+     %% Check if history contains duplicates. if so error
+     case erlang:length(History) == sets:size(sets:from_list(History)) of
+         false ->
+             {error, ?FMT("Circular RHS substitutions: ~p", [History])};
+         _ ->
+             case head_sub(Value) of
+                 none -> {Value, Conf};
+                 {sub, NextVar, {SubFront, SubBack}} ->
+                    case proplists:get_value(NextVar, Conf) of
+                        undefined ->
+                            {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
+                                         [string:join(Var, "."), string:join(NextVar, ".")])};
+                        SubVal ->
+                            %% Do a sub-subsitution, in case the substituted
+                            %% value contains substitutions itself. Do this as
+                            %% its own seperate recursion so that circular
+                            %% subtitutions can be detected.
+                            case value_sub(NextVar, SubVal, Conf, [Var|History]) of
+                                {error, _} = Error ->
+                                    Error;
+                                {NewSubVal, NewConf} ->
+                                    NewValue = SubFront ++ NewSubVal ++ SubBack,
+                                    value_sub(Var, NewValue, NewConf, History)
+                            end
+                    end
+             end
+     end;
+value_sub(_Var, Value, Conf, _History) ->
+    {Value, Conf}.
+
+-spec head_sub(string()) -> none | {sub, cuttlefish_variable:variable(), {string(), string()}}.
+head_sub(Value) ->
+    L = string:str(Value, ?LSUB),
+    R = string:str(Value, ?RSUB),
+    case L > 0 andalso L < R of
+        false ->
+            none;
+        _ ->
+            Var = cuttlefish_variable:tokenize(string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN))),
+            Front = string:substr(Value, 1, L-1),
+            Back =  string:substr(Value, R+?RSUBLEN),
+            {sub, Var, {Front, Back}}
+    end.
 
 -spec transform_type(
         cuttlefish_datatypes:datatype_list(),
@@ -920,5 +1004,88 @@ invalid_test() ->
                   {error, [{error, "Translation for 'b.c' found invalid "
                             "configuration: review all files"}]}},
                  AppConf).
+
+value_sub_test() ->
+    Conf = [
+            {["a","b","c"], "#(a.b)/c"},
+            {["a","b"], "/a/b"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([], Errors),
+    ABC = proplists:get_value(["a","b","c"], NewConf),
+    ?assertEqual("/a/b/c", ABC),
+    ok.
+
+value_sub_infinite_loop_test() ->
+    Conf = [
+            {["a"], "#(c)/d"},
+            {["b"], "#(a)/d"},
+            {["c"], "#(b)/d"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                     {error, "Circular RHS substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
+                     {error, "Circular RHS substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
+                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
+                 ], Errors),
+    ok.
+
+value_sub_not_found_test() ->
+    Conf = [
+            {["a"], "#(b)/c"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                   {error, "'a' substitution requires a config variable 'b' to be set"}
+                 ], Errors),
+    ok.
+
+value_sub_whitespace_test() ->
+    Conf = [
+            {["a", "b", "c"], "/tyktorp"},
+            {["a"], "#(a.b.c)/svagen"},
+            {["b"], "#(  a.b.c)/svagen"},
+            {["c"], "#(a.b.c  )/svagen"},
+            {["d"], "#(  a.b.c )/svagen"}
+           ],
+    {NewConf, []} = value_sub(Conf),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["a"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["b"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["c"], NewConf)),
+    ?assertEqual("/tyktorp/svagen", proplists:get_value(["d"], NewConf)),
+    ok.
+
+value_sub_multiple_sub_test() ->
+    Conf = [
+            {["a"], "/a"},
+            {["b"], "/b"},
+            {["c"], "#(a)#(b)"}
+           ],
+    {NewConf, []} = value_sub(Conf),
+    ?assertEqual("/a/b", proplists:get_value(["c"], NewConf)),
+    ok.
+
+value_sub_error_in_second_sub_test() ->
+    Conf = [
+            {["a"], "#(b)/#(c)"},
+            {["b"], "/b"},
+            {["c"], "#(a)/c"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                     {error, "Circular RHS substitutions: [[\"a\"],[\"c\"],[\"a\"]]"},
+                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"c\"]]"}
+                 ], Errors),
+    ok.
+
+value_sub_false_circle_test() ->
+    Conf = [
+            {["a"], "#(c)/#(c)"},
+            {["c"], "C"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([], Errors),
+    ?assertEqual("C/C", proplists:get_value(["a"], NewConf)),
+    ok.
 
 -endif.
