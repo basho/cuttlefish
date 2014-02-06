@@ -439,9 +439,11 @@ value_sub(Var, Value, Conf) ->
                 [string()]) ->
       {string() | undefined, cuttlefish_conf:conf()} | cuttlefish_error:error().
 value_sub(Var, Value, Conf, History) when is_list(Value) ->
+     io:format("value_sub(~p, ~p, Conf, ~p)~n", [Var, Value, History]),
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
+             io:format("Error: ~p~n", [History]),
              {error, ?FMT("Circular RHS substitutions: ~p", [History])};
          _ ->
              case head_sub(Value) of
@@ -456,9 +458,8 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                                           [string:join(Var, "."), string:join(NextVar, ".")])};
                          {NewValToSub, AlmostNewConf} ->
                              NewValue = SubFront ++ NewValToSub ++ SubBack,
-                             {PossiblyEvenMoreSubbedValue, EvenMoreAlmostNewConf} = value_sub(Var, NewValue, AlmostNewConf),
-                             {PossiblyEvenMoreSubbedValue, [{Var, PossiblyEvenMoreSubbedValue}|proplists:delete(Var, EvenMoreAlmostNewConf)]}
-                     end
+                             value_sub(Var, NewValue, AlmostNewConf, History)
+                    end
              end
      end;
 value_sub(_Var, Value, Conf, _History) ->
@@ -1059,4 +1060,18 @@ value_sub_multiple_sub_test() ->
     {NewConf, []} = value_sub(Conf),
     ?assertEqual("/a/b", proplists:get_value(["c"], NewConf)),
     ok.
+
+value_sub_error_in_second_sub_test() ->
+    Conf = [
+            {["a"], "#(b)/#(c)"},
+            {["b"], "/b"},
+            {["c"], "#(a)/c"}
+           ],
+    {_NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([
+                     {error, "Circular RHS substitutions: [[\"a\"],[\"c\"],[\"a\"]]"},
+                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"c\"]]"}
+                 ], Errors),
+    ok.
+
 -endif.
