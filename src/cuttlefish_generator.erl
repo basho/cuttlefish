@@ -1072,4 +1072,14 @@ value_sub_error_in_second_sub_test() ->
                  ], Errors),
     ok.
 
+value_sub_false_circle_test() ->
+    Conf = [
+            {["a"], "#(c)/#(c)"},
+            {["c"], "C"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    ?assertEqual([], Errors),
+    ?assertEqual("C/C", proplists:get_value(["a"], NewConf)),
+    ok.
+
 -endif.
