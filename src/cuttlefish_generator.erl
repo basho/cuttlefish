@@ -442,35 +442,41 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
-             {error, ?FMT("Circular substitutions: ~p", [History])};
+             {error, ?FMT("Circular RHS substitutions: ~p", [History])};
          _ ->
-             L = string:str(Value, ?LSUB),
-             R = string:str(Value, ?RSUB),
-             case L > 0 andalso L < R of
-                 true -> %% RHS Alert
-                     %% 1. get the var to find
-                     StrToSub = string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN)),
-                     VarToSub = cuttlefish_variable:tokenize(StrToSub),
-                     %% 2. pull var from Conf
-                     ValueSub = proplists:get_value(VarToSub, Conf),
-                     %% 3. does that var need a sub too?
-                     case value_sub(VarToSub, ValueSub, Conf, [Var|History]) of
+             case head_sub(Value) of
+                 none -> {Value, Conf};
+                 {sub, NextVar, {SubFront, SubBack}} ->
+                     SubVal = proplists:get_value(NextVar, Conf),
+                     case value_sub(NextVar, SubVal, Conf, [Var|History]) of
                          {error, _EMsg} = Error ->
                              Error;
                          {undefined, _} ->
                              {error, ?FMT("'~s' requires config variable '~s' is set",
-                                          [string:join(Var, "."), StrToSub])};
+                                          [string:join(Var, "."), string:join(NextVar, ".")])};
                          {NewValToSub, AlmostNewConf} ->
-                             NewValue = string:substr(Value, 1, L-1) ++ NewValToSub ++ string:substr(Value, R+?RSUBLEN),
-                             {PossiblyEvenMoreSubbedValue, EvenMoreAlmostNewConf} = value_sub(Var, NewValue, AlmostNewConf, []),
+                             NewValue = SubFront ++ NewValToSub ++ SubBack,
+                             {PossiblyEvenMoreSubbedValue, EvenMoreAlmostNewConf} = value_sub(Var, NewValue, AlmostNewConf),
                              {PossiblyEvenMoreSubbedValue, [{Var, PossiblyEvenMoreSubbedValue}|proplists:delete(Var, EvenMoreAlmostNewConf)]}
-                     end;
-                 _ ->
-                     {Value, Conf}
+                     end
              end
      end;
 value_sub(_Var, Value, Conf, _History) ->
     {Value, Conf}.
+
+-spec head_sub(string()) -> none | {sub, cuttlefish_variable:variable(), {string(), string()}}.
+head_sub(Value) ->
+    L = string:str(Value, ?LSUB),
+    R = string:str(Value, ?RSUB),
+    case L > 0 andalso L < R of
+        false ->
+            none;
+        _ ->
+            Var = cuttlefish_variable:tokenize(string:strip(string:substr(Value, L+?LSUBLEN, R-L-?LSUBLEN))),
+            Front = string:substr(Value, 1, L-1),
+            Back =  string:substr(Value, R+?RSUBLEN),
+            {sub, Var, {Front, Back}}
+    end.
 
 -spec transform_type(
         cuttlefish_datatypes:datatype_list(),
@@ -1013,9 +1019,9 @@ value_sub_infinite_loop_test() ->
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
-                     {error, "Circular substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
-                     {error, "Circular substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
-                     {error, "Circular substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
+                     {error, "Circular RHS substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
+                     {error, "Circular RHS substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
+                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
                  ], Errors),
     ok.
 
