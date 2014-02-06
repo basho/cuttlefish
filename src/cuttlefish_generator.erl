@@ -437,7 +437,7 @@ value_sub(Var, Value, Conf) ->
                 string(),
                 cuttlefish_conf:conf(),
                 [string()]) ->
-      {string() | undefined, cuttlefish_conf:conf()} | cuttlefish_error:error().
+      {string(), cuttlefish_conf:conf()} | cuttlefish_error:error().
 value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
@@ -447,16 +447,22 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
              case head_sub(Value) of
                  none -> {Value, Conf};
                  {sub, NextVar, {SubFront, SubBack}} ->
-                     SubVal = proplists:get_value(NextVar, Conf),
-                     case value_sub(NextVar, SubVal, Conf, [Var|History]) of
-                         {error, _EMsg} = Error ->
-                             Error;
-                         {undefined, _} ->
-                             {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
-                                          [string:join(Var, "."), string:join(NextVar, ".")])};
-                         {NewValToSub, AlmostNewConf} ->
-                             NewValue = SubFront ++ NewValToSub ++ SubBack,
-                             value_sub(Var, NewValue, AlmostNewConf, History)
+                    case proplists:get_value(NextVar, Conf) of
+                        undefined ->
+                            {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
+                                         [string:join(Var, "."), string:join(NextVar, ".")])};
+                        SubVal ->
+                            %% Do a sub-subsitution, in case the substituted
+                            %% value contains substitutions itself. Do this as
+                            %% its own seperate recursion so that circular
+                            %% subtitutions can be detected.
+                            case value_sub(NextVar, SubVal, Conf, [Var|History]) of
+                                {error, _} = Error ->
+                                    Error;
+                                {NewSubVal, NewConf} ->
+                                    NewValue = SubFront ++ NewSubVal ++ SubBack,
+                                    value_sub(Var, NewValue, NewConf, History)
+                            end
                     end
              end
      end;
