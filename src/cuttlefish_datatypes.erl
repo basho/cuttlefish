@@ -131,17 +131,17 @@ to_string(Atom, atom) when is_atom(Atom) -> atom_to_list(Atom);
 to_string(Integer, integer) when is_integer(Integer) -> integer_to_list(Integer);
 to_string(Integer, integer) when is_list(Integer) -> Integer;
 
-to_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> IP ++ ":" ++ integer_to_list(Port);
+to_string({IP, Port}, ip) when is_list(IP), is_integer(Port), Port >= 0 -> IP ++ ":" ++ integer_to_list(Port);
 to_string(IPString, ip) when is_list(IPString) -> IPString;
 
 to_string(Enum, {enum, _}) when is_list(Enum) -> Enum;
 to_string(Enum, {enum, _}) when is_atom(Enum) -> atom_to_list(Enum);
 
 to_string(Duration, {duration, _}) when is_list(Duration) -> Duration;
-to_string(Duration, {duration, Unit}) when is_integer(Duration) -> cuttlefish_duration:to_string(Duration, Unit);
+to_string(Duration, {duration, Unit}) when is_integer(Duration), Duration >= 0 -> cuttlefish_duration:to_string(Duration, Unit);
 
 to_string(Bytesize, bytesize) when is_list(Bytesize) -> Bytesize;
-to_string(Bytesize, bytesize) when is_integer(Bytesize) -> cuttlefish_bytesize:to_string(Bytesize);
+to_string(Bytesize, bytesize) when is_integer(Bytesize), Bytesize >= 0 -> cuttlefish_bytesize:to_string(Bytesize);
 
 to_string(String, string) when is_list(String) -> String;
 
