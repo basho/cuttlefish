@@ -24,9 +24,14 @@
 
 -export([files/1, strings/1]).
 
+%% Exported for unit testing in other projects
+-export([merger/1, string_fun_factory/0]).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+
+
 -endif.
 
 -type schema() :: {
@@ -46,9 +51,13 @@ strings(ListOfStrings) ->
 -spec merger(fun((string()) -> schema() | cuttlefish_error:errorlist()), [string()]) ->
                     schema() | cuttlefish_error:errorlist().
 merger(Fun, ListOfInputs) ->
-    Schema = lists:foldr(
-        fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
+    merger([ {Fun, Input} || Input <- ListOfInputs ]).
 
+-spec merger([{fun((string()) -> schema() | cuttlefish_error:errorlist()), string()}]) ->
+                    schema() | cuttlefish_error:errorlist().
+merger(ListOfFunInputPairs) ->
+    Schema = lists:foldr(
+        fun({Fun, Input}, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
             case Fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) of
                 {error, Errors} ->
                     %% These have already been logged. We're not moving forward with this
@@ -75,11 +84,12 @@ merger(Fun, ListOfInputs) ->
             end
         end,
         {[], [], []},
-        ListOfInputs),
+        ListOfFunInputPairs),
     filter(Schema).
 
-%% This filter is *ONLY* for the case of multiple mappings to a single erlang
-%% app setting, *AND* there's no corresponding translation for that app setting
+%% This filter is *ONLY* for the case of multiple mappings to a single
+%% erlang app setting, *AND* there's no corresponding translation for
+%% that app setting
 -spec filter(schema() | cuttlefish_error:errorlist()) -> schema() | cuttlefish_error:errorlist().
 filter({error, Errorlist}) ->
     {error, Errorlist};
@@ -120,6 +130,13 @@ file(Filename, Schema) ->
         NewSchema ->
             NewSchema
     end.
+
+%% @doc this exists so that we can create the fun using non exported
+%% functions for unit testing
+-spec string_fun_factory() -> fun((string(), schema()) ->
+                                         schema() | cuttlefish_error:errorlist()).
+string_fun_factory() ->
+     fun string/2.
 
 -spec string(string(), schema()) -> schema() | cuttlefish_error:errorlist().
 string(S, {T, M, V}) ->
