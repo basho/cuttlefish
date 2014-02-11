@@ -4,14 +4,17 @@
 -compile(export_all).
 
 generate_templated_config(FileName, Conf, Context) ->
-    case lists:all(fun(X) -> not is_list(X) end, FileName) of
+    generate_templated_config(FileName, Conf, Context, {[], [], []}).
+
+generate_templated_config(FileName, Conf, Context, PreexistingSchema) ->
+    RenderedSchemas = case lists:all(fun(X) -> not is_list(X) end, FileName) of
         true -> %% it's a single depth list, aka string
-            SchemaString = render_template(FileName, Context),
-            generate_config(string, SchemaString, Conf);
+            [{ cuttlefish_schema:string_fun_factory(), render_template(FileName, Context)}];
         _ -> %% It's a list of lists, aka multiple strings
-            SchemaStrings = [render_template(F, Context) || F <- FileName],
-            generate_config(strings, SchemaStrings, Conf)
-    end.
+            [{ cuttlefish_schema:string_fun_factory(), render_template(F, Context)} || F <- FileName]
+    end,
+    Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(X, _) -> X end, PreexistingSchema} ]),
+    cuttlefish_generator:map(Schema, Conf).
 
 render_template(FileName, Context) ->
     {ok, Bin} = file:read_file(FileName),
@@ -155,12 +158,27 @@ dump_to_file(ErlangTerm, Filename) ->
 
 -ifdef(TEST).
 
-
-
 path_test() ->
     ?assertEqual(
        {ok, "disable"},
        path(["vm_args", "-smp"], [{vm_args, [{'-smp', "disable"}]}])),
+    ok.
+
+multiple_schema_generate_templated_config_test() ->
+    lager:start(),
+    Context = [
+        {mustache, "mustache"}
+              ],
+    PrereqSchema = {[], [
+        cuttlefish_mapping:parse(
+        {mapping, "c", "app.c", [
+            {default, "/c"}
+                                ]})
+                        ], []},
+
+    Config = cuttlefish_unit:generate_templated_config("../test/sample_mustache.schema", [], Context, PrereqSchema),
+    lager:error("~p", [Config]),
+    assert_config(Config, "app_a.setting_b", "/c/mustache/a.b"),
     ok.
 
 -endif.
