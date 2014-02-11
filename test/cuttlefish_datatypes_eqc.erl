@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_eqc: EQC tests for cuttlefish
+%% cuttlefish_datatypes_eqc: EQC tests for cuttlefish
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
@@ -19,7 +19,7 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(cuttlefish_eqc).
+-module(cuttlefish_datatypes_eqc).
 -compile(export_all).
 
 -ifdef(EQC).
