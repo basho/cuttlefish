@@ -10,7 +10,8 @@
          terminate/2,
          code_change/3]).
 -export([get_logs/0,
-        bounce/0]).
+        bounce/0,
+        bounce/1]).
 
 %% holds the log messages for retreival on terminate
 -record(state, {level, verbose, log = []}).
@@ -22,10 +23,13 @@ get_logs() ->
     gen_event:call(lager_event, ?MODULE, get_logs, infinity).
 
 bounce() ->
+    bounce(error).
+
+bounce(Level) ->
     application:stop(lager),
     lager:start(),
     gen_event:add_handler(lager_event, cuttlefish_lager_test_backend, [error, false]),
-    lager:set_loglevel(cuttlefish_lager_test_backend, error),
+    lager:set_loglevel(cuttlefish_lager_test_backend, Level),
     ok.
 
 -spec(init(integer()|atom()|[term()]) -> {ok, #state{}} | {error, atom()}).

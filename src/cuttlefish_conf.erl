@@ -88,9 +88,10 @@ generate_element(MappingRecord) ->
     Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
+    Hidden = cuttlefish_mapping:hidden(MappingRecord),
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
     [Datatype|_] = cuttlefish_mapping:datatype(MappingRecord),
-    %% level != basic: leave out of generated .conf file
+    %% level != basic OR hidden == true: leave out of generated .conf file
     %% commeneted $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
     %%    e.g. {include_default, "internal"}
@@ -98,7 +99,13 @@ generate_element(MappingRecord) ->
 
     Field = string:join(cuttlefish_variable:replace_match(Key, IncDef), "."),
 
-    case generate_element(Level, Default, Commented) of
+    case Level of
+        basic -> ok;
+        Level ->
+            lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+    end,
+
+    case generate_element(Hidden, Level, Default, Commented) of
         no ->
             [];
         commented ->
@@ -108,11 +115,11 @@ generate_element(MappingRecord) ->
             Comments = generate_comments(MappingRecord),
             Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]
     end.
-
-generate_element(_, undefined, undefined) -> no;
-generate_element(basic, _Default, undefined) -> default;
-generate_element(basic, _, _Comment) -> commented;
-generate_element(_Level, _Default, _Commented) -> no.
+generate_element(true, _, _, _) -> no;
+generate_element(false, _, undefined, undefined) -> no;
+generate_element(false, basic, _Default, undefined) -> default;
+generate_element(false, basic, _, _Comment) -> commented;
+generate_element(false, _Level, _Default, _Commented) -> no.
 
 -spec generate_comments(cuttlefish_mapping:mapping()) -> [string()].
 generate_comments(M) ->
@@ -253,5 +260,36 @@ files_one_nonent_test() ->
     ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
+
+generate_element_level_advanced_test() ->
+    cuttlefish_lager_test_backend:bounce(warning),
+    assert_no_output({level, advanced}),
+    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    ?assertMatch({match, _}, re:run(Log, "{level, advanced} has been deprecated. Use 'hidden' or '{hidden, true}'")),
+    ok.
+
+generate_element_level_intermediate_test() ->
+    cuttlefish_lager_test_backend:bounce(warning),
+    assert_no_output({level, intermediate}),
+    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    ?assertMatch({match, _}, re:run(Log, "{level, intermediate} has been deprecated. Use 'hidden' or '{hidden, true}'")),
+    ok.
+
+generate_element_hidden_test() ->
+    cuttlefish_lager_test_backend:bounce(warning),
+    assert_no_output(hidden),
+    assert_no_output({hidden, true}),
+    ?assertEqual([], cuttlefish_lager_test_backend:get_logs()),
+    ok.
+
+assert_no_output(Setting) ->
+    Mapping = cuttlefish_mapping:parse(
+                {mapping,
+                 "a", "b", [
+                   {doc, ["blah"]},
+                   Setting
+               ]}),
+
+    ?assertEqual([], generate_element(Mapping)).
 
 -endif.

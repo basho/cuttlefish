@@ -37,7 +37,8 @@
         include_default = undefined :: string() | undefined,
         validators = [] :: [string()],
         is_merge = false :: boolean(),
-        see = [] :: [cuttlefish_variable:variable()]
+        see = [] :: [cuttlefish_variable:variable()],
+        hidden = false :: boolean()
     }).
 
 -type mapping() :: #mapping{}.
@@ -56,6 +57,7 @@
     commented/1,
     datatype/1,
     level/1,
+    hidden/1,
     doc/1,
     see/1,
     include_default/1,
@@ -99,7 +101,8 @@ parse({mapping, Variable, Mapping, Proplist}) ->
                 doc = proplists:get_value(doc, Proplist, []),
                 see = proplists:get_value(see, Proplist, []),
                 include_default = proplists:get_value(include_default, Proplist),
-                validators = proplists:get_value(validators, Proplist, [])
+                validators = proplists:get_value(validators, Proplist, []),
+                hidden = proplists:get_value(hidden, Proplist, false)
             }
     end;
 parse(X) ->
@@ -146,7 +149,8 @@ merge(NewMappingSource, OldMapping) ->
         doc = choose(doc, NewMappingSource, MergeMapping, OldMapping),
         include_default = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
         validators = choose(validators, NewMappingSource, MergeMapping, OldMapping),
-        see = choose(see, NewMappingSource, MergeMapping, OldMapping)
+        see = choose(see, NewMappingSource, MergeMapping, OldMapping),
+        hidden = choose(hidden, NewMappingSource, MergeMapping, OldMapping)
     }.
 
 choose(Field, {_, _, _, PreParseMergeProps}, MergeMapping, OldMapping) ->
@@ -194,6 +198,9 @@ datatype(M) -> M#mapping.datatype.
 
 -spec level(mapping()) -> basic | intermediate | advanced.
 level(M) -> M#mapping.level.
+
+-spec hidden(mapping()) -> boolean().
+hidden(M) -> M#mapping.hidden.
 
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
@@ -250,7 +257,8 @@ mapping_test() ->
             {commented, "commented value"},
             {include_default, "default_substitution"},
             {doc, ["documentation", "for feature"]},
-            {validators, ["valid.the.impailer"]}
+            {validators, ["valid.the.impailer"]},
+            hidden
         ]
     },
 
@@ -264,6 +272,7 @@ mapping_test() ->
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
     ?assertEqual("default_substitution", Record#mapping.include_default),
     ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
+    ?assertEqual(true, Record#mapping.hidden),
 
     %% funciton tests
     ?assertEqual(["conf","key"], variable(Record)),
@@ -274,6 +283,7 @@ mapping_test() ->
     ?assertEqual(["documentation", "for feature"], doc(Record)),
     ?assertEqual("default_substitution", include_default(Record)),
     ?assertEqual(["valid.the.impailer"], validators(Record)),
+    ?assertEqual(true, hidden(Record)),
 
     ok.
 
@@ -380,7 +390,8 @@ parse_and_merge_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
-            {doc, ["documentation", "for feature"]}
+            {doc, ["documentation", "for feature"]},
+            hidden
         ]
     }),
     parse({
@@ -398,9 +409,10 @@ parse_and_merge_test() ->
     })
     ],
 
-    NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", []}, SampleMappings),
+    NewMappings = parse_and_merge({mapping, "conf.key", "erlang.key3", [{hidden, false}]}, SampleMappings),
 
     ?assertEqual("erlang.key3", mapping(hd(NewMappings))),
+    ?assertEqual(false, hidden(hd(NewMappings))),
     ok.
 
 smart_merge_test() ->
