@@ -17,7 +17,7 @@
 {mapping, "erlang.smp", "vm_args.-smp", [
   {default, enable},
   {datatype, {enum, [enable, auto, disable]}},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @doc Sets the mapping of warning messages for error_logger.
@@ -26,7 +26,7 @@
 %% (w - default), or info reports (i).
 {mapping, "erlang.W", "vm_args.+W", [
   {default, "w"},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @doc Sets the number of scheduler threads to create and scheduler
@@ -91,7 +91,7 @@
 {mapping, "erlang.K", "vm_args.+K", [
   {default, on},
   {datatype, flag},
-  {level, advanced}
+  hidden
 ]}.
 
 %%%% Tunables
@@ -144,7 +144,7 @@
 {mapping, "erlang.fullsweep_after", "vm_args.-env ERL_FULLSWEEP_AFTER", [
   {default, 0},
   {datatype, integer},
-  {level, advanced},
+  hidden,
   {validators, ["positive_integer"]}
 ]}.
 
@@ -155,7 +155,7 @@
 {mapping, "erlang.crash_dump", "vm_args.-env ERL_CRASH_DUMP", [
   {default, "{{crash_dump}}"},
   {datatype, file},
-  {level, advanced}
+  hidden
 ]}.
 
 %% Note: OTP R15 and earlier uses -env ERL_MAX_ETS_TABLES,
@@ -165,14 +165,14 @@
   cuttlefish:otp("R16", "vm_args.+e", "vm_args.-env ERL_MAX_ETS_TABLES"), [
   {default, 256000},
   {datatype, integer},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @doc Raise the default erlang process limit
 {mapping, "erlang.process_limit", "vm_args.+P", [
   {datatype, integer},
   {default, 256000},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @doc For nodes with many busy_dist_port events, Basho recommends
@@ -184,7 +184,7 @@
 {mapping, "erlang.distribution_buffer_size", "vm_args.+zdbbl", [
   {datatype, bytesize},
   {commented, "32MB"},
-  {level, advanced},
+  hidden,
   {validators, ["zdbbl_range"]}
 ]}.
 
@@ -219,7 +219,7 @@
 {mapping, "erlang.schedulers.force_wakeup_interval", "vm_args.+sfwi", [
   {commented, 500},
   {datatype, integer},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @doc For ease of firewall configuration, the Erlang distribution
@@ -234,12 +234,12 @@
 {mapping, "erlang.distribution.port_range.minimum", "kernel.inet_dist_listen_min", [
   {commented, 6000},
   {datatype, integer},
-  {level, advanced}
+  hidden
 ]}.
 
 %% @see erlang.distribution.port_range.minimum
 {mapping, "erlang.distribution.port_range.maximum", "kernel.inet_dist_listen_max", [
   {commented, 7999},
   {datatype, integer},
-  {level, advanced}
+  hidden
 ]}.
