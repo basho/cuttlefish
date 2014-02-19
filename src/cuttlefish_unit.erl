@@ -13,7 +13,7 @@ generate_templated_config(FileName, Conf, Context, PreexistingSchema) ->
         _ -> %% It's a list of lists, aka multiple strings
             [{ cuttlefish_schema:string_fun_factory(), render_template(F, Context)} || F <- FileName]
     end,
-    Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(X, _) -> X end, PreexistingSchema} ]),
+    Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(_, _) -> PreexistingSchema end, ""} ]),
     cuttlefish_generator:map(Schema, Conf).
 
 render_template(FileName, Context) ->
@@ -55,7 +55,7 @@ generate_config(SchemaFile, Conf) ->
 assert_valid_config({error, Phase, {error, Errors}}) ->
     %% What if Config is an error? It'd be nice to know what that was
     cuttlefish_error:print("Error in phase: ~s", [Phase]),
-    [ cuttlefish_error:print(E) || E <- Errors],
+    _ = [ cuttlefish_error:print(E) || E <- Errors],
     ?assert(false);
 assert_valid_config(List) when is_list(List) ->
     ok;
@@ -153,7 +153,7 @@ key_no_match(Key) ->
 dump_to_file(ErlangTerm, Filename) ->
     {ok, S} = file:open(Filename, [write,append]),
     io:format(S, "~p~n", [ErlangTerm]),
-    file:close(S),
+    _ = file:close(S),
     ok.
 
 -ifdef(TEST).

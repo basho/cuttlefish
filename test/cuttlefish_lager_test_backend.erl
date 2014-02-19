@@ -14,7 +14,9 @@
         bounce/1]).
 
 %% holds the log messages for retreival on terminate
--record(state, {level, verbose, log = []}).
+-record(state, {level :: {mask, integer()},
+                verbose :: boolean(),
+                log = [] :: list()}).
 
 -include_lib("lager/include/lager.hrl").
 

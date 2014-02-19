@@ -395,7 +395,7 @@ transform_datatypes(Conf, Mappings) ->
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
-                    [ lager:warning("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
+                    _ = [ lager:warning("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
                     {Acc, ErrorAcc};
                 MappingRecord ->
                     DTs = cuttlefish_mapping:datatype(MappingRecord),
@@ -490,13 +490,13 @@ head_sub(Value) ->
 
 -spec transform_type(
         cuttlefish_datatypes:datatype_list(),
-        string()) -> {ok, term()} | [cuttlefish_error:errorlist()].
+        string()) -> {ok, term()} | cuttlefish_error:errorlist().
 transform_type(DTs, Value) ->
     transform_type(DTs, Value, []).
 
 -spec transform_type(
         cuttlefish_datatypes:datatype_list(),
-        string(), [cuttlefish_error:error()]) -> {ok, term()} | [cuttlefish_error:errorlist()].
+        string(), [cuttlefish_error:error()]) -> {ok, term()} | cuttlefish_error:errorlist().
 transform_type([], _, Errors) -> {error, Errors};
 transform_type([DT|DatatypeTail], Value, Errors) ->
     case {cuttlefish_datatypes:is_supported(DT), cuttlefish_datatypes:is_extended(DT)} of
@@ -513,7 +513,7 @@ transform_type([DT|DatatypeTail], Value, Errors) ->
                                cuttlefish_datatypes:datatype_list(),
                                any(),
                                [cuttlefish_error:error()]) ->
-                                     {ok, term()} | [cuttlefish_error:error()].
+                                     {ok, term()} | {'error', [cuttlefish_error:error()]}.
 transform_supported_type(DT, Tail, Value, ErrorAcc) ->
     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
         {_, {error, Message}} ->

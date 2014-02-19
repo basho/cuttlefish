@@ -48,12 +48,12 @@ files(ListOfSchemaFiles) ->
 strings(ListOfStrings) ->
     merger(fun string/2, ListOfStrings).
 
--spec merger(fun((string()) -> schema() | cuttlefish_error:errorlist()), [string()]) ->
+-spec merger(fun((string(), schema()) -> schema() | cuttlefish_error:errorlist()), [string()]) ->
                     schema() | cuttlefish_error:errorlist().
 merger(Fun, ListOfInputs) ->
     merger([ {Fun, Input} || Input <- ListOfInputs ]).
 
--spec merger([{fun((string()) -> schema() | cuttlefish_error:errorlist()), string()}]) ->
+-spec merger([{fun((string(), schema()) -> schema() | cuttlefish_error:errorlist()), string()}]) ->
                     schema() | cuttlefish_error:errorlist().
 merger(ListOfFunInputPairs) ->
     Schema = lists:foldr(
@@ -149,7 +149,7 @@ string(S, {T, M, V}) ->
                 0 ->
                     {Translations, Mappings, Validators};
                 _ ->
-                    [begin
+                    _ = [begin
                         case Desc of
                             [H|_] when is_list(H) ->
                                 [cuttlefish_error:print(D) || D <- Desc];

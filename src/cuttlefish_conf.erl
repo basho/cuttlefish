@@ -76,10 +76,10 @@ generate_file(Mappings, Filename) ->
     ConfFileLines = generate(Mappings),
 
     {ok, S} = file:open(Filename, [write]),
-    [ begin
+    _ = [ begin
           io:format(S, "~s~n", [lists:flatten(Line)])
       end || Line <- ConfFileLines],
-    file:close(S),
+    _ = file:close(S),
     ok.
 
 -spec generate_element(cuttlefish_mapping:mapping()) -> [string()].
