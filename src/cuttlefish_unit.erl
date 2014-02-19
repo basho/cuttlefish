@@ -13,7 +13,7 @@ generate_templated_config(FileName, Conf, Context, PreexistingSchema) ->
         _ -> %% It's a list of lists, aka multiple strings
             [{ cuttlefish_schema:string_fun_factory(), render_template(F, Context)} || F <- FileName]
     end,
-    Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(X, _) -> X end, PreexistingSchema} ]),
+    Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(_, _) -> PreexistingSchema end, ""} ]),
     cuttlefish_generator:map(Schema, Conf).
 
 render_template(FileName, Context) ->
@@ -52,19 +52,21 @@ generate_config(SchemaFile, Conf) ->
     Schema = cuttlefish_schema:files([SchemaFile]),
     cuttlefish_generator:map(Schema, Conf).
 
-assert_valid_config({error, Phase, {error, Errors}}) ->
-    %% What if Config is an error? It'd be nice to know what that was
-    cuttlefish_error:print("Error in phase: ~s", [Phase]),
-    [ cuttlefish_error:print(E) || E <- Errors],
-    ?assert(false);
-assert_valid_config(List) when is_list(List) ->
-    ok;
-assert_valid_config(_) ->
-    ?assert(false).
+assert_valid_config(Config) ->
+    case Config of
+        List when is_list(List) ->
+            ok;
+        {error, Phase, {error, Errors}} ->
+            erlang:exit({assert_valid_config_failed,
+                         [{phase, Phase},
+                          {error, Errors}]});
+        Other ->
+            erlang:exit({assert_valid_config_failed,
+                         [{bad_value, Other}]})
+    end.
 
-assert_config({error, _, _}=Config, _, _) ->
-    assert_valid_config(Config);
 assert_config(Config, Path, Value) ->
+    ok = assert_valid_config(Config),
     ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
             ?assertEqual({Path, Value}, {Path, nesting_error});
@@ -74,17 +76,20 @@ assert_config(Config, Path, Value) ->
     end,
     ?assertEqual({Path, Value}, {Path, ActualValue}).
 
-assert_not_configured({error, _, _}=Config, _) ->
-    assert_valid_config(Config);
 assert_not_configured(Config, Path) ->
-    ActualValue = case path(cuttlefish_variable:tokenize(Path), Config) of
+    ok = assert_valid_config(Config),
+    case path(cuttlefish_variable:tokenize(Path), Config) of
         {error, bad_nesting} ->
-            ?assert(false);
-        {ok, _} ->
-            ?assert(false);
-        notset -> undefined
-    end,
-    ?assertEqual({Path, undefined}, {Path, ActualValue}).
+            erlang:exit({assert_not_configured_failed,
+                         [{bad_nesting, Path},
+                          {config, Config}]});
+        {ok, Value} ->
+            erlang:exit({assert_not_configured_failed,
+                         [{key, Path},
+                          {configured_to, Value},
+                          {config, Config}]});
+        notset -> ok
+    end.
 
 %% @doc Asserts that the generated configuration is in error.
 assert_error(Config) ->
@@ -116,9 +121,15 @@ assert_errors(Config, Phase, [H|_]=Messages) when is_list(H) ->
 %% @doc Asserts that the generated configuration is in error and
 %% contains the given error message.
 assert_error_message(Config, Message) ->
-    assert_error(Config),
+    ok = assert_error(Config),
     {error, Messages} = element(3, Config),
-    ?assert(lists:member({error, Message}, Messages)).
+    case lists:member({error, Message}, Messages) of
+        true -> ok;
+        false ->
+            erlang:exit({assert_error_message_failed,
+                         [{expected, Message},
+                          {actual, Messages}]})
+    end.
 
 
 -spec path(cuttlefish_variable:variable(),
@@ -153,7 +164,7 @@ key_no_match(Key) ->
 dump_to_file(ErlangTerm, Filename) ->
     {ok, S} = file:open(Filename, [write,append]),
     io:format(S, "~p~n", [ErlangTerm]),
-    file:close(S),
+    _ = file:close(S),
     ok.
 
 -ifdef(TEST).

@@ -28,6 +28,7 @@
 
 -type datatype() :: integer |
                     string |
+                    atom |
                     file |
                     directory |
                     flag |

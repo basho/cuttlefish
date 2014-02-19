@@ -66,7 +66,7 @@ parse_and_command(Args) ->
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
-    application:load(lager),
+    ok = application:load(lager),
 
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
@@ -102,7 +102,7 @@ effective(ParsedArgs) ->
 
     EffectiveConfig = lists:sort(cuttlefish_generator:add_defaults(Conf, Mappings)),
 
-    [ begin
+    _ = [ begin
         Variable = string:join(Var, "."),
         try ?STDOUT("~s = ~s", [Variable, Value]) of
             _ -> ok
@@ -147,11 +147,11 @@ describe(ParsedArgs, Query) when is_list(Query) ->
         _X ->
             Match = hd(Results),
             ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
-            case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
+            _ = case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
                 {[], []} ->
                     ok;
                 {[], See} ->
-                    [ begin
+                    _ = [ begin
                           M = hd(FindResults(S)),
                           [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(M)]
                     end || S <- See],
@@ -159,7 +159,7 @@ describe(ParsedArgs, Query) when is_list(Query) ->
                 {Docs, []} ->
                     [ ?STDOUT("~s", [Line]) || Line <- Docs];
                 {Docs, See} ->
-                    [ ?STDOUT("~s", [Line]) || Line <- Docs],
+                    _ = [ ?STDOUT("~s", [Line]) || Line <- Docs],
                     ?STDOUT("See also:", []),
                     [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
             end,
@@ -242,10 +242,11 @@ load_schema(ParsedArgs) ->
     Schema = cuttlefish_schema:files(SortedSchemaFiles),
     case proplists:is_defined(print_schema, ParsedArgs) of
         true ->
-            print_schema(Schema);
-        _ -> ok
-    end,
-    Schema.
+            _ = print_schema(Schema),
+            Schema;
+        _ ->
+            Schema
+    end.
 
 load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
@@ -259,7 +260,7 @@ engage_cuttlefish(ParsedArgs) ->
     DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
         false ->
             DP = filename:join(EtcDir, "generated"),
-            file:make_dir(DP),
+            ok = file:make_dir(DP),
             DP;
         true ->
             DP = proplists:get_value(dest_dir, ParsedArgs),
@@ -295,7 +296,7 @@ engage_cuttlefish(ParsedArgs) ->
     NewConfig = case cuttlefish_generator:map(Schema, Conf) of
         {error, Phase, {error, Errors}} ->
             lager:error("Error generating configuration in phase ~s", [Phase]),
-            [ cuttlefish_error:print(E) || E <- Errors],
+            _ = [ cuttlefish_error:print(E) || E <- Errors],
             stop_deactivate();
         ValidConfig -> ValidConfig
     end,
@@ -324,8 +325,8 @@ engage_cuttlefish(ParsedArgs) ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-            file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
-            file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
+            ok = file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
+            ok = file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
             {Destination, DestinationVMArgs}
     end.
 

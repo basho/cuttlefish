@@ -193,7 +193,7 @@ has_default(MappingRecord) ->
 -spec commented(mapping()) -> term().
 commented(M)        -> M#mapping.commented.
 
--spec datatype(mapping()) -> cuttlefish_datatypes:datatype().
+-spec datatype(mapping()) -> cuttlefish_datatypes:datatype_list().
 datatype(M) -> M#mapping.datatype.
 
 -spec level(mapping()) -> basic | intermediate | advanced.
