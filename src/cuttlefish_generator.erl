@@ -513,7 +513,7 @@ transform_type([DT|DatatypeTail], Value, Errors) ->
                                cuttlefish_datatypes:datatype_list(),
                                any(),
                                [cuttlefish_error:error()]) ->
-                                     {ok, term()} | {'error', [cuttlefish_error:error()]}.
+                                     {ok, term()} | cuttlefish_error:errorlist().
 transform_supported_type(DT, Tail, Value, ErrorAcc) ->
     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
         {_, {error, Message}} ->
