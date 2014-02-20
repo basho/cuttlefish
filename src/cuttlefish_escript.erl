@@ -66,7 +66,7 @@ parse_and_command(Args) ->
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
-    ok = application:load(lager),
+    _ = application:load(lager),
 
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
