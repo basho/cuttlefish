@@ -270,7 +270,7 @@ engage_cuttlefish(ParsedArgs) ->
                 ok ->
                     DP;
                 {error, E} ->
-                    lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
+                    lager:error("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
                     stop_deactivate(),
                     error
             end
@@ -325,9 +325,15 @@ engage_cuttlefish(ParsedArgs) ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-            ok = file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
-            ok = file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
-            {Destination, DestinationVMArgs}
+            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
+                   file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), []))} of
+                {ok, ok} ->
+                    {Destination, DestinationVMArgs};
+                _ ->
+                    lager:error("Unable to write ~s and/or ~s.  Please check permissions.", [Destination, DestinationVMArgs]),
+                    error
+            end
+
     end.
 
 -spec check_existence(string(), string()) -> {boolean(), string()}.
