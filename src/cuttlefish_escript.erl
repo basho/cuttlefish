@@ -269,7 +269,7 @@ writable_destination_path(ParsedArgs) ->
             AbsoluteDestPath;
         {error, E} ->
             lager:error(
-                "Unable to create directory ~s - ~p.  Please check permissions.",
+                "Error creating ~s: ~s",
                 [AbsoluteDestPath, file:format_error(E)]),
             error
     end.
