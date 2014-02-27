@@ -253,32 +253,37 @@ load_conf(ParsedArgs) ->
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     cuttlefish_conf:files(ConfFiles).
 
+-spec writable_destination_path([proplists:property()]) -> file:filename() | error.
+writable_destination_path(ParsedArgs) ->
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
+    DestinationPath = proplists:get_value(dest_dir, ParsedArgs, filename:join(EtcDir, "generated")),
+    AbsoluteDestPath = case DestinationPath of
+                           [$/|_] -> DestinationPath;
+                           _      -> filename:join(element(2,file:get_cwd()), DestinationPath)
+                       end,
+    %% Check Permissions
+    case filelib:ensure_dir(filename:join(AbsoluteDestPath, "weaksauce.dummy")) of
+        %% filelib:ensure_dir/1 requires a dummy filename in the argument,
+        %% I think that is weaksauce, hence "weaksauce.dummy"
+        ok ->
+            AbsoluteDestPath;
+        {error, E} ->
+            lager:error(
+                "Error creating ~s: ~s",
+                [AbsoluteDestPath, file:format_error(E)]),
+            error
+    end.
+
 -spec engage_cuttlefish([proplists:property()]) -> {string(), string()} | error.
 engage_cuttlefish(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
-    DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
-        false ->
-            DP = filename:join(EtcDir, "generated"),
-            ok = file:make_dir(DP),
-            DP;
-        true ->
-            DP = proplists:get_value(dest_dir, ParsedArgs),
-            case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
-                %% filelib:ensure_dir/1 requires a dummy filename in the argument,
-                %% I think that is weaksauce, hence "weaksauce.dummy"
-                ok ->
-                    DP;
-                {error, E} ->
-                    lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
-                    stop_deactivate(),
-                    error
-            end
+    AbsPath = case writable_destination_path(ParsedArgs) of
+                  error ->
+                      stop_deactivate(),
+                      error;
+                  Path -> Path
     end,
-    AbsPath = case DestinationPath of
-                          [$/|_] -> DestinationPath;
-                          _      -> filename:join(element(2,file:get_cwd()), DestinationPath)
-                      end,
 
     Date = calendar:local_time(),
 
@@ -309,7 +314,7 @@ engage_cuttlefish(ParsedArgs) ->
                 {ok, [AdvancedConfig]} ->
                     cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
                 {error, Error} ->
-                    lager:error("Error parsing advanced.config: ~p", [Error]),
+                    lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                     stop_deactivate()
             end;
 
@@ -325,10 +330,30 @@ engage_cuttlefish(ParsedArgs) ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-            ok = file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
-            ok = file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
-            {Destination, DestinationVMArgs}
+            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
+                   file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
+                {ok, ok} ->
+                    {Destination, DestinationVMArgs};
+                {Err1, Err2} ->
+                    maybe_log_file_error(Destination, Err1),
+                    maybe_log_file_error(DestinationVMArgs, Err2),
+                    error
+            end
+
     end.
+
+-spec maybe_log_file_error(
+        file:filename(), ok |
+        {error, file:posix()  %% copied from file:format_error/1
+                | badarg
+                | terminated
+                | system_limit
+                | { integer(), module(), term() }}) -> ok.
+maybe_log_file_error(_, ok) ->
+    ok;
+maybe_log_file_error(Filename, {error, Reason}) ->
+    lager:error("Error writing ~s: ~s", [Filename, file:format_error(Reason)]),
+    ok.
 
 -spec check_existence(string(), string()) -> {boolean(), string()}.
 check_existence(EtcDir, Filename) ->
