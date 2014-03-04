@@ -29,15 +29,15 @@ breaks_on_fuzzy_and_strict_match_test() ->
 
 breaks_on_rhs_not_found_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
-    Conf = [{["ring", "state_dir"], "#(tyktorp)/ring"}],
+    Conf = [{["ring", "state_dir"], "$(tyktorp)/ring"}],
     ?assertMatch({error, rhs_subs, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
 
 breaks_on_rhs_infinite_loop_test() ->
     Schema = cuttlefish_schema:file("../test/riak.schema"),
     Conf = [
-            {["ring", "state_dir"], "#(platform_data_dir)/ring"},
-            {["platform_data_dir"], "#(ring.state_dir)/data"}
+            {["ring", "state_dir"], "$(platform_data_dir)/ring"},
+            {["platform_data_dir"], "$(ring.state_dir)/data"}
            ],
     ?assertMatch({error, rhs_subs, _}, cuttlefish_generator:map(Schema, Conf)),
     ok.
