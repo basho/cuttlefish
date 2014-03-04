@@ -28,7 +28,7 @@
 
 -define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 
--define(LSUB, "#(").
+-define(LSUB, "$(").
 -define(RSUB, ")").
 -define(LSUBLEN, 2).
 -define(RSUBLEN, 1).
@@ -1012,7 +1012,7 @@ invalid_test() ->
 
 value_sub_test() ->
     Conf = [
-            {["a","b","c"], "#(a.b)/c"},
+            {["a","b","c"], "$(a.b)/c"},
             {["a","b"], "/a/b"}
            ],
     {NewConf, Errors} = value_sub(Conf),
@@ -1023,9 +1023,9 @@ value_sub_test() ->
 
 value_sub_infinite_loop_test() ->
     Conf = [
-            {["a"], "#(c)/d"},
-            {["b"], "#(a)/d"},
-            {["c"], "#(b)/d"}
+            {["a"], "$(c)/d"},
+            {["b"], "$(a)/d"},
+            {["c"], "$(b)/d"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
@@ -1037,7 +1037,7 @@ value_sub_infinite_loop_test() ->
 
 value_sub_not_found_test() ->
     Conf = [
-            {["a"], "#(b)/c"}
+            {["a"], "$(b)/c"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
@@ -1048,10 +1048,10 @@ value_sub_not_found_test() ->
 value_sub_whitespace_test() ->
     Conf = [
             {["a", "b", "c"], "/tyktorp"},
-            {["a"], "#(a.b.c)/svagen"},
-            {["b"], "#(  a.b.c)/svagen"},
-            {["c"], "#(a.b.c  )/svagen"},
-            {["d"], "#(  a.b.c )/svagen"}
+            {["a"], "$(a.b.c)/svagen"},
+            {["b"], "$(  a.b.c)/svagen"},
+            {["c"], "$(a.b.c  )/svagen"},
+            {["d"], "$(  a.b.c )/svagen"}
            ],
     {NewConf, []} = value_sub(Conf),
     ?assertEqual("/tyktorp/svagen", proplists:get_value(["a"], NewConf)),
@@ -1064,7 +1064,7 @@ value_sub_multiple_sub_test() ->
     Conf = [
             {["a"], "/a"},
             {["b"], "/b"},
-            {["c"], "#(a)#(b)"}
+            {["c"], "$(a)$(b)"}
            ],
     {NewConf, []} = value_sub(Conf),
     ?assertEqual("/a/b", proplists:get_value(["c"], NewConf)),
@@ -1072,9 +1072,9 @@ value_sub_multiple_sub_test() ->
 
 value_sub_error_in_second_sub_test() ->
     Conf = [
-            {["a"], "#(b)/#(c)"},
+            {["a"], "$(b)/$(c)"},
             {["b"], "/b"},
-            {["c"], "#(a)/c"}
+            {["c"], "$(a)/c"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
     ?assertEqual([
@@ -1085,7 +1085,7 @@ value_sub_error_in_second_sub_test() ->
 
 value_sub_false_circle_test() ->
     Conf = [
-            {["a"], "#(c)/#(c)"},
+            {["a"], "$(c)/$(c)"},
             {["c"], "C"}
            ],
     {NewConf, Errors} = value_sub(Conf),
@@ -1095,7 +1095,7 @@ value_sub_false_circle_test() ->
 
 value_sub_paren_test() ->
     Conf = [
-            {["a"], "#(c)/#(c)"},
+            {["a"], "$(c)/$(c)"},
             {["c"], "C)"}
            ],
     {NewConf, Errors} = value_sub(Conf),

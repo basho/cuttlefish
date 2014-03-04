@@ -169,7 +169,7 @@
 
 %% @doc Default location of ringstate
 {mapping, "ring.state_dir", "riak_core.ring_state_dir", [
-  {default, "#(platform_data_dir)/ring"}
+  {default, "$(platform_data_dir)/ring"}
 ]}.
 
 %% @doc listener.https.<name> is an IP address and TCP port that the Riak
