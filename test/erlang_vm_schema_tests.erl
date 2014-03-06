@@ -23,6 +23,7 @@ basic_schema_test() ->
     cuttlefish_unit:assert_config(Config, "vm_args.+P", 256000),
     cuttlefish_unit:assert_not_configured(Config, "vm_args.+zdbbl"),
     cuttlefish_unit:assert_not_configured(Config, "vm_args.+sfwi"),
+    cuttlefish_unit:assert_not_configured(Config, "vm_args.-kernel net_ticktime"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_min"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_max"),
     case erlang:system_info(otp_release) of
@@ -55,7 +56,8 @@ override_schema_test() ->
         {["erlang", "distribution_buffer_size"], 1024},
         {["erlang", "schedulers", "force_wakeup_interval"], 500},
         {["erlang", "distribution", "port_range", "minimum"], 6000},
-        {["erlang", "distribution", "port_range", "maximum"], 7999}
+        {["erlang", "distribution", "port_range", "maximum"], 7999},
+        {["erlang", "distribution", "net_ticktime"], 43}
     ],
 
     Config = cuttlefish_unit:generate_templated_config(
@@ -75,6 +77,7 @@ override_schema_test() ->
     cuttlefish_unit:assert_config(Config, "vm_args.+sfwi", 500),
     cuttlefish_unit:assert_config(Config, "kernel.inet_dist_listen_min", 6000),
     cuttlefish_unit:assert_config(Config, "kernel.inet_dist_listen_max", 7999),
+    cuttlefish_unit:assert_config(Config, "vm_args.-kernel net_ticktime", 43),
 
     %% These settings are version dependent, so we won't even test them here
     %% because we don't know what version you're running, so we'll cover it

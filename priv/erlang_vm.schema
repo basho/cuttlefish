@@ -243,3 +243,13 @@
   {datatype, integer},
   hidden
 ]}.
+
+%% @doc Set the net_kernel's net_ticktime.
+%%
+%% More information: http://www.erlang.org/doc/man/kernel_app.html#net_ticktime
+%% and http://www.erlang.org/doc/man/net_kernel.html#set_net_ticktime-1
+{mapping, "erlang.distribution.net_ticktime", "vm_args.-kernel net_ticktime", [
+  {commented, 60},
+  {datatype, integer},
+  hidden
+]}.
