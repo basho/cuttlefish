@@ -22,6 +22,7 @@
 -module(cuttlefish_escript).
 
 -define(STDOUT(Str, Args), io:format(Str ++ "~n", Args)).
+-define(FORMAT(Str, Args), io_lib:format(Str, Args)).
 -export([main/1]).
 
 -ifdef(TEST).
@@ -164,13 +165,20 @@ describe(ParsedArgs, Query) when is_list(Query) ->
                     [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
             end,
             ?STDOUT("", []),
-            ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
-            ?STDOUT("   Default Value: ~p", [cuttlefish_mapping:default(Match)]),
+            ValidValues = [
+                            ?FORMAT("~n     - ~s", [cuttlefish_conf:pretty_datatype(Type)]) ||
+                              Type <- lists:flatten([cuttlefish_mapping:datatype(Match)]) ],
+            ?STDOUT("   Valid Values: ~s~n", [ValidValues]),
+            ?STDOUT("   Default Value: ~s", [format_datatype(cuttlefish_mapping:default(Match), cuttlefish_mapping:datatype(Match))]),
 
             Conf = load_conf(ParsedArgs),
-            ConfiguredValue = proplists:get_value(QDef, Conf, undefined),
+            ConfiguredValue = case proplists:get_value(QDef, Conf, undefined) of
+                                  undefined -> undefined;
+                                  CValue ->
+                                      format_datatype(CValue, cuttlefish_mapping:datatype(Match))
+                              end,
             ?STDOUT("   Set Value    : ~s", [ConfiguredValue]),
-            ?STDOUT("   app.config   : ~s", [cuttlefish_mapping:mapping(Match)])
+            ?STDOUT("   Internal key : ~s", [cuttlefish_mapping:mapping(Match)])
     end,
     stop_deactivate().
 
@@ -403,6 +411,22 @@ print_schema(Schema) ->
         io:format(standard_error, "~s ~s~n",
             [string:left(M, Max+2, $\s), V])
     || {M, V} <- ListOfMappings].
+
+format_datatype(Value, Datatypes) when is_list(Datatypes) ->
+    %% We're not sure which datatype the default or set value is going
+    %% to match, so let's find one that does.
+    [H|_] = lists:dropwhile(
+              fun(D0) ->
+                      D = cuttlefish_datatypes:extended_from(D0),
+                      case cuttlefish_datatypes:from_string(Value, D) of
+                          {error, _} -> true;
+                          _ -> false
+                      end
+              end, Datatypes),
+    format_datatype(Value, cuttlefish_datatypes:extended_from(H));
+format_datatype(Value, Datatype) ->
+    cuttlefish_datatypes:to_string(cuttlefish_datatypes:from_string(Value, Datatype), Datatype).
+
 
 -ifdef(TEST).
 

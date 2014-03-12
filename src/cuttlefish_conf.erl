@@ -26,7 +26,8 @@
          generate_file/2,
          file/1,
          files/1,
-         is_variable_defined/2]).
+         is_variable_defined/2,
+         pretty_datatype/1]).
 
 -type conf_pair() :: {cuttlefish_variable:variable(), any()}.
 -type conf() :: [conf_pair()].
