@@ -33,16 +33,16 @@
 cli_options() ->
 %% Option Name, Short Code, Long Code, Argument Spec, Help Message
 [
- {help,               $h, "help",        undefined,          "Print this usage page"},
- {etc_dir,            $e, "etc_dir",     {string, "/etc"},   "etc dir"},
- {dest_dir,           $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,          $f, "dest_file",   {string, "app"},    "the file name to write"},
- {schema_dir,         $s, "schema_dir",  string,             "a directory containing .schema files"},
- {schema_file,        $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
- {conf_file,          $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
- {app_config,         $a, "app_config",  string,             "the advanced erlangy app.config"},
- {log_level,          $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema,       $p, "print",       undefined,          "prints schema mappings on stderr"}
+ {help,         $h, "help",        undefined,          "Print this usage page"},
+ {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
+ {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
+ {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
+ {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
+ {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
+ {conf_file,    $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
+ {app_config,   $a, "app_config",  string,             "the advanced erlangy app.config"},
+ {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
+ {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
