@@ -86,32 +86,32 @@ generate_internal(Config0, ReltoolFile, DocsOnly) ->
     ok.
 
 render_templates(Config, Mappings) ->
-    PLs = lists:foldl(fun(M, Acc) ->
-                    [[
-                      {variable,
-                       string:join(cuttlefish_mapping:variable(M), ".")},
-                      {segments,
-                       cuttlefish_mapping:variable(M)},
-                      {mapping,
-                       cuttlefish_mapping:mapping(M)},
-                      {default,
-                       cuttlefish_mapping:default(M)},
-                      {has_default,
-                       cuttlefish_mapping:has_default(M)},
-                      {commented,
-                       cuttlefish_mapping:commented(M)},
-                      {datatype,
-                       cuttlefish_conf:pretty_datatype(cuttlefish_mapping:datatype(M))},
-                      {level,
-                        cuttlefish_mapping:level(M)},
-                      {doc,
-                       cuttlefish_conf:pretty_doc(cuttlefish_mapping:doc(M))},
-                      {see,
-                       cuttlefish_mapping:see(M)},
-                      {include_default,
-                       cuttlefish_mapping:include_default(M)}
-                     ] | Acc ]
-            end, [], Mappings),
+    PLs = [
+            [
+                {variable,
+                string:join(cuttlefish_mapping:variable(M), ".")},
+                {segments,
+                cuttlefish_mapping:variable(M)},
+                {mapping,
+                cuttlefish_mapping:mapping(M)},
+                {default,
+                cuttlefish_mapping:default(M)},
+                {has_default,
+                cuttlefish_mapping:has_default(M)},
+                {commented,
+                cuttlefish_mapping:commented(M)},
+                {datatype,
+                cuttlefish_conf:pretty_datatype(cuttlefish_mapping:datatype(M))},
+                {level,
+                cuttlefish_mapping:level(M)},
+                {doc,
+                cuttlefish_conf:pretty_doc(cuttlefish_mapping:doc(M))},
+                {see,
+                cuttlefish_mapping:see(M)},
+                {include_default,
+                cuttlefish_mapping:include_default(M)}
+            ]
+            || M<- Mappings],
     CompileVars = [{mappings, PLs}],
     Templates = rebar_config:get(Config, cuttlefish_doc_templates, []),
     lists:foldl(fun({TemplateFile, OutputFile}, FileId) ->
@@ -129,7 +129,7 @@ render_templates(Config, Mappings) ->
                             io:format("~nCompile errror: ~p~n",[Err]),
                             Err
                     end,
-                   ok end,
+                   FileId + 1 end,
                 0, Templates),
     ok.
 
