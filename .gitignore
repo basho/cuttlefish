@@ -6,4 +6,9 @@ ebin/*
 src/conf_parse.erl
 deps
 cuttlefish
-
+*.sublime-project
+*.sublime-workspace
+log
+.local_dialyzer_plt
+src/cuttlefish_duration_parse.erl
+erln8.config

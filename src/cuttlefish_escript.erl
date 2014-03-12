@@ -22,6 +22,7 @@
 -module(cuttlefish_escript).
 
 -define(STDOUT(Str, Args), io:format(Str ++ "~n", Args)).
+-define(FORMAT(Str, Args), io_lib:format(Str, Args)).
 -export([main/1]).
 
 -ifdef(TEST).
@@ -32,16 +33,16 @@
 cli_options() ->
 %% Option Name, Short Code, Long Code, Argument Spec, Help Message
 [
- {help,               $h, "help",        undefined,          "Print this usage page"},
- {etc_dir,            $e, "etc_dir",     {string, "/etc"},   "etc dir"},
- {dest_dir,           $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,          $f, "dest_file",   {string, "app"},    "the file name to write"},
- {schema_dir,         $s, "schema_dir",  string,             "a directory containing .schema files"},
- {schema_file,        $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
- {conf_file,          $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
- {app_config,         $a, "app_config",  string,             "the advanced erlangy app.config"},
- {log_level,          $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema,       $p, "print",       undefined,          "prints schema mappings on stderr"}
+ {help,         $h, "help",        undefined,          "Print this usage page"},
+ {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
+ {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
+ {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
+ {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
+ {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
+ {conf_file,    $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
+ {app_config,   $a, "app_config",  string,             "the advanced erlangy app.config"},
+ {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
+ {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -66,8 +67,8 @@ parse_and_command(Args) ->
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
-    application:load(lager),
-    
+    _ = application:load(lager),
+
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
@@ -77,14 +78,14 @@ main(Args) ->
     end,
 
     application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
-    application:start(lager),
+    lager:start(),
 
     lager:debug("Cuttlefish set to debug level logging"),
 
     case Command of
         help ->
             print_help();
-        generate -> 
+        generate ->
             generate(ParsedArgs);
         effective ->
             effective(ParsedArgs);
@@ -102,7 +103,7 @@ effective(ParsedArgs) ->
 
     EffectiveConfig = lists:sort(cuttlefish_generator:add_defaults(Conf, Mappings)),
 
-    [ begin
+    _ = [ begin
         Variable = string:join(Var, "."),
         try ?STDOUT("~s = ~s", [Variable, Value]) of
             _ -> ok
@@ -110,8 +111,8 @@ effective(ParsedArgs) ->
             _:_ ->
                 %% I hate that I had to do this, 'cause you know...
                 %% Erlang and Strings, but actually this is ok because
-                %% sometimes there are going to be weird tuply things 
-                %% in here, so always good to fall back on ~p. 
+                %% sometimes there are going to be weird tuply things
+                %% in here, so always good to fall back on ~p.
                 %% honestly, I think this try should be built into io:format
                 ?STDOUT("~s = ~p", [Variable, Value])
         end
@@ -131,28 +132,53 @@ describe(ParsedArgs, Query) when is_list(Query) ->
     lager:debug("cuttlefish describe '~s'", [Q]),
     {_, Mappings, _} = load_schema(ParsedArgs),
 
+    FindResults = fun(QueryVar) ->
+    lists:filter(
+        fun(X) ->
+            cuttlefish_variable:is_fuzzy_match(QueryVar, cuttlefish_mapping:variable(X))
+        end,
+        Mappings)
+    end,
 
-     Results = lists:filter(
-        fun(X) -> 
-            cuttlefish_util:fuzzy_variable_match(QDef, cuttlefish_mapping:variable(X))
-        end, 
-        Mappings),
+    Results = FindResults(QDef),
 
     case length(Results) of
-        0 -> 
+        0 ->
             ?STDOUT("Variable '~s' not found", [Q]);
         _X ->
             Match = hd(Results),
             ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
-            [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(Match)],
+            _ = case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
+                {[], []} ->
+                    ok;
+                {[], See} ->
+                    _ = [ begin
+                          M = hd(FindResults(S)),
+                          [ ?STDOUT("~s", [Line]) || Line <- cuttlefish_mapping:doc(M)]
+                    end || S <- See],
+                    ok;
+                {Docs, []} ->
+                    [ ?STDOUT("~s", [Line]) || Line <- Docs];
+                {Docs, See} ->
+                    _ = [ ?STDOUT("~s", [Line]) || Line <- Docs],
+                    ?STDOUT("See also:", []),
+                    [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
+            end,
             ?STDOUT("", []),
-            ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
-            ?STDOUT("   Default Value: ~p", [cuttlefish_mapping:default(Match)]),
+            ValidValues = [
+                            ?FORMAT("~n     - ~s", [cuttlefish_conf:pretty_datatype(Type)]) ||
+                              Type <- lists:flatten([cuttlefish_mapping:datatype(Match)]) ],
+            ?STDOUT("   Valid Values: ~s~n", [ValidValues]),
+            ?STDOUT("   Default Value: ~s", [format_datatype(cuttlefish_mapping:default(Match), cuttlefish_mapping:datatype(Match))]),
 
             Conf = load_conf(ParsedArgs),
-            ConfiguredValue = proplists:get_value(QDef, Conf, undefined),
+            ConfiguredValue = case proplists:get_value(QDef, Conf, undefined) of
+                                  undefined -> undefined;
+                                  CValue ->
+                                      format_datatype(CValue, cuttlefish_mapping:datatype(Match))
+                              end,
             ?STDOUT("   Set Value    : ~s", [ConfiguredValue]),
-            ?STDOUT("   app.config   : ~s", [cuttlefish_mapping:mapping(Match)])
+            ?STDOUT("   Internal key : ~s", [cuttlefish_mapping:mapping(Match)])
     end,
     stop_deactivate().
 
@@ -166,7 +192,7 @@ generate(ParsedArgs) ->
 
     {AppConfigExists, ExistingAppConfigName} = check_existence(EtcDir, "app.config"),
     {VMArgsExists, ExistingVMArgsName} = check_existence(EtcDir, "vm.args"),
-    
+
     %% If /etc/app.config exists, use it and disable cuttlefish
     %% even though cuttlefish is awesome
     FilesToUse = case {AppConfigExists, VMArgsExists} of
@@ -189,9 +215,9 @@ generate(ParsedArgs) ->
     end,
 
     case FilesToUse of
-        %% this is nice and all, but currently all error paths of engage_cuttlefish end with init:stop(1)
-        %% hopefully factor that to be cleaner.
-        error -> 
+        %% this is nice and all, but currently all error paths of engage_cuttlefish end with
+        %% stop_deactivate() hopefully factor that to be cleaner.
+        error ->
             stop_deactivate();
         {AppConf, VMArgs} ->
             %% Note: we have added a parameter '-vm_args' to this. It appears redundant
@@ -199,14 +225,11 @@ generate(ParsedArgs) ->
             %% command EXCEPT '-args_file', so in order to get access to this file location
             %% from within the vm, we need to pass it in twice.
             ?STDOUT(" -config ~s -args_file ~s -vm_args ~s ", [AppConf, VMArgs, VMArgs]),
-            init:stop(0);
-        X ->
-            lager:error("Unknown Return from cuttlefish library: ~p", X),
-            stop_deactivate()
+            init:stop(0)
     end.
 
 load_schema(ParsedArgs) ->
-    SchemaDir = proplists:get_value(schema_dir, ParsedArgs), 
+    SchemaDir = proplists:get_value(schema_dir, ParsedArgs),
 
     SchemaDirFiles = case SchemaDir of
         undefined -> [];
@@ -215,54 +238,60 @@ load_schema(ParsedArgs) ->
     IndividualSchemaFiles = proplists:get_all_values(schema_file, ParsedArgs),
     SchemaFiles = SchemaDirFiles ++ IndividualSchemaFiles,
 
-    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles), 
+    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles),
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
             stop_deactivate();
-        _ -> 
+        _ ->
             lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
 
     Schema = cuttlefish_schema:files(SortedSchemaFiles),
     case proplists:is_defined(print_schema, ParsedArgs) of
         true ->
-            print_schema(Schema);
-        _ -> ok
-    end,
-    Schema.
+            _ = print_schema(Schema),
+            Schema;
+        _ ->
+            Schema
+    end.
 
 load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     cuttlefish_conf:files(ConfFiles).
 
--spec engage_cuttlefish([proplists:property()]) -> {string(), string()}.
+-spec writable_destination_path([proplists:property()]) -> file:filename() | error.
+writable_destination_path(ParsedArgs) ->
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
+    DestinationPath = proplists:get_value(dest_dir, ParsedArgs, filename:join(EtcDir, "generated")),
+    AbsoluteDestPath = case DestinationPath of
+                           [$/|_] -> DestinationPath;
+                           _      -> filename:join(element(2,file:get_cwd()), DestinationPath)
+                       end,
+    %% Check Permissions
+    case filelib:ensure_dir(filename:join(AbsoluteDestPath, "weaksauce.dummy")) of
+        %% filelib:ensure_dir/1 requires a dummy filename in the argument,
+        %% I think that is weaksauce, hence "weaksauce.dummy"
+        ok ->
+            AbsoluteDestPath;
+        {error, E} ->
+            lager:error(
+                "Error creating ~s: ~s",
+                [AbsoluteDestPath, file:format_error(E)]),
+            error
+    end.
+
+-spec engage_cuttlefish([proplists:property()]) -> {string(), string()} | error.
 engage_cuttlefish(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
-    DestinationPath = case proplists:is_defined(dest_dir, ParsedArgs) of
-        false ->
-            DP = filename:join(EtcDir, "generated"),
-            file:make_dir(DP),
-            DP;
-        true ->
-            DP = proplists:get_value(dest_dir, ParsedArgs),
-            case filelib:ensure_dir(filename:join(DP, "weaksauce.dummy")) of
-                %% filelib:ensure_dir/1 requires a dummy filename in the argument,
-                %% I think that is weaksauce, hence "weaksauce.dummy" 
-                ok -> 
-                    DP;
-                {error, E} ->
-                    lager:info("Unable to create directory ~s - ~p.  Please check permissions.", [DP, E]),
-                    stop_deactivate(),
-                    error
-            end
+    AbsPath = case writable_destination_path(ParsedArgs) of
+                  error ->
+                      stop_deactivate(),
+                      error;
+                  Path -> Path
     end,
-    AbsPath = case DestinationPath of
-                          [$/|_] -> DestinationPath;
-                          _      -> filename:join(element(2,file:get_cwd()), DestinationPath)
-                      end,
 
     Date = calendar:local_time(),
 
@@ -273,11 +302,17 @@ engage_cuttlefish(ParsedArgs) ->
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
-    
+
     Schema = load_schema(ParsedArgs),
 
     Conf = load_conf(ParsedArgs),
-    NewConfig = cuttlefish_generator:map(Schema, Conf),
+    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+        {error, Phase, {error, Errors}} ->
+            lager:error("Error generating configuration in phase ~s", [Phase]),
+            _ = [ cuttlefish_error:print(E) || E <- Errors],
+            stop_deactivate();
+        ValidConfig -> ValidConfig
+    end,
 
     AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
@@ -287,26 +322,46 @@ engage_cuttlefish(ParsedArgs) ->
                 {ok, [AdvancedConfig]} ->
                     cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
                 {error, Error} ->
-                    lager:error("Error parsing advanced.config: ~p", [Error]),
+                    lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                     stop_deactivate()
             end;
-            
+
         _ ->
             %% Nothing to see here, these aren't the droids you're looking for.
             NewConfig
-    end, 
+    end,
 
-    case FinalConfig of 
+    case FinalConfig of
         {error, _X} ->
             error;
         _ ->
-            FinalAppConfig = proplists:delete(vm_args, FinalConfig), 
+            FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
-            file:write_file(Destination,io_lib:fwrite("~p.\n",[FinalAppConfig])),
-            file:write_file(DestinationVMArgs, io_lib:fwrite(string:join(FinalVMArgs, "\n"), [])),
-            {Destination, DestinationVMArgs}
+            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
+                   file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
+                {ok, ok} ->
+                    {Destination, DestinationVMArgs};
+                {Err1, Err2} ->
+                    maybe_log_file_error(Destination, Err1),
+                    maybe_log_file_error(DestinationVMArgs, Err2),
+                    error
+            end
+
     end.
+
+-spec maybe_log_file_error(
+        file:filename(), ok |
+        {error, file:posix()  %% copied from file:format_error/1
+                | badarg
+                | terminated
+                | system_limit
+                | { integer(), module(), term() }}) -> ok.
+maybe_log_file_error(_, ok) ->
+    ok;
+maybe_log_file_error(Filename, {error, Reason}) ->
+    lager:error("Error writing ~s: ~s", [Filename, file:format_error(Reason)]),
+    ok.
 
 -spec check_existence(string(), string()) -> {boolean(), string()}.
 check_existence(EtcDir, Filename) ->
@@ -317,21 +372,21 @@ check_existence(EtcDir, Filename) ->
 
 filename_maker(Filename, Date, Extension) ->
     {{Y, M, D}, {HH, MM, SS}} = Date,
-    _DestinationFilename = 
-        io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s", 
-            [Filename, 
+    _DestinationFilename =
+        io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s",
+            [Filename,
             Y,
-            zero_pad(M), 
+            zero_pad(M),
             zero_pad(D),
-            zero_pad(HH), 
-            zero_pad(MM), 
+            zero_pad(HH),
+            zero_pad(MM),
             zero_pad(SS),
             Extension
         ]).
 
 zero_pad(Integer) ->
     S = integer_to_list(Integer),
-    case Integer > 9 of 
+    case Integer > 9 of
         true -> S;
         _ -> [$0|S]
     end.
@@ -341,21 +396,37 @@ print_schema(Schema) ->
     {_, Mappings, _} = Schema,
 
     {Max, ListOfMappings} = lists:foldr(
-        fun(M, {OldMax, List}) -> 
+        fun(M, {OldMax, List}) ->
             CandidateMax = length(cuttlefish_mapping:mapping(M)),
             NewMax = case CandidateMax > OldMax of
                 true -> CandidateMax;
                 _ -> OldMax
             end,
-            {NewMax, [{cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}|List]}  
+            {NewMax, [{cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}|List]}
         end,
         {0, []},
         Mappings
         ),
     [
-        io:format(standard_error, "~s ~s~n", 
+        io:format(standard_error, "~s ~s~n",
             [string:left(M, Max+2, $\s), V])
     || {M, V} <- ListOfMappings].
+
+format_datatype(Value, Datatypes) when is_list(Datatypes) ->
+    %% We're not sure which datatype the default or set value is going
+    %% to match, so let's find one that does.
+    [H|_] = lists:dropwhile(
+              fun(D0) ->
+                      D = cuttlefish_datatypes:extended_from(D0),
+                      case cuttlefish_datatypes:from_string(Value, D) of
+                          {error, _} -> true;
+                          _ -> false
+                      end
+              end, Datatypes),
+    format_datatype(Value, cuttlefish_datatypes:extended_from(H));
+format_datatype(Value, Datatype) ->
+    cuttlefish_datatypes:to_string(cuttlefish_datatypes:from_string(Value, Datatype), Datatype).
+
 
 -ifdef(TEST).
 

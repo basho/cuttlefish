@@ -31,27 +31,47 @@
     description::string(),
     func::fun()
     }).
--opaque validator() :: #validator{}.
+-type validator() :: #validator{}.
+-type validator_fun() :: fun((any()) -> boolean()).
+-type raw_validator() :: {validator, string(), string(), validator_fun()}.
 -export_type([validator/0]).
 
 -export([
     parse/1,
+    parse_and_merge/2,
     is_validator/1,
     name/1,
-    description/1, 
+    description/1,
     func/1,
-    replace/2,
-    remove_duplicates/1]).
+    replace/2]).
 
--spec parse({validator, string(), fun()}) -> validator() | {error, list()}.
+-spec parse(raw_validator()) -> validator() | {error, list()}.
 parse({validator, Name, Description, Fun}) ->
     #validator{
         name = Name,
         description = Description,
         func = Fun
     };
-parse(X) -> {error, io_lib:format("poorly formatted input to cuttlefish_validator:parse/1 : ~p", [X])}.
+parse(X) ->
+    {error,
+     io_lib:format(
+        "poorly formatted input to cuttlefish_validator:parse/1 : ~p",
+        [X]
+    )}.
 
+%% This assumes it's run as part of a foldl over new schema elements
+%% in which case, there's only ever one instance of a key in the list
+%% so keyreplace works fine.
+-spec parse_and_merge(
+    raw_validator(), [validator()]) -> [validator()|{error, list()}].
+parse_and_merge({validator, ValidatorName, _, _} = ValidatorSource, Validators) ->
+    NewValidator = parse(ValidatorSource),
+    case lists:keyfind(ValidatorName, #validator.name, Validators) of
+        false ->
+            [ NewValidator | Validators];
+        _OldMapping ->
+            lists:keyreplace(ValidatorName, #validator.name, Validators, NewValidator)
+    end.
 
 -spec is_validator(any()) -> boolean().
 is_validator(V) -> is_tuple(V) andalso element(1, V) =:= validator.
@@ -74,15 +94,6 @@ replace(Validator, ListOfValidators) ->
         _ ->
             [Validator | ListOfValidators]
     end.
-
--spec remove_duplicates([validator()]) -> [validator()].
-remove_duplicates(Validators) ->
-    lists:foldl(
-        fun(Validator, Acc) ->
-            replace(Validator, Acc)
-        end, 
-        [], 
-        Validators). 
 
 -ifdef(TEST).
 
@@ -124,42 +135,72 @@ replace_test() ->
         description = "description18",
         func = fun(X) -> X*2 end
     },
+    ?assertEqual(4, (Element1#validator.func)(2)),
 
-    SampleValidators = [Element1,
-    #validator{
+    Element2 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Element2#validator.func)(2)),
+
+    SampleValidators = [Element1, Element2],
 
     Override = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*5 end
     },
+    ?assertEqual(25, (Override#validator.func)(5)),
 
     NewValidators = replace(Override, SampleValidators),
     ?assertEqual([Element1, Override], NewValidators),
     ok.
 
 remove_duplicates_test() ->
-    SampleValidators = [
-    #validator{
+    Sample1 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*3 end
     },
-    #validator{
+    ?assertEqual(6, (Sample1#validator.func)(2)),
+
+    Sample2 = #validator{
         name = "name1",
         description = "description1",
         func = fun(X) -> X*4 end
-    }
-    ],
+    },
+    ?assertEqual(8, (Sample2#validator.func)(2)),
 
-    NewValidators = remove_duplicates(SampleValidators),
-    [_|Expected] = SampleValidators,
-    ?assertEqual(Expected, NewValidators),
+    SampleValidators = [Sample1, Sample2],
+
+    [NewValidator|_] = parse_and_merge(
+        {validator, "name1", "description2", fun(X) -> X*10 end},
+        SampleValidators),
+    F = func(NewValidator),
+    ?assertEqual(50, F(5)),
+    ?assertEqual("description2", description(NewValidator)),
+    ?assertEqual("name1", name(NewValidator)),
+    ok.
+
+parse_error_test() ->
+    {ErrorAtom, IOList} = parse(not_a_raw_validator),
+    ?assertEqual(error, ErrorAtom),
+    ?assertEqual(
+        "poorly formatted input to cuttlefish_validator:parse/1 : not_a_raw_validator",
+        lists:flatten(IOList)),
+    ok.
+
+is_validator_test() ->
+    ?assert(not(is_validator(not_a_validator))),
+
+    V = #validator{
+        name = "name1",
+        description = "description1",
+        func = fun(X) -> X*4 end
+    },
+    ?assertEqual(8, (V#validator.func)(2)),
+    ?assert(is_validator(V)),
     ok.
 
 -endif.
