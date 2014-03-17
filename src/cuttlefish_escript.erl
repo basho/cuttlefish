@@ -187,10 +187,24 @@ describe(ParsedArgs, Query) when is_list(Query) ->
     end,
     stop_deactivate().
 
+-ifndef(TEST).
 stop_deactivate() ->
     init:stop(1),
     timer:sleep(250),
     stop_deactivate().
+
+stop_ok() ->
+    init:stop(0).
+-endif.
+
+-ifdef(TEST).
+%% In test mode we don't want to kill the test VM prematurely.
+stop_deactivate() ->
+    error.
+
+stop_ok() ->
+    ok.
+-endif.
 
 generate(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
@@ -230,7 +244,7 @@ generate(ParsedArgs) ->
             %% command EXCEPT '-args_file', so in order to get access to this file location
             %% from within the vm, we need to pass it in twice.
             ?STDOUT(" -config ~s -args_file ~s -vm_args ~s ", [AppConf, VMArgs, VMArgs]),
-            init:stop(0)
+            stop_ok()
     end.
 
 load_schema(ParsedArgs) ->
