@@ -140,13 +140,10 @@ describe(ParsedArgs, Query) when is_list(Query) ->
         Mappings)
     end,
 
-    Results = FindResults(QDef),
-
-    case length(Results) of
-        0 ->
+    case FindResults(QDef) of
+        [] ->
             ?STDOUT("Variable '~s' not found", [Q]);
-        _X ->
-            Match = hd(Results),
+        [Match|_] ->
             ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
             _ = case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
                 {[], []} ->
@@ -168,17 +165,25 @@ describe(ParsedArgs, Query) when is_list(Query) ->
             ValidValues = [
                             ?FORMAT("~n     - ~s", [cuttlefish_conf:pretty_datatype(Type)]) ||
                               Type <- lists:flatten([cuttlefish_mapping:datatype(Match)]) ],
-            ?STDOUT("   Valid Values: ~s~n", [ValidValues]),
-            ?STDOUT("   Default Value: ~s", [format_datatype(cuttlefish_mapping:default(Match), cuttlefish_mapping:datatype(Match))]),
-
+            ?STDOUT("   Valid Values: ~s", [ValidValues]),
+            case cuttlefish_mapping:has_default(Match) of
+                true ->
+                    ?STDOUT("   Default Value : ~s",
+                            [format_datatype(cuttlefish_mapping:default(Match),
+                                             cuttlefish_mapping:datatype(Match))]);
+                false ->
+                    ?STDOUT("   No default set", [])
+            end,
             Conf = load_conf(ParsedArgs),
-            ConfiguredValue = case proplists:get_value(QDef, Conf, undefined) of
-                                  undefined -> undefined;
-                                  CValue ->
-                                      format_datatype(CValue, cuttlefish_mapping:datatype(Match))
-                              end,
-            ?STDOUT("   Set Value    : ~s", [ConfiguredValue]),
-            ?STDOUT("   Internal key : ~s", [cuttlefish_mapping:mapping(Match)])
+            case lists:keyfind(QDef, 1, Conf) of
+                false ->
+                    ConfFile = proplists:get_value(conf_file, ParsedArgs),
+                    ?STDOUT("   Value not set in ~s", [ConfFile]);
+                {_, CValue} ->
+                    ConfiguredValue = format_datatype(CValue, cuttlefish_mapping:datatype(Match)),
+                    ?STDOUT("   Set Value     : ~s", [ConfiguredValue])
+            end,
+            ?STDOUT("   Internal key  : ~s", [cuttlefish_mapping:mapping(Match)])
     end,
     stop_deactivate().
 
