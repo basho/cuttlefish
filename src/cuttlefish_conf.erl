@@ -69,7 +69,13 @@ file(Filename) ->
 generate(Mappings) ->
     lists:foldl(
       fun(Mapping, ConfFile) ->
-              ConfFile ++ generate_element(Mapping)
+              try
+                  Elem = generate_element(Mapping),
+                  ConfFile ++ Elem
+              catch _:Reason ->
+                      ST = erlang:get_stacktrace(),
+                      throw({Mapping,Reason,ST})
+              end
       end, [], Mappings).
 
 -spec generate_file([cuttlefish_mapping:mapping()], string()) -> ok.
