@@ -22,6 +22,7 @@
 -module(cuttlefish_escript).
 
 -define(STDOUT(Str, Args), io:format(Str ++ "~n", Args)).
+-define(FORMAT(Str, Args), io_lib:format(Str, Args)).
 -export([main/1]).
 
 -ifdef(TEST).
@@ -32,16 +33,16 @@
 cli_options() ->
 %% Option Name, Short Code, Long Code, Argument Spec, Help Message
 [
- {help,               $h, "help",        undefined,          "Print this usage page"},
- {etc_dir,            $e, "etc_dir",     {string, "/etc"},   "etc dir"},
- {dest_dir,           $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,          $f, "dest_file",   {string, "app"},    "the file name to write"},
- {schema_dir,         $s, "schema_dir",  string,             "a directory containing .schema files"},
- {schema_file,        $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
- {conf_file,          $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
- {app_config,         $a, "app_config",  string,             "the advanced erlangy app.config"},
- {log_level,          $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema,       $p, "print",       undefined,          "prints schema mappings on stderr"}
+ {help,         $h, "help",        undefined,          "Print this usage page"},
+ {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
+ {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
+ {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
+ {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
+ {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
+ {conf_file,    $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
+ {app_config,   $a, "app_config",  string,             "the advanced erlangy app.config"},
+ {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
+ {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -139,13 +140,10 @@ describe(ParsedArgs, Query) when is_list(Query) ->
         Mappings)
     end,
 
-    Results = FindResults(QDef),
-
-    case length(Results) of
-        0 ->
+    case FindResults(QDef) of
+        [] ->
             ?STDOUT("Variable '~s' not found", [Q]);
-        _X ->
-            Match = hd(Results),
+        [Match|_] ->
             ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
             _ = case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
                 {[], []} ->
@@ -164,20 +162,49 @@ describe(ParsedArgs, Query) when is_list(Query) ->
                     [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
             end,
             ?STDOUT("", []),
-            ?STDOUT("   Datatype     : ~p", [cuttlefish_mapping:datatype(Match)]),
-            ?STDOUT("   Default Value: ~p", [cuttlefish_mapping:default(Match)]),
-
+            ValidValues = [
+                            ?FORMAT("~n     - ~s", [cuttlefish_conf:pretty_datatype(Type)]) ||
+                              Type <- lists:flatten([cuttlefish_mapping:datatype(Match)]) ],
+            ?STDOUT("   Valid Values: ~s", [ValidValues]),
+            case cuttlefish_mapping:has_default(Match) of
+                true ->
+                    ?STDOUT("   Default Value : ~s",
+                            [format_datatype(cuttlefish_mapping:default(Match),
+                                             cuttlefish_mapping:datatype(Match))]);
+                false ->
+                    ?STDOUT("   No default set", [])
+            end,
             Conf = load_conf(ParsedArgs),
-            ConfiguredValue = proplists:get_value(QDef, Conf, undefined),
-            ?STDOUT("   Set Value    : ~s", [ConfiguredValue]),
-            ?STDOUT("   app.config   : ~s", [cuttlefish_mapping:mapping(Match)])
+            case lists:keyfind(QDef, 1, Conf) of
+                false ->
+                    ConfFile = proplists:get_value(conf_file, ParsedArgs),
+                    ?STDOUT("   Value not set in ~s", [ConfFile]);
+                {_, CValue} ->
+                    ConfiguredValue = format_datatype(CValue, cuttlefish_mapping:datatype(Match)),
+                    ?STDOUT("   Set Value     : ~s", [ConfiguredValue])
+            end,
+            ?STDOUT("   Internal key  : ~s", [cuttlefish_mapping:mapping(Match)])
     end,
     stop_deactivate().
 
+-ifndef(TEST).
 stop_deactivate() ->
     init:stop(1),
     timer:sleep(250),
     stop_deactivate().
+
+stop_ok() ->
+    init:stop(0).
+-endif.
+
+-ifdef(TEST).
+%% In test mode we don't want to kill the test VM prematurely.
+stop_deactivate() ->
+    error.
+
+stop_ok() ->
+    ok.
+-endif.
 
 generate(ParsedArgs) ->
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
@@ -217,7 +244,7 @@ generate(ParsedArgs) ->
             %% command EXCEPT '-args_file', so in order to get access to this file location
             %% from within the vm, we need to pass it in twice.
             ?STDOUT(" -config ~s -args_file ~s -vm_args ~s ", [AppConf, VMArgs, VMArgs]),
-            init:stop(0)
+            stop_ok()
     end.
 
 load_schema(ParsedArgs) ->
@@ -403,6 +430,22 @@ print_schema(Schema) ->
         io:format(standard_error, "~s ~s~n",
             [string:left(M, Max+2, $\s), V])
     || {M, V} <- ListOfMappings].
+
+format_datatype(Value, Datatypes) when is_list(Datatypes) ->
+    %% We're not sure which datatype the default or set value is going
+    %% to match, so let's find one that does.
+    [H|_] = lists:dropwhile(
+              fun(D0) ->
+                      D = cuttlefish_datatypes:extended_from(D0),
+                      case cuttlefish_datatypes:from_string(Value, D) of
+                          {error, _} -> true;
+                          _ -> false
+                      end
+              end, Datatypes),
+    format_datatype(Value, cuttlefish_datatypes:extended_from(H));
+format_datatype(Value, Datatype) ->
+    cuttlefish_datatypes:to_string(cuttlefish_datatypes:from_string(Value, Datatype), Datatype).
+
 
 -ifdef(TEST).
 
