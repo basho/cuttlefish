@@ -36,8 +36,8 @@ line <- ((setting / comment / ws+) (crlf / eof)) / crlf %{
 
 %% A setting is a key and a value, joined by =, with surrounding
 %% whitespace ignored.
-setting <- ws* key ws* "=" ws* value ws* %{
-   [ _, Key, _, _Eq, _, Value, _ ] = Node,
+setting <- ws* key ws* "=" ws* value ws* comment? %{
+   [ _, Key, _, _Eq, _, Value, _, _ ] = Node,
    {Key, Value}
 %};
 
@@ -48,7 +48,7 @@ key <- head:word tail:("." word)* %{
 %};
 
 %% A value is any character, with trailing whitespace stripped.
-value <- (!(ws* crlf) .)+ `unicode:characters_to_list(iolist_to_binary(Node))`;
+value <- (!((ws* crlf) / comment) .)+ `unicode:characters_to_list(iolist_to_binary(Node))`;
 
 %% A comment is any line that begins with a # sign, leading whitespace
 %% allowed.
