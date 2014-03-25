@@ -257,7 +257,7 @@ load_schema(ParsedArgs) ->
     IndividualSchemaFiles = proplists:get_all_values(schema_file, ParsedArgs),
     SchemaFiles = SchemaDirFiles ++ IndividualSchemaFiles,
 
-    SortedSchemaFiles = lists:sort(fun(A,B) -> A > B end, SchemaFiles),
+    SortedSchemaFiles = lists:sort(fun(A,B) -> A < B end, SchemaFiles),
     case length(SortedSchemaFiles) of
         0 ->
             lager:debug("No Schema files found in specified", []),
