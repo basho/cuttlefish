@@ -22,6 +22,10 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_enum).
 
+-type enum() :: {enum, [{atom()|string(), term()}]}.
+-type strict_enum() :: {enum, [{string(), term()}]}.
+-export_type([enum/0, strict_enum/0]).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
@@ -34,25 +38,68 @@
 
 -define(FMT(F, A), lists:flatten(io_lib:format(F, A))).
 
-to_string(Atom, {enum, _}) when is_atom(Atom) ->
-    atom_to_list(Atom);
-to_string(Value, {enum, _}) ->
-    Value.
-
--spec parse(string() | atom(),
-            {enum, [ atom() | string() | {atom()|string(), term()} ]}
-           ) -> term() | cuttlefish_error:error().
-parse(AtomValue, Enum) when is_atom(AtomValue) ->
-    parse(atom_to_list(AtomValue), Enum);
-parse(StrValue, {enum, RawEnum}) ->
+-spec to_string(string() | atom(), enum()
+           ) -> string() | cuttlefish_error:error().
+to_string(Value, {enum, RawEnum}) ->
     FriendlEnum = assuage_enum(RawEnum),
-    case lists:keyfind(StrValue, 1, FriendlEnum) of
+    case to_string_by_value(Value, {enum, FriendlEnum}) of
+        {K, _} -> atom_to_list_maybe(K);
         false ->
-            Acceptable = [Key || {Key, _} <- FriendlEnum],
-            {error, ?FMT("~p is not a valid enum value, acceptable values are ~p.", [StrValue, Acceptable])};
+            to_string_by_key(
+                atom_to_list_maybe(Value),
+                {enum, FriendlEnum})
+    end.
+
+-spec to_string_by_value(term(), strict_enum()) -> term().
+to_string_by_value(Value, {enum, FriendlEnum}) ->
+    lists:keyfind(Value, 2, FriendlEnum).
+
+-spec to_string_by_key(atom() | string(), strict_enum()) -> string().
+to_string_by_key(Key, {enum, FriendlEnum}) ->
+    case lists:keyfind(Key, 1, FriendlEnum) of
+        {K, _} -> K;
+        false ->
+            to_error(Key, {enum, FriendlEnum})
+    end.
+
+-spec parse(term(), enum()
+           ) -> term() | cuttlefish_error:error().
+parse(Value, {enum, RawEnum}) ->
+    FriendlEnum = assuage_enum(RawEnum),
+    case parse_by_key(
+        atom_to_list_maybe(Value),
+        {enum, FriendlEnum})
+    of
+        {_Key, Val} -> Val;
+        false ->
+            parse_by_value(Value, {enum, FriendlEnum})
+    end.
+
+-spec parse_by_key(atom() | string() | term(), strict_enum()) ->
+    {string(), term()} | false.
+parse_by_key(Key, {enum, FriendlEnum}) ->
+    lists:keyfind(Key, 1, FriendlEnum).
+
+-spec parse_by_value(term(), strict_enum()) -> term() | cuttlefish_error:error().
+parse_by_value(Value, {enum, FriendlEnum}) ->
+    case lists:keyfind(Value, 2, FriendlEnum) of
+        false ->
+            to_error(Value, {enum, FriendlEnum});
         {_Key, Value} ->
             Value
     end.
+
+-spec to_error(atom() | string()| term(), strict_enum()) -> cuttlefish_error:error().
+to_error(Value, {enum, FriendlEnum}) ->
+    Acceptable = [Key || {Key, _} <- FriendlEnum],
+    {error,
+     ?FMT("~p is not a valid enum value, acceptable values are ~p.",
+          [atom_to_list_maybe(Value), Acceptable])}.
+
+-spec atom_to_list_maybe(term()) -> term().
+atom_to_list_maybe(Atom) when is_atom(Atom) ->
+    atom_to_list(Atom);
+atom_to_list_maybe(Other) -> Other.
 
 assuage_enum(Enum) ->
     assuage_enum(Enum, []).
