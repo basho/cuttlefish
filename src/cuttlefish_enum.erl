@@ -62,15 +62,12 @@ to_string_by_key(Key, {enum, FriendlEnum}) ->
             to_error(Key, {enum, FriendlEnum})
     end.
 
--spec parse(term(), enum()
-           ) -> term() | cuttlefish_error:error().
+-spec parse(term(), enum()) -> term() | cuttlefish_error:error().
 parse(Value, {enum, RawEnum}) ->
     FriendlEnum = assuage_enum(RawEnum),
-    case parse_by_key(
-        atom_to_list_maybe(Value),
-        {enum, FriendlEnum})
-    of
-        {_Key, Val} -> Val;
+    case parse_by_key( atom_to_list_maybe(Value), {enum, FriendlEnum}) of
+        {_Key, Val} ->
+            Val;
         false ->
             parse_by_value(Value, {enum, FriendlEnum})
     end.
