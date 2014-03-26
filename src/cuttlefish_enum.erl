@@ -22,8 +22,10 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_enum).
 
--type enum() :: {enum, [{atom()|string(), term()}]}.
--type strict_enum() :: {enum, [{string(), term()}]}.
+-type enum_list() :: [{atom()|string(), term()}].
+-type enum() :: {enum, enum_list()}.
+-type strict_enum_list() :: [{string(), term()}].
+-type strict_enum() :: {enum, strict_enum_list()}.
 -export_type([enum/0, strict_enum/0]).
 
 -ifdef(TEST).
@@ -40,14 +42,13 @@
 
 -spec to_string(string() | atom(), enum()
            ) -> string() | cuttlefish_error:error().
-to_string(Value, {enum, RawEnum}) ->
-    FriendlEnum = assuage_enum(RawEnum),
-    case to_string_by_value(Value, {enum, FriendlEnum}) of
-        {K, _} -> atom_to_list_maybe(K);
+to_string(Value, {enum, _Raw} = Enum) ->
+    FriendlEnum = assuage_enum(Enum),
+    case to_string_by_value(Value, FriendlEnum) of
+        {K, _} ->
+            atom_to_list_maybe(K);
         false ->
-            to_string_by_key(
-                atom_to_list_maybe(Value),
-                {enum, FriendlEnum})
+            to_string_by_key(atom_to_list_maybe(Value), FriendlEnum)
     end.
 
 -spec to_string_by_value(term(), strict_enum()) -> term().
@@ -59,17 +60,17 @@ to_string_by_key(Key, {enum, FriendlEnum}) ->
     case lists:keyfind(Key, 1, FriendlEnum) of
         {K, _} -> K;
         false ->
-            to_error(Key, {enum, FriendlEnum})
+            to_error(Key, FriendlEnum)
     end.
 
 -spec parse(term(), enum()) -> term() | cuttlefish_error:error().
-parse(Value, {enum, RawEnum}) ->
-    FriendlEnum = assuage_enum(RawEnum),
-    case parse_by_key( atom_to_list_maybe(Value), {enum, FriendlEnum}) of
+parse(Value, {enum, _Raw} = Enum) ->
+    FriendlEnum = assuage_enum(Enum),
+    case parse_by_key(atom_to_list_maybe(Value), FriendlEnum) of
         {_Key, Val} ->
             Val;
         false ->
-            parse_by_value(Value, {enum, FriendlEnum})
+            parse_by_value(Value, FriendlEnum)
     end.
 
 -spec parse_by_key(atom() | string() | term(), strict_enum()) ->
@@ -81,13 +82,13 @@ parse_by_key(Key, {enum, FriendlEnum}) ->
 parse_by_value(Value, {enum, FriendlEnum}) ->
     case lists:keyfind(Value, 2, FriendlEnum) of
         false ->
-            to_error(Value, {enum, FriendlEnum});
+            to_error(Value, FriendlEnum);
         {_Key, Value} ->
             Value
     end.
 
--spec to_error(atom() | string()| term(), strict_enum()) -> cuttlefish_error:error().
-to_error(Value, {enum, FriendlEnum}) ->
+-spec to_error(atom() | string()| term(), strict_enum_list()) -> cuttlefish_error:error().
+to_error(Value, FriendlEnum) ->
     Acceptable = [Key || {Key, _} <- FriendlEnum],
     {error,
      ?FMT("~p is not a valid enum value, acceptable values are ~p.",
@@ -98,8 +99,18 @@ atom_to_list_maybe(Atom) when is_atom(Atom) ->
     atom_to_list(Atom);
 atom_to_list_maybe(Other) -> Other.
 
-assuage_enum(Enum) ->
-    assuage_enum(Enum, []).
+-spec assuage_enum(enum()) -> strict_enum() | cuttlefish_error:error().
+assuage_enum({enum, Enum}) ->
+    FriendlEnum = assuage_enum(Enum, []),
+    case cuttlefish_error:is_error(FriendlEnum) of
+        true ->
+            FriendlEnum;
+        _ ->
+            {enum, FriendlEnum}
+    end.
+
+-spec assuage_enum(enum_list(), strict_enum_list())
+                  -> strict_enum_list() | cuttlefish_error:error().
 assuage_enum([], FriendlEnum) ->
     lists:reverse(FriendlEnum);
 %% If the head is a 2-tuple; yay!
@@ -126,24 +137,24 @@ parse_test() ->
     ok.
 
 assuage_enum_test() ->
-    ?assertEqual([{"true", true}, {"false", false}],
-                 assuage_enum([true, false])),
-    ?assertEqual([{"true", "true"}, {"false", "false"}],
-                 assuage_enum(["true", "false"])),
-    ?assertEqual([{"one", 1}, {"two", 2}],
-                 assuage_enum([{one, 1}, {"two", 2}])),
-    ?assertEqual([{"off", off}, {"on", "On"}],
-                 assuage_enum([off, {on, "On"}])),
+    ?assertEqual({enum, [{"true", true}, {"false", false}]},
+                 assuage_enum({enum, [true, false]})),
+    ?assertEqual({enum, [{"true", "true"}, {"false", "false"}]},
+                 assuage_enum({enum, ["true", "false"]})),
+    ?assertEqual({enum, [{"one", 1}, {"two", 2}]},
+                 assuage_enum({enum, [{one, 1}, {"two", 2}]})),
+    ?assertEqual({enum, [{"off", off}, {"on", "On"}]},
+                 assuage_enum({enum, [off, {on, "On"}]})),
     ok.
 
 assuage_enum_error_test() ->
     ?assertEqual(
        {error, "An enum element's tuple must be a 2-tuple and the first element must be an atom or a string. The value was: {one,two,three}"},
-       assuage_enum([{one, two, three}, oops])
+       assuage_enum({enum, [{one, two, three}, oops]})
     ),
     ?assertEqual(
        {error, "An enum element needs to be a 2-tuple, a string, or an atom, but was: 7"},
-       assuage_enum([oops, 7])
+       assuage_enum({enum, [oops, 7]})
     ),
     ok.
 
