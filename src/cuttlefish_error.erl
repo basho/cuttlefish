@@ -81,7 +81,7 @@ print(String) ->
 -spec format(io:format()) -> error().
 format(Str) -> format(Str, []).
 
--spec format(io_lib:format(), list()) -> error().
+-spec format(io:format(), list()) -> error().
 format(Str, List) ->
     {error, lists:flatten(io_lib:format(Str, List))}.
 
