@@ -98,25 +98,29 @@ main(Args) ->
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
     lager:debug("cuttlefish `effective`", []),
-    {_, Mappings, _} = load_schema(ParsedArgs),
-    Conf = load_conf(ParsedArgs),
+    EtcDir = proplists:get_value(etc_dir, ParsedArgs),
+    AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+    AdvConfig = case filelib:is_file(AdvancedConfigFile) of
+        true ->
+            lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
+            case file:consult(AdvancedConfigFile) of
+                {ok, [AdvancedConfig]} ->
+                    AdvancedConfig;
+                {error, Error} ->
+                    lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
+                    stop_deactivate()
+            end;
 
-    EffectiveConfig = lists:sort(cuttlefish_generator:add_defaults(Conf, Mappings)),
+        _ ->
+            []
+    end,
 
-    _ = [ begin
-        Variable = string:join(Var, "."),
-        try ?STDOUT("~s = ~s", [Variable, Value]) of
-            _ -> ok
-        catch
-            _:_ ->
-                %% I hate that I had to do this, 'cause you know...
-                %% Erlang and Strings, but actually this is ok because
-                %% sometimes there are going to be weird tuply things
-                %% in here, so always good to fall back on ~p.
-                %% honestly, I think this try should be built into io:format
-                ?STDOUT("~s = ~p", [Variable, Value])
-        end
-    end || {Var, Value} <- EffectiveConfig],
+
+    EffectiveConfig = cuttlefish_effective:build(
+        load_conf(ParsedArgs),
+        load_schema(ParsedArgs),
+        AdvConfig),
+    [ ?STDOUT(Line, []) || Line <- EffectiveConfig],
     ok.
 
 %% This is the function that dumps the docs for a single setting
