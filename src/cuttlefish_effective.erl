@@ -33,8 +33,9 @@
 -spec build(cuttlefish_conf:conf(), cuttlefish_schema:schema(), [proplists:property()]) -> [string()].
 build(Conf, {_Translations, Mappings, _Validators} = _Schema, AdvConfig) ->
     EffectiveConfig = lists:reverse(lists:sort(cuttlefish_generator:add_defaults(Conf, Mappings))),
-    %% EffectiveConfig is a list of { [string()], term()}
+    %% EffectiveConfig is a list of { [string()], term() }
 
+    %% Returns the list of cuttlefish variables that have been overridden in advanced.config
     KeysToHateOn = process_advanced(Mappings, AdvConfig),
 
     lists:foldl(
@@ -71,7 +72,10 @@ build(Conf, {_Translations, Mappings, _Validators} = _Schema, AdvConfig) ->
         EffectiveConfig
     ).
 
--spec process_advanced([cuttlefish_mapping:mapping()], [proplists:property()]) -> [cuttlefish_variable:variable()].
+%% @doc check's a mapping's "mapping"
+-spec process_advanced(
+        [cuttlefish_mapping:mapping()],
+        [proplists:property()]) -> [cuttlefish_variable:variable()].
 process_advanced(Mappings, AdvancedConfig) ->
     AdvKeys = proplist_to_kvcpaths(AdvancedConfig),
     lists:foldl(
@@ -85,9 +89,16 @@ process_advanced(Mappings, AdvancedConfig) ->
         [],
         Mappings).
 
+%% @doc returns a list of kvcesque paths that represent the structure
+%% of a proplist of proplists of proplists etc...
+%% e.g. [{parent, [{child1, [{grandchild1, _}]}, {child2, _}]}] ->
+%%      ["parent.child1.grandchild1", "parent.child2"]
+-spec proplist_to_kvcpaths([proplists:property()]) -> [string()].
 proplist_to_kvcpaths(Proplist) ->
     proplist_to_kvcpaths("", Proplist).
+-spec proplist_to_kvcpaths(string(), [proplists:property()]) -> [string()].
 proplist_to_kvcpaths(Prefix, Proplist) ->
+    %% Handles the base case, without this, all keys would start with "."
     NewPrefix = case Prefix of
         "" -> "";
         _ -> Prefix ++ "."
@@ -108,16 +119,60 @@ proplist_to_kvcpaths(Prefix, Proplist) ->
         keys_if_you_got_em(Proplist)
     ).
 
-%% For EffectiveConfig
-%% 1. build a list of "leaf" key combos for AdvConfig
-%% 2. Search mappings for possible matches
-%% 3. If match, comment out
-
+-spec keys_if_you_got_em([proplists:property()]) -> [term()].
 keys_if_you_got_em(Proplist) when is_list(Proplist) ->
     proplists:get_keys(Proplist);
 keys_if_you_got_em(_) -> [].
 
 -ifdef(TEST).
+
+%% This is the comprehensive test of all functionality of this module
+%% working together in perfect harmony
+probably_the_most_important_test() ->
+    Mappings = [
+        cuttlefish_mapping:parse(
+            {mapping, "namespace.var1", "app.setting1", []}
+        ),
+        cuttlefish_mapping:parse(
+            {mapping, "namespace.2.$sub", "app.setting2", []}
+        ),
+        cuttlefish_mapping:parse(
+            {mapping, "namespace.var3", "app.setting3", []}
+        ),
+        cuttlefish_mapping:parse(
+            {mapping, "namespace.4.$sub", "app.setting4", []}
+        )
+    ],
+    Conf = [
+        {["namespace", "var1"], "x"},
+        {["namespace", "2", "1"], "x"},
+        {["namespace", "2", "2"], "x"},
+        {["namespace", "2", "3"], "x"},
+        {["namespace", "var3"], "y"},
+        {["namespace", "4", "1"], "y"},
+        {["namespace", "4", "2"], "y"},
+        {["namespace", "4", "3"], "y"}
+    ],
+    AdvConfig = [{app, [{setting3, "z"}, {setting4, "zz"}]}],
+
+    Effective = build(Conf, {[], Mappings, []}, AdvConfig),
+    ?assertEqual(12, length(Effective)),
+
+    %% Remember, this output is sorted by variable, even if there's a comment
+
+    ?assertEqual("namespace.2.1 = x", lists:nth(1, Effective)),
+    ?assertEqual("namespace.2.2 = x", lists:nth(2, Effective)),
+    ?assertEqual("namespace.2.3 = x", lists:nth(3, Effective)),
+    ?assertEqual("## namespace.4.1 was overridden in advanced.config", lists:nth(4, Effective)),
+    ?assertEqual("## namespace.4.1 = y", lists:nth(5, Effective)),
+    ?assertEqual("## namespace.4.2 was overridden in advanced.config", lists:nth(6, Effective)),
+    ?assertEqual("## namespace.4.2 = y", lists:nth(7, Effective)),
+    ?assertEqual("## namespace.4.3 was overridden in advanced.config", lists:nth(8, Effective)),
+    ?assertEqual("## namespace.4.3 = y", lists:nth(9, Effective)),
+    ?assertEqual("namespace.var1 = x", lists:nth(10, Effective)),
+    ?assertEqual("## namespace.var3 was overridden in advanced.config", lists:nth(11, Effective)),
+    ?assertEqual("## namespace.var3 = y", lists:nth(12, Effective)),
+    ok.
 
 process_advanced_test() ->
     Mappings = [
@@ -127,7 +182,32 @@ process_advanced_test() ->
     ],
     AdvConfig = [{a, [{b, [{c, ""}, {d, ""}]}]}],
     KeysToWatch = process_advanced(Mappings, AdvConfig),
-    ?assertEqual(["a.b.c"], KeysToWatch),
+    ?assertEqual([["thing", "1"]], KeysToWatch),
+    ok.
+
+build_with_sub_test() ->
+    Mappings = [
+        cuttlefish_mapping:parse(
+            {mapping, "a.$whatev.thing", "a.b.c", []}
+        )
+    ],
+    AdvConfig = [{a, [{b, [{c, ""}, {d, ""}]}]}],
+    Conf = [
+        {["a", "1", "thing"], "x"},
+        {["a", "2", "thing"], "x"},
+        {["a", "3", "thing"], "x"}
+    ],
+
+    Effective = build(Conf, {[], Mappings, []}, AdvConfig),
+
+    ?assertEqual(6, length(Effective)),
+    [L1,L2,L3,L4,L5,L6] = Effective,
+    ?assertEqual("## a.1.thing was overridden in advanced.config", L1),
+    ?assertEqual("## a.1.thing = x", L2),
+    ?assertEqual("## a.2.thing was overridden in advanced.config", L3),
+    ?assertEqual("## a.2.thing = x", L4),
+    ?assertEqual("## a.3.thing was overridden in advanced.config", L5),
+    ?assertEqual("## a.3.thing = x", L6),
     ok.
 
 proplist_to_kvcpath_test() ->
@@ -143,12 +223,12 @@ proplist_to_kvcpath_test() ->
                 },
                 {g, "q"}],
     Paths = proplist_to_kvcpaths(Proplist),
-    ?assertEqual([
+    ?assertEqual(sets:from_list([
         "a.b.c",
         "a.d.e",
         "a.f",
         "g"
-    ], Paths),
+    ]), sets:from_list(Paths)),
     ok.
 
 proplists_to_kvcpath_riak_core_test() ->
