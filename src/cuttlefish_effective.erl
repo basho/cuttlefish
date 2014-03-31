@@ -38,7 +38,7 @@ build(Conf, {_Translations, Mappings, _Validators} = _Schema, AdvConfig) ->
     %% Returns the list of cuttlefish variables that have been overridden in advanced.config
     KeysToHateOn = process_advanced(Mappings, AdvConfig),
 
-    lists:foldl(
+    EffectiveOutput = lists:foldl(
         fun({Var, Value}, Acc) ->
             Variable = string:join(Var, "."),
 
@@ -70,9 +70,26 @@ build(Conf, {_Translations, Mappings, _Validators} = _Schema, AdvConfig) ->
         end,
         [],
         EffectiveConfig
-    ).
+    ),
 
-%% @doc check's a mapping's "mapping"
+    case AdvConfig of
+        [] -> EffectiveOutput;
+        _ ->
+            EffectiveOutput ++
+            [
+             "## The following advanced.config was used in generating the ",
+             "## configuration and may have overridden some options that were ",
+             "## commented out above."
+            ]
+            ++ advanced_as_comment(AdvConfig)
+    end.
+
+advanced_as_comment(AdvConfig) ->
+    Str = lists:flatten(io_lib:format("~p", [AdvConfig])),
+    [ "## " ++ L || L <- string:tokens(Str, "$\n")].
+
+%% @doc checks a mapping's "mapping" is in the set of kvc paths in
+%% the provided advanced.config
 -spec process_advanced(
         [cuttlefish_mapping:mapping()],
         [proplists:property()]) -> [cuttlefish_variable:variable()].
@@ -156,7 +173,7 @@ probably_the_most_important_test() ->
     AdvConfig = [{app, [{setting3, "z"}, {setting4, "zz"}]}],
 
     Effective = build(Conf, {[], Mappings, []}, AdvConfig),
-    ?assertEqual(12, length(Effective)),
+    ?assertEqual(16, length(Effective)),
 
     %% Remember, this output is sorted by variable, even if there's a comment
 
@@ -172,6 +189,10 @@ probably_the_most_important_test() ->
     ?assertEqual("namespace.var1 = x", lists:nth(10, Effective)),
     ?assertEqual("## namespace.var3 was overridden in advanced.config", lists:nth(11, Effective)),
     ?assertEqual("## namespace.var3 = y", lists:nth(12, Effective)),
+    ?assertEqual("## The following advanced.config was used in generating the ", lists:nth(13, Effective)),
+    ?assertEqual("## configuration and may have overridden some options that were ", lists:nth(14, Effective)),
+    ?assertEqual("## commented out above.", lists:nth(15, Effective)),
+    ?assertEqual("## [{app,[{setting3,\"z\"},{setting4,\"zz\"}]}]", lists:nth(16, Effective)),
     ok.
 
 process_advanced_test() ->
@@ -200,14 +221,17 @@ build_with_sub_test() ->
 
     Effective = build(Conf, {[], Mappings, []}, AdvConfig),
 
-    ?assertEqual(6, length(Effective)),
-    [L1,L2,L3,L4,L5,L6] = Effective,
-    ?assertEqual("## a.1.thing was overridden in advanced.config", L1),
-    ?assertEqual("## a.1.thing = x", L2),
-    ?assertEqual("## a.2.thing was overridden in advanced.config", L3),
-    ?assertEqual("## a.2.thing = x", L4),
-    ?assertEqual("## a.3.thing was overridden in advanced.config", L5),
-    ?assertEqual("## a.3.thing = x", L6),
+    ?assertEqual(10, length(Effective)),
+    ?assertEqual("## a.1.thing was overridden in advanced.config", lists:nth(1, Effective)),
+    ?assertEqual("## a.1.thing = x", lists:nth(2, Effective)),
+    ?assertEqual("## a.2.thing was overridden in advanced.config", lists:nth(3, Effective)),
+    ?assertEqual("## a.2.thing = x", lists:nth(4, Effective)),
+    ?assertEqual("## a.3.thing was overridden in advanced.config", lists:nth(5, Effective)),
+    ?assertEqual("## a.3.thing = x", lists:nth(6, Effective)),
+    ?assertEqual("## The following advanced.config was used in generating the ", lists:nth(7, Effective)),
+    ?assertEqual("## configuration and may have overridden some options that were ", lists:nth(8, Effective)),
+    ?assertEqual("## commented out above.", lists:nth(9, Effective)),
+    ?assertEqual("## [{a,[{b,[{c,[]},{d,[]}]}]}]", lists:nth(10, Effective)),
     ok.
 
 proplist_to_kvcpath_test() ->
