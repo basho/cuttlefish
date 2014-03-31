@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_effective: handles datatypes in cuttlefish schemas
+%% cuttlefish_effective: handles generating the effective configuration
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
