@@ -120,7 +120,7 @@ effective(ParsedArgs) ->
         load_conf(ParsedArgs),
         load_schema(ParsedArgs),
         AdvConfig),
-    [ ?STDOUT(Line, []) || Line <- EffectiveConfig],
+    _ = [ ?STDOUT(Line, []) || Line <- EffectiveConfig],
     ok.
 
 %% This is the function that dumps the docs for a single setting
