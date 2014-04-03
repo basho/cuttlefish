@@ -42,7 +42,8 @@ cli_options() ->
  {conf_file,    $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
  {app_config,   $a, "app_config",  string,             "the advanced erlangy app.config"},
  {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"}
+ {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
+ {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -79,7 +80,6 @@ main(Args) ->
 
     application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
     lager:start(),
-
     lager:debug("Cuttlefish set to debug level logging"),
 
     case Command of
@@ -110,11 +110,9 @@ effective(ParsedArgs) ->
                     lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                     stop_deactivate()
             end;
-
         _ ->
             []
     end,
-
 
     EffectiveConfig = cuttlefish_effective:build(
         load_conf(ParsedArgs),
@@ -348,7 +346,6 @@ engage_cuttlefish(ParsedArgs) ->
                     lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                     stop_deactivate()
             end;
-
         _ ->
             %% Nothing to see here, these aren't the droids you're looking for.
             NewConfig
@@ -361,6 +358,11 @@ engage_cuttlefish(ParsedArgs) ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
             FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
 
+            %% Prune excess files
+            MaxHistory = proplists:get_value(max_history, ParsedArgs, 3) - 1,
+            prune(Destination, MaxHistory),
+            prune(DestinationVMArgs, MaxHistory),
+
             case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
                    file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
                 {ok, ok} ->
@@ -372,6 +374,31 @@ engage_cuttlefish(ParsedArgs) ->
             end
 
     end.
+
+-spec prune(file:name_all(), integer()) -> ok.
+prune(Filename, MaxHistory) ->
+    %% A Filename comes in /Abs/Path/To/something.YYYY.MM.DD.HH.mm.SS.ext
+    %% We want `ls /Abs/Path/To/something.*.ext and delete all but the most
+    %% recent MaxHistory
+    Path = filename:dirname(Filename),
+    Ext = filename:extension(Filename),
+    Base = hd(string:tokens(filename:basename(Filename, Ext), ".")),
+    Files =
+        lists:sort(filelib:wildcard(Base ++ ".*" ++ Ext, Path)),
+
+    delete([ filename:join([Path, F]) || F <- Files], MaxHistory),
+    ok.
+
+-spec delete(file:name_all(), integer()) -> ok.
+delete(Files, MaxHistory) when length(Files) =< MaxHistory ->
+    ok;
+delete([File|Files], MaxHistory) ->
+    case file:delete(File) of
+        ok -> ok;
+        {error, Reason} ->
+            lager:error("Could not delete ~s, ~p", [File, Reason])
+    end,
+    delete(Files, MaxHistory).
 
 -spec maybe_log_file_error(
         file:filename(), ok |
@@ -468,5 +495,6 @@ zero_pad_test() ->
     ?assertEqual("11", zero_pad(11)),
     ?assertEqual("12", zero_pad(12)),
     ok.
+
 
 -endif.
