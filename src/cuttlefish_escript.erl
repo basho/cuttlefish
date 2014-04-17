@@ -99,26 +99,49 @@ main(Args) ->
 effective(ParsedArgs) ->
     lager:debug("cuttlefish `effective`", []),
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
-    AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
-    AdvConfig = case filelib:is_file(AdvancedConfigFile) of
-        true ->
-            lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
-            case file:consult(AdvancedConfigFile) of
-                {ok, [AdvancedConfig]} ->
-                    AdvancedConfig;
-                {error, Error} ->
-                    lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
-                    stop_deactivate()
-            end;
-        _ ->
-            []
-    end,
 
-    EffectiveConfig = cuttlefish_effective:build(
-        load_conf(ParsedArgs),
-        load_schema(ParsedArgs),
-        AdvConfig),
-    _ = [ ?STDOUT(Line, []) || Line <- EffectiveConfig],
+    %% Should we even show this?
+    {AppConfigExists, ExistingAppConfigName} = check_existence(EtcDir, "app.config"),
+    {VMArgsExists, ExistingVMArgsName} = check_existence(EtcDir, "vm.args"),
+
+    case {AppConfigExists, VMArgsExists} of
+        {false, false} ->
+            AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+            AdvConfig = case filelib:is_file(AdvancedConfigFile) of
+                true ->
+                    lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
+                    case file:consult(AdvancedConfigFile) of
+                        {ok, [AdvancedConfig]} ->
+                            AdvancedConfig;
+                        {error, Error} ->
+                            lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
+                            stop_deactivate()
+                    end;
+                _ ->
+                    []
+            end,
+
+            EffectiveConfig = cuttlefish_effective:build(
+                load_conf(ParsedArgs),
+                load_schema(ParsedArgs),
+                AdvConfig),
+            _ = [ ?STDOUT(Line, []) || Line <- EffectiveConfig];
+        _ ->
+            ?STDOUT("Disabling cuttlefish, legacy configuration files found:", []),
+            case AppConfigExists of
+                true ->
+                    ?STDOUT("  ~s", [ExistingAppConfigName]);
+                _ ->
+                    ok
+            end,
+            case VMArgsExists of
+                true ->
+                    ?STDOUT("  ~s", [ExistingVMArgsName]);
+                _ ->
+                    ok
+            end,
+            ?STDOUT("Effective config is only visible for cuttlefish conf files.", [])
+    end,
     ok.
 
 %% This is the function that dumps the docs for a single setting
