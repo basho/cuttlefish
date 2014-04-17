@@ -125,7 +125,8 @@ effective(ParsedArgs) ->
                 load_conf(ParsedArgs),
                 load_schema(ParsedArgs),
                 AdvConfig),
-            _ = [ ?STDOUT(Line, []) || Line <- EffectiveConfig];
+            _ = [ ?STDOUT(Line, []) || Line <- EffectiveConfig],
+            ok;
         _ ->
             ?STDOUT("Disabling cuttlefish, legacy configuration files found:", []),
             case AppConfigExists of
