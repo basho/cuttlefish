@@ -37,7 +37,10 @@
                     {enum, [atom()]} |
                     ip |
                     {duration, cuttlefish_duration:time_unit() } |
-                    bytesize.
+                    bytesize |
+                    {percent, integer} |
+                    {percent, float} |
+                    float.
 -type extended() :: { integer, integer() } |
                     { string, string() } |
                     { file, file:filename() } |
@@ -45,7 +48,10 @@
                     { atom, atom() } |
                     { ip, { string(), integer() } } |
                     { {duration, cuttlefish_duration:time_unit() }, string() } |
-                    { bytesize, string() }.
+                    { bytesize, string() } |
+                    { {percent, integer}, integer() } |
+                    { {percent, float}, float() } |
+                    { float, float() }.
 -type datatype_list() :: [ datatype() | extended() ].
 
 -export_type([datatype/0, extended/0, datatype_list/0]).
@@ -78,6 +84,9 @@ is_supported({duration, m}) -> true;
 is_supported({duration, s}) -> true;
 is_supported({duration, ms}) -> true;
 is_supported(bytesize) -> true;
+is_supported({percent, integer}) -> true;
+is_supported({percent, float}) -> true;
+is_supported(float) -> true;
 is_supported(_) -> false.
 
 -spec is_extended(any()) -> boolean().
@@ -96,6 +105,9 @@ is_extended({{duration, m}, D}) when is_list(D) -> true;
 is_extended({{duration, s}, D}) when is_list(D) -> true;
 is_extended({{duration, ms}, D}) when is_list(D) -> true;
 is_extended({bytesize, B}) when is_list(B) -> true;
+is_extended({{percent, integer}, _Int}) -> true;
+is_extended({{percent, float}, _Float}) -> true;
+is_extended({float, F}) when is_float(F) -> true;
 is_extended(_) -> false.
 
 -spec extended_from(extended()) -> datatype().
@@ -107,6 +119,9 @@ extended_from({directory, _}) -> directory;
 extended_from({ip, _}) -> ip;
 extended_from({{duration, Unit}, _}) -> {duration, Unit};
 extended_from({bytesize, _}) -> bytesize;
+extended_from({{percent, integer}, _}) -> {percent, integer};
+extended_from({{percent, float}, _}) -> {percent, float};
+extended_from({float, _}) -> float;
 extended_from(Other) ->
     case is_supported(Other) of
         true ->
@@ -154,6 +169,20 @@ to_string(Flag, flag) when is_atom(Flag) -> cuttlefish_flag:to_string(Flag, flag
 to_string(Flag, flag) when is_list(Flag) -> cuttlefish_flag:to_string(Flag, flag);
 to_string(Flag, {flag, _, _}=Type) when is_atom(Flag) -> cuttlefish_flag:to_string(Flag, Type);
 to_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:to_string(Flag, Type);
+
+to_string(Percent, {percent, integer}) when is_integer(Percent) ->
+    integer_to_list(Percent) ++ "%";
+to_string(Percent, {percent, integer}) when is_list(Percent) ->
+    Percent;
+to_string(Percent, {percent, float}) when is_float(Percent) ->
+    P = list_to_float(float_to_list(Percent * 100, [{decimals, 6}, compact])),
+    integer_to_list(cuttlefish_util:ceiling(P)) ++ "%";
+to_string(Percent, {percent, float}) when is_list(Percent) ->
+    Percent;
+
+to_string(Float, float) when is_float(Float) ->
+    float_to_list(Float, [{decimals, 6}, compact]);
+to_string(Float, float) when is_list(Float) -> Float;
 
 %% The Pokemon Clause: Gotta Catch 'em all!
 to_string(Value, MaybeExtendedDatatype) ->
@@ -209,6 +238,32 @@ from_string(Flag, flag) when is_atom(Flag) -> cuttlefish_flag:parse(Flag);
 from_string(Flag, {flag, _, _}=Type) when is_list(Flag) -> cuttlefish_flag:parse(Flag, Type);
 from_string(Flag, {flag, _, _}=Type) when is_atom(Flag) -> cuttlefish_flag:parse(Flag, Type);
 
+from_string(Percent, {percent, integer}) when is_integer(Percent), Percent >= 0, Percent =< 100 -> Percent;
+from_string(Percent, {percent, integer}) when is_integer(Percent) ->
+    {error, lists:flatten(io_lib:format("~p% can't be outside the range 0 - 100%", [Percent]))};
+%% This clause ends with a percent sign!
+from_string(Percent, {percent, integer}) when is_list(Percent) ->
+    from_string(
+      list_to_integer(string:sub_string(Percent, 1, length(Percent) - 1)),
+      {percent, integer});
+
+from_string(Percent, {percent, float}) when is_float(Percent), Percent >= 0, Percent =< 1 -> Percent;
+from_string(Percent, {percent, float}) when is_float(Percent) ->
+    {error, lists:flatten(io_lib:format("~s can't be outside the range 0 - 100%", [to_string(Percent, {percent, float})]))};
+%% This clause ends with a percent sign!
+from_string(Percent, {percent, float}) when is_list(Percent) ->
+    from_string(
+      list_to_integer(string:sub_string(Percent, 1, length(Percent) - 1)) / 100.0,
+      {percent, float});
+
+from_string(Float, float) when is_float(Float) -> Float;
+from_string(String, float) when is_list(String) ->
+    try list_to_float(String) of
+        X -> X
+    catch
+        _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to a float", [String]))}
+    end;
+
 from_string(Thing, InvalidDatatype) ->
    {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
 
@@ -241,6 +296,21 @@ to_string_bytesize_test() ->
     ?assertEqual("1GB", to_string(1073741824, bytesize)),
     ?assertEqual("1GB", to_string("1GB", bytesize)).
 
+to_string_percent_integer_test() ->
+    ?assertEqual("10%", to_string(10, {percent, integer})),
+    ?assertEqual("10%", to_string("10%", {percent, integer})),
+    ok.
+
+to_string_percent_float_test() ->
+    ?assertEqual("10%", to_string(0.1, {percent, float})),
+    ?assertEqual("10%", to_string("10%", {percent, float})),
+    ok.
+
+to_string_float_test() ->
+    ?assertEqual("0.1", to_string(0.1, float)),
+    ?assertEqual("0.1", to_string("0.1", float)),
+    ok.
+
 to_string_extended_type_test() ->
     ?assertEqual("split_the", to_string(split_the, {atom, split_the})),
     ?assertEqual("split_the", to_string("split_the", {atom, split_the})),
@@ -252,7 +322,14 @@ to_string_extended_type_test() ->
     ?assertEqual("1w", to_string("1w", {{duration, s}, "1w"})),
     ?assertEqual("1w", to_string(604800000, {{duration, ms}, "1w"})),
     ?assertEqual("1GB", to_string(1073741824, {bytesize, "1GB"})),
-    ?assertEqual("1GB", to_string("1GB", {bytesize, "1GB"})).
+    ?assertEqual("1GB", to_string("1GB", {bytesize, "1GB"})),
+    ?assertEqual("10%", to_string(10, {{percent, integer}, "10%"})),
+    ?assertEqual("10%", to_string("10%", {{percent, integer}, "10%"})),
+    ?assertEqual("10%", to_string(0.1, {{percent, float}, "10%"})),
+    ?assertEqual("10%", to_string("10%", {{percent, float}, "10%"})),
+    ?assertEqual("0.1", to_string(0.1, {float, 0.1})),
+    ?assertEqual("0.1", to_string("0.1", {float, 0.1})),
+    ok.
 
 to_string_unsupported_datatype_test() ->
     ?assertEqual({error, "Tried to convert \"Something\", an invalid datatype unsupported_datatype to_string."}, to_string("Something", unsupported_datatype)).
@@ -295,6 +372,31 @@ from_string_duration_secs_test() ->
     %% also rounds up for smaller units
     ?assertEqual(2, from_string("1s100ms", {duration, s})),
     ?assertEqual(2, from_string(2, {duration, s})),
+    ok.
+
+from_string_percent_integer_test() ->
+    ?assertEqual(10, from_string("10%", {percent, integer})),
+    ?assertEqual(10, from_string(10, {percent, integer})),
+    %% Range!
+    ?assertEqual(0, from_string("0%", {percent, integer})),
+    ?assertEqual(100, from_string("100%", {percent, integer})),
+    ?assertEqual({error, "110% can't be outside the range 0 - 100%"}, from_string("110%", {percent, integer})),
+    ?assertEqual({error, "-1% can't be outside the range 0 - 100%"}, from_string("-1%", {percent, integer})),
+    ok.
+
+from_string_percent_float_test() ->
+    ?assertEqual(0.10, from_string("10%", {percent, float})),
+    ?assertEqual(0.10, from_string(0.1, {percent, float})),
+    %% Range!
+    ?assertEqual(0.0, from_string("0%", {percent, float})),
+    ?assertEqual(1.0, from_string("100%", {percent, float})),
+    ?assertEqual({error, "110% can't be outside the range 0 - 100%"}, from_string("110%", {percent, float})),
+    ?assertEqual({error, "-1% can't be outside the range 0 - 100%"}, from_string("-1%", {percent, float})),
+    ok.
+
+from_string_float_test() ->
+    ?assertEqual(0.1, from_string("0.100", float)),
+    ?assertEqual(0.1, from_string(0.1, float)),
     ok.
 
 from_string_string_test() ->
@@ -357,6 +459,11 @@ is_extended_test() ->
     ?assertEqual(true, is_extended({{duration, ms}, "10ms"})),
     ?assertEqual(true, is_extended({bytesize, "10GB"})),
 
+    ?assertEqual(true, is_extended({{percent, integer}, "10%"})),
+    ?assertEqual(true, is_extended({{percent, integer}, 10})),
+    ?assertEqual(true, is_extended({{percent, float}, "10%"})),
+    ?assertEqual(true, is_extended({{percent, float}, 0.1})),
+    ?assertEqual(true, is_extended({float, 0.1})),
     ok.
 
 -endif.
