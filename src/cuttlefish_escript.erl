@@ -306,7 +306,7 @@ load_conf(ParsedArgs) ->
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     case cuttlefish_conf:files(ConfFiles) of
         {error, Errors} ->
-            [ lager:error(E) || {error, E} <- Errors],
+            _ = [ lager:error(E) || {error, E} <- Errors],
             stop_deactivate(),
             {error, Errors};
         GoodConf ->

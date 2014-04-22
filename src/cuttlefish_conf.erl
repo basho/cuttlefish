@@ -38,7 +38,7 @@
 is_variable_defined(VariableDef, Conf) ->
     lists:any(fun({X, _}) -> cuttlefish_variable:is_fuzzy_match(X, VariableDef) end, Conf).
 
--spec files([file:name()]) -> conf() | cuttlefish_error:error_list().
+-spec files([file:name()]) -> conf() | cuttlefish_error:errorlist().
 files(ListOfConfFiles) ->
     {ValidConf, Errors} = lists:foldl(
       fun(ConfFile, {ConfAcc, ErrorAcc}) ->
@@ -61,7 +61,7 @@ files(ListOfConfFiles) ->
         _ -> {error, Errors}
     end.
 
--spec file(file:name()) -> conf() | cuttlefish_error:error_list().
+-spec file(file:name()) -> conf() | cuttlefish_error:errorlist().
 file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
