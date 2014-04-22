@@ -50,11 +50,11 @@ key <- head:word tail:("." word)* %{
 %% A value is any character, with trailing whitespace stripped.
 value <- (!((ws* crlf) / comment) .)+ %{
   case
-    lists:any(fun(X) -> byte_size(X) > 1 end, lists:flatten(Node)) of
-    true ->
+    unicode:characters_to_binary(Node, utf8, latin1) of
+    {_Status, _Begining, _Rest} ->
       {error, lists:flatten(io_lib:format("Error converting value on line #~p to latin1", [line(Idx)]))};
-    false ->
-      unicode:characters_to_list(iolist_to_binary(Node))
+    Bin ->
+      binary_to_list(Bin)
   end
 %};
 
