@@ -3,6 +3,20 @@
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 
+escript_utf8_test() ->
+    cuttlefish_lager_test_backend:bounce(error),
+
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(
+              "-d ../test_fixtures/escript_utf8_test/generated.config "
+              "-s ../test_fixtures/escript_utf8_test/lib "
+              "-e ../test_fixtures/escript_utf8_test/etc "
+              "-c ../test_fixtures/escript_utf8_test/etc/utf8.conf generate"
+            )),
+    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    ?assertMatch({match, _}, re:run(Log, "utf8.conf: Error converting value on line #1 to latin1")),
+    ok.
+
+
 escript_prune_test_() ->
     {timeout, 20, [
                    escript_prune("-m 3", 3),

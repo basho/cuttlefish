@@ -122,7 +122,7 @@ count_mappings(Mappings) ->
 file(Filename, Schema) ->
     {ok, B} = file:read_file(Filename),
     %% TODO: Hardcoded utf8
-    S = unicode:characters_to_list(B, utf8),
+    S = unicode:characters_to_list(B, latin1),
     case string(S, Schema) of
         {error, Errors} ->
             cuttlefish_error:print("Error parsing schema: ~s", [Filename]),

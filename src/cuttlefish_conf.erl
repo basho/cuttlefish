@@ -38,31 +38,44 @@
 is_variable_defined(VariableDef, Conf) ->
     lists:any(fun({X, _}) -> cuttlefish_variable:is_fuzzy_match(X, VariableDef) end, Conf).
 
+-spec files([file:name()]) -> conf() | cuttlefish_error:error_list().
 files(ListOfConfFiles) ->
-    lists:foldl(
-      fun(ConfFile, ConfAcc) ->
+    {ValidConf, Errors} = lists:foldl(
+      fun(ConfFile, {ConfAcc, ErrorAcc}) ->
               case cuttlefish_conf:file(ConfFile) of
-                  {error, _Reason} ->
-                      ConfAcc;
+                  {error, ErrorList} ->
+                      {ConfAcc, ErrorList ++ ErrorAcc};
                   Conf ->
-                      lists:foldl(
+                      {lists:foldl(
                         fun({K,V}, MiniAcc) ->
                                 cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
                         end,
                         ConfAcc,
-                        Conf)
+                        Conf), ErrorAcc}
               end
       end,
-      [],
-      ListOfConfFiles).
+      {[], []},
+      ListOfConfFiles),
+    case {ValidConf, Errors} of
+        {_, []} -> ValidConf;
+        _ -> {error, Errors}
+    end.
 
+-spec file(file:name()) -> conf() | cuttlefish_error:error_list().
 file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
-            lager:error("Could not open file (~s) for Reason ~s", [Filename, Reason]),
-            {error, Reason};
+            {error, [{error, ?FMT("Could not open file (~s) for Reason ~s", [Filename, Reason])}]};
         Conf ->
-            remove_duplicates(Conf)
+            %% Conf is a proplist, check if any of the values are cuttlefish_errors
+            {_, Values} = lists:unzip(Conf),
+            case cuttlefish_error:filter(Values) of
+                {error, []} ->
+                    remove_duplicates(Conf);
+                {error, ErrorList} ->
+                    NewErrorList = [ {error, ?FMT("~s: ~s", [Filename, E])} || {error, E} <- ErrorList ],
+                    {error, NewErrorList}
+            end
     end.
 
 -spec generate([cuttlefish_mapping:mapping()]) -> [string()].
@@ -257,9 +270,7 @@ duplicates_multi_test() ->
 
 files_one_nonent_test() ->
     Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
-    ?assertEqual(2, length(Conf)),
-    ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
-    ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
+    ?assertEqual({error,[{error,"Could not open file (../test/nonent.conf) for Reason enoent"}]}, Conf),
     ok.
 
 generate_element_level_advanced_test() ->

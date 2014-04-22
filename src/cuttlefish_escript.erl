@@ -226,7 +226,7 @@ stop_ok() ->
 -ifdef(TEST).
 %% In test mode we don't want to kill the test VM prematurely.
 stop_deactivate() ->
-    error.
+    throw(stop_deactivate).
 
 stop_ok() ->
     ok.
@@ -304,7 +304,14 @@ load_schema(ParsedArgs) ->
 load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
     lager:debug("ConfFiles: ~p", [ConfFiles]),
-    cuttlefish_conf:files(ConfFiles).
+    case cuttlefish_conf:files(ConfFiles) of
+        {error, Errors} ->
+            [ lager:error(E) || {error, E} <- Errors],
+            stop_deactivate(),
+            {error, Errors};
+        GoodConf ->
+            GoodConf
+    end.
 
 -spec writable_destination_path([proplists:property()]) -> file:filename() | error.
 writable_destination_path(ParsedArgs) ->

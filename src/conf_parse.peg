@@ -48,7 +48,15 @@ key <- head:word tail:("." word)* %{
 %};
 
 %% A value is any character, with trailing whitespace stripped.
-value <- (!((ws* crlf) / comment) .)+ `unicode:characters_to_list(iolist_to_binary(Node))`;
+value <- (!((ws* crlf) / comment) .)+ %{
+  case
+    lists:any(fun(X) -> byte_size(X) > 1 end, lists:flatten(Node)) of
+    true ->
+      {error, lists:flatten(io_lib:format("Error converting value on line #~p to latin1", [line(Idx)]))};
+    false ->
+      unicode:characters_to_list(iolist_to_binary(Node))
+  end
+%};
 
 %% A comment is any line that begins with a # sign, leading whitespace
 %% allowed.
@@ -113,7 +121,7 @@ ws <- [ \t] `ws`;
 %% Other modules in this application interpret and validate the
 %% result of a successful parse.
 %% @end
-
+-define(line, true).
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
