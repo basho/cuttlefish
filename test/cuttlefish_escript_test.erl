@@ -51,7 +51,7 @@ describe_test_() ->
      ].
 
 describe(Key) ->
-    ?assertEqual(error, cuttlefish_escript:main(["-i", "../test/riak.schema", "-c", "../test/riak.conf", "describe", Key])).
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(["-i", "../test/riak.schema", "-c", "../test/riak.conf", "describe", Key])).
 
 describe_prints_docs() ->
     ?capturing(begin
@@ -61,7 +61,7 @@ describe_prints_docs() ->
                end).
 
 describe_prints_datatype() ->
-    ?capturing(begin 
+    ?capturing(begin
                    describe("storage_backend"),
                    ?assertPrinted("- one of: bitcask, leveldb, memory, multi")
                end).

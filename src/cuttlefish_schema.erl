@@ -121,8 +121,9 @@ count_mappings(Mappings) ->
 -spec file(string(), schema()) -> schema() | cuttlefish_error:errorlist().
 file(Filename, Schema) ->
     {ok, B} = file:read_file(Filename),
-    %% TODO: Hardcoded utf8
-    S = unicode:characters_to_list(B, utf8),
+    %% latin-1 is easier to support generically. We'll revisit utf-8
+    %% support in the future.
+    S = unicode:characters_to_list(B, latin1),
     case string(S, Schema) of
         {error, Errors} ->
             cuttlefish_error:print("Error parsing schema: ~s", [Filename]),
