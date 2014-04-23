@@ -22,23 +22,23 @@
 
 %% A configuration file may have zero-or-more lines.
 config <- line* %{
-  [ L || L <- Node, is_setting(L) ]
+    [ L || L <- Node, is_setting(L) ]
 %};
 
 %% Lines are actual settings, comments, or horizontal whitespace,
 %% terminated by an end-of-line or end-of-file.
 line <- ((setting / comment / ws+) (crlf / eof)) / crlf %{
-  case Node of
-     [ Line, _EOL ] -> Line;
-      Line -> Line
-  end
+    case Node of
+        [ Line, _EOL ] -> Line;
+        Line -> Line
+    end
 %};
 
 %% A setting is a key and a value, joined by =, with surrounding
 %% whitespace ignored.
 setting <- ws* key ws* "=" ws* value ws* comment? %{
-   [ _, Key, _, _Eq, _, Value, _, _ ] = Node,
-   {Key, Value}
+    [ _, Key, _, _Eq, _, Value, _, _ ] = Node,
+    {Key, Value}
 %};
 
 %% A key is a series of dot-separated identifiers.
@@ -48,7 +48,14 @@ key <- head:word tail:("." word)* %{
 %};
 
 %% A value is any character, with trailing whitespace stripped.
-value <- (!((ws* crlf) / comment) .)+ `unicode:characters_to_list(iolist_to_binary(Node))`;
+value <- (!((ws* crlf) / comment) .)+ %{
+    case unicode:characters_to_binary(Node, utf8, latin1) of
+        {_Status, _Begining, _Rest} ->
+            {error, ?FMT("Error converting value on line #~p to latin1", [line(Idx)])};
+        Bin ->
+            binary_to_list(Bin)
+    end
+%};
 
 %% A comment is any line that begins with a # sign, leading whitespace
 %% allowed.
@@ -113,6 +120,8 @@ ws <- [ \t] `ws`;
 %% Other modules in this application interpret and validate the
 %% result of a successful parse.
 %% @end
+-define(line, true).
+-define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -134,8 +143,7 @@ unescape_dots([C|Rest]) ->
 -ifdef(TEST).
 file_test() ->
     Conf = conf_parse:file("../test/riak.conf"),
-    ?assertEqual(
-    [
+    ?assertEqual([
             {["ring_size"],"32"},
             {["anti_entropy"],"debug"},
             {["log","error","file"],"/var/log/error.log"},
@@ -143,8 +151,14 @@ file_test() ->
             {["log","syslog"],"on"},
             {["listener","http","internal"],"127.0.0.1:8098"},
             {["listener","http","external"],"10.0.0.1:80"}
-    ],
-    Conf),
+        ], Conf),
+    ok.
+
+utf8_test() ->
+    Conf = conf_parse:parse("setting = thingŒ\n"),
+    ?assertEqual([{["setting"],
+            {error, "Error converting value on line #1 to latin1"}
+        }], Conf),
     ok.
 -endif.
 %}
