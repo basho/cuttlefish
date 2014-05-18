@@ -91,8 +91,4 @@ https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Application-Users
 
 ## Current Status
 
-It's not complete, but it's scheduled for inclusion in the next major
-release of Riak, so this will be fluid for a while, but I wanted to
-get eyes on it sooner than later. I guess you'd call this a "Technical
-Preview", so please don't get all caremad if something changes about
-it before "super officiaaaaal" release.
+Cuttlefish is ready for production deployments.
