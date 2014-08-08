@@ -120,14 +120,15 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                 {true, false} ->
                     Tokens = string:tokens(Mapping, "."),
                     NewValue = proplists:get_value(Variable, Conf),
-                    {set_value(Tokens, ConfAcc, NewValue), {MaybeDrop, [Mapping|Keep]}};
+                    {set_value(Tokens, ConfAcc, NewValue),
+		     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
                 {true, true} ->
-                    {ConfAcc, {MaybeDrop, [Mapping|Keep]}};
+                    {ConfAcc, {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
                 _ ->
-                    {ConfAcc, {[Mapping|MaybeDrop], Keep}}
+                    {ConfAcc, {ordsets:add_element(Mapping,MaybeDrop), Keep}}
             end
         end,
-        {[], {[],[]}},
+        {[], {ordsets:new(),ordsets:new()}},
         Mappings),
     lager:debug("Applied 1:1 Mappings"),
 
@@ -879,6 +880,71 @@ apply_mappings_translations_dropped_correctly_test() ->
             })
     ],
     %% So, we have a translation for the corresponding mapping, but that mapping has no default
+    {_DirectMappings, TranslationsToDrop} = apply_mappings({Translations, Mappings, []}, []),
+    ?assertEqual([], TranslationsToDrop),
+    ok.
+
+apply_mappings_translations_dropped_correctly_mixed_test() ->
+    Fun = fun(X) -> X end,
+    ?assertEqual(1, Fun(1)), %% coverage kludge
+
+    Translations = [
+        cuttlefish_translation:parse({
+            translation,
+            "mapping.name",
+            Fun
+            })
+    ],
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "mapping.name",
+            [{default, 6}]
+            }),
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key2",
+            "mapping.name",
+            []
+            })
+    ],
+    %% One valid mapping, and one that should be dropped (no default)
+    {_DirectMappings, TranslationsToDrop} = apply_mappings({Translations, Mappings, []}, []),
+    ?assertEqual([], TranslationsToDrop),
+    ok.
+apply_mappings_translations_dropped_correctly_mixed2_test() ->
+    Fun = fun(X) -> X end,
+    ?assertEqual(1, Fun(1)), %% coverage kludge
+
+    Translations = [
+        cuttlefish_translation:parse({
+            translation,
+            "mapping.name",
+            Fun
+            })
+    ],
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "mapping.name",
+            [{default, 6}]
+            }),
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key2",
+            "mapping.name",
+            []
+            }),
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key3",
+            "mapping.name",
+            []
+            })
+    ],
+    %% One valid mapping and two that should be dropped (no default)
     {_DirectMappings, TranslationsToDrop} = apply_mappings({Translations, Mappings, []}, []),
     ?assertEqual([], TranslationsToDrop),
     ok.
