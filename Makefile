@@ -11,7 +11,7 @@ deps:
 	./rebar get-deps
 
 docsclean:
-	@rm -rf doc/*.png doc/*.html doc/*.css edoc-info
+	@rm -rf doc/*.png doc/*.html doc/*.css doc/edoc-info
 
 compile: deps
 	./rebar compile
