@@ -36,7 +36,7 @@
     otp/3
 ]).
 
-% @doc If DesiredMinimum =< the OTP you're running, then return
+% @doc If DesiredMinimum =&lt; the OTP you're running, then return
 % IfGreaterOrEqual, otherwise IfLessThan.
 -spec otp(string(), any(), any()) -> any().
 otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
