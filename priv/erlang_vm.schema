@@ -218,8 +218,38 @@
 %% More information: http://www.erlang.org/doc/man/erl.html#+sfwi
 {mapping, "erlang.schedulers.force_wakeup_interval", "vm_args.+sfwi", [
   {commented, 500},
-  {datatype, integer},
-  hidden
+  {datatype, integer}
+]}.
+
+%% @doc Enable or disable scheduler compaction of load. By default sched-
+%% uler compaction of load is enabled. When enabled, load  balancing
+%% will  strive  for a load distribution which causes as many sched-
+%% uler threads as possible to be fully loaded (i.e., not run out of
+%% work). This is accomplished by migrating load (e.g. runnable pro-
+%% cesses) into a smaller set of  schedulers  when  schedulers  fre-
+%% quently  run out of work. When disabled, the frequency with which
+%% schedulers run out of work will not be taken into account by  the
+%% load balancing logic.
+%%
+%% More information: http://www.erlang.org/doc/man/erl.html#+scl
+{mapping, "erlang.schedulers.scheduler_compaction_of_load", "vm_args.+scl", [
+  {commented, "false"},
+  {datatype, {enum, [true, false]}}
+]}.
+
+%% @doc Enable or disable scheduler utilization balancing of load. By
+%% default scheduler utilization balancing is disabled and instead
+%% scheduler compaction of load is enabled which will strive for a
+%% load distribution which causes as many scheduler threads as
+%% possible to be fully loaded (i.e., not run out of work). When
+%% scheduler utilization balancing is enabled the system will instead
+%% try to balance scheduler utilization between schedulers. That is,
+%% strive for equal scheduler utilization on all schedulers.
+%%
+%% More information: http://www.erlang.org/doc/man/erl.html#+sub
+{mapping, "erlang.schedulers.scheduler_utilization_balancing", "vm_args.+sub", [
+  {commented, "true"},
+  {datatype, {enum, [true, false]}}
 ]}.
 
 %% @doc For ease of firewall configuration, the Erlang distribution

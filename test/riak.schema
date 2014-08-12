@@ -1195,8 +1195,20 @@ end}.
 
 %% @doc Erlang VM scheduler tuning.
 %% Prerequisite: a patched VM from Basho, or a VM compiled separately
-%% with this patch applied:
+%% with this patch applied (R15B only):
 %%     https://gist.github.com/evanmcc/a599f4c6374338ed672e
 {mapping, "erlang.swiffy", "vm_args.+sfwi", [
   {commented, "500"}
+]}.
+
+{mapping, "erlang.scl", "vm_args.+scl", [
+  {commented, "false"},
+  {datatype, {enum, [true, false]}},
+  {level, advanced}
+]}.
+
+{mapping, "erlang.sub", "vm_args.+sub", [
+  {commented, "true"},
+  {datatype, {enum, [true, false]}},
+  {level, advanced}
 ]}.
