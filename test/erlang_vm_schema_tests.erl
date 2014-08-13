@@ -57,8 +57,8 @@ override_schema_test() ->
         {["erlang", "process_limit"], 128001},
         {["erlang", "distribution_buffer_size"], 1024},
         {["erlang", "schedulers", "force_wakeup_interval"], 500},
-        {["erlang", "schedulers", "scheduler_compaction_of_load"], true},
-        {["erlang", "schedulers", "scheduler_utilization_balancing"], false},
+        {["erlang", "schedulers", "compaction_of_load"], true},
+        {["erlang", "schedulers", "utilization_balancing"], false},
         {["erlang", "distribution", "port_range", "minimum"], 6000},
         {["erlang", "distribution", "port_range", "maximum"], 7999},
         {["erlang", "distribution", "net_ticktime"], 43}
