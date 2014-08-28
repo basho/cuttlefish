@@ -217,7 +217,7 @@
 %%
 %% More information: http://www.erlang.org/doc/man/erl.html#+sfwi
 {mapping, "erlang.schedulers.force_wakeup_interval", "vm_args.+sfwi", [
-  {commented, 500},
+  {default, 500},
   {datatype, integer}
 ]}.
 
