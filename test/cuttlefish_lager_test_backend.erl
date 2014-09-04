@@ -10,22 +10,28 @@
          terminate/2,
          code_change/3]).
 -export([get_logs/0,
-        bounce/0]).
+        bounce/0,
+        bounce/1]).
 
 %% holds the log messages for retreival on terminate
--record(state, {level, verbose, log = []}).
+-record(state, {level :: {mask, integer()},
+                verbose :: boolean(),
+                log = [] :: list()}).
 
 -include_lib("lager/include/lager.hrl").
 
 -spec get_logs() -> [iolist()] | {error, term()}.
 get_logs() ->
-    gen_event:call(lager_event, ?MODULE, get_logs, infinity).  
+    gen_event:call(lager_event, ?MODULE, get_logs, infinity).
 
 bounce() ->
+    bounce(error).
+
+bounce(Level) ->
     application:stop(lager),
     lager:start(),
     gen_event:add_handler(lager_event, cuttlefish_lager_test_backend, [error, false]),
-    lager:set_loglevel(cuttlefish_lager_test_backend, error),
+    lager:set_loglevel(cuttlefish_lager_test_backend, Level),
     ok.
 
 -spec(init(integer()|atom()|[term()]) -> {ok, #state{}} | {error, atom()}).
@@ -49,8 +55,8 @@ init([Level, Verbose]) ->
 -spec(handle_event(tuple(), #state{}) -> {ok, #state{}}).
 %% @private
 %% @doc handles the event, adding the log message to the gen_event's state.
-%%      this function attempts to handle logging events in both the simple tuple 
-%%      and new record (introduced after lager 1.2.1) formats. 
+%%      this function attempts to handle logging events in both the simple tuple
+%%      and new record (introduced after lager 1.2.1) formats.
 handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]}, %% lager 1.2.1
     #state{level=L, verbose=Verbose, log = Logs} = State) when Level > L ->
     case lists:member(riak_test_lager_backend, Dest) of
@@ -81,9 +87,9 @@ handle_event({log, {lager_msg, Dest, _Meta, Level, DateTime, _Timestamp, Message
             handle_event({log, L, DateTime,
                           [["[",atom_to_list(Level),"] "], " ", Message]},
                          State);
-        L -> 
+        L ->
             handle_event({log, Dest, L, DateTime,
-                          [["[",atom_to_list(Level),"] "], " ", Message]}, 
+                          [["[",atom_to_list(Level),"] "], " ", Message]},
                          State)
     end;
 handle_event(Event, State) ->
@@ -103,7 +109,7 @@ handle_call({set_loglevel, Level}, State) ->
     end;
 handle_call(get_logs, #state{log = Logs} = State) ->
     {ok, lists:reverse(Logs), State};
-handle_call(_, State) -> 
+handle_call(_, State) ->
     {ok, ok, State}.
 
 -spec(handle_info(any(), #state{}) -> {ok, #state{}}).

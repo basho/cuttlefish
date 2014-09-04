@@ -21,10 +21,10 @@ stringify_line(K, V) ->
 -ifdef(TEST).
 
 stringify_test() ->
-    VMArgsProplist = [ 
+    VMArgsProplist = [
       {'-name', "dev1@127.0.0.1"},
       {'-setcookie', 'riak'},
-      {'-smp',"enable"},
+      {'-smp', enable},
       {'+W',"w"},
       {'+K',"true"},
       {'+A',"64"},
@@ -32,7 +32,8 @@ stringify_test() ->
       {'-env ERL_FULLSWEEP_AFTER',"0"},
       {'-env ERL_CRASH_DUMP',"./log/erl_crash.dump"},
       {'-env ERL_MAX_ETS_TABLES',"256000"},
-      {'+P', "256000"}
+      {'+P', "256000"},
+      {'-kernel net_ticktime', "42"}
     ],
 
     VMArgs = stringify(VMArgsProplist),
@@ -48,7 +49,8 @@ stringify_test() ->
         "-env ERL_FULLSWEEP_AFTER 0",
         "-env ERL_CRASH_DUMP ./log/erl_crash.dump",
         "-env ERL_MAX_ETS_TABLES 256000",
-        "+P 256000"
+        "+P 256000",
+        "-kernel net_ticktime 42"
     ],
     [ ?assertEqual(E, V) || {E, V} <- lists:zip(Expected, VMArgs)],
     ok.

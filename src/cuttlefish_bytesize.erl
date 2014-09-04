@@ -72,15 +72,25 @@ parse(String) ->
 to_string_test() ->
     ?assertEqual("1KB", to_string(1024)),
     ?assertEqual("2KB", to_string(2048)),
-    ?assertEqual("20", to_string(20)),
+
     ?assertEqual("10MB", to_string(10485760)),
+
+    ?assertEqual("1GB", to_string(1073741824)),
+
+    ?assertEqual("20", to_string(20)),
     ok.
 
 parse_test() ->
     ?assertEqual(1024, parse("1kb")),
     ?assertEqual(2048, parse("2KB")),
-    ?assertEqual(20, parse("20")),
+
     ?assertEqual(10485760, parse("10mb")),
+    ?assertEqual(10485760, parse("10MB")),
+
+    ?assertEqual(1073741824, parse("1GB")),
+    ?assertEqual(1073741824, parse("1gb")),
+
+    ?assertEqual(20, parse("20")),
     ?assertEqual(error, parse("10MB10kb")),
     ok.
 

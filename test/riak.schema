@@ -9,7 +9,7 @@
 ]}.
 
 {validator, "ring_size", "not a power of 2 greater than 1",
- fun(Size) -> 
+ fun(Size) ->
   Size > 1 andalso (Size band (Size-1) =:= 0)
  end}.
 
@@ -23,7 +23,7 @@
 { translation,
   "riak_kv.anti_entropy",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("anti_entropy", Conf), 
+    Setting = cuttlefish:conf_get("anti_entropy", Conf),
     case Setting of
       on -> {on, []};
       debug -> {on, [debug]};
@@ -71,21 +71,21 @@
 { translation,
   "lager.handlers",
   fun(Conf) ->
-    SyslogHandler = case cuttlefish_util:conf_get_value("log.syslog", Conf) of
+    SyslogHandler = case cuttlefish:conf_get("log.syslog", Conf) of
       on ->  [{lager_syslog_backend, ["riak", daemon, info]}];
       _ -> []
     end,
-    ErrorHandler = case cuttlefish_util:conf_get_value("log.error.file", Conf) of
+    ErrorHandler = case cuttlefish:conf_get("log.error.file", Conf) of
       undefined -> [];
-      ErrorFilename -> [{lager_file_backend, [{file, ErrorFilename}, 
+      ErrorFilename -> [{lager_file_backend, [{file, ErrorFilename},
                                               {level, error},
                                               {size, 10485760},
                                               {date, "$D0"},
                                               {count, 5}]}]
     end,
 
-    ConsoleLogLevel = cuttlefish_util:conf_get_value("log.console.level", Conf),
-    ConsoleLogFile = cuttlefish_util:conf_get_value("log.console.file", Conf),
+    ConsoleLogLevel = cuttlefish:conf_get("log.console.level", Conf),
+    ConsoleLogFile = cuttlefish:conf_get("log.console.file", Conf),
 
     ConsoleHandler = {lager_console_handler, ConsoleLogLevel},
     ConsoleFileHandler = {lager_file_backend, [{file, ConsoleLogFile},
@@ -94,7 +94,7 @@
                                                 {date, "$D0"},
                                                 {count, 5}]},
 
-    ConsoleHandlers = case cuttlefish_util:conf_get_value("log.console", Conf) of
+    ConsoleHandlers = case cuttlefish:conf_get("log.console", Conf) of
       off -> [];
       file -> [ConsoleFileHandler];
       console -> [ConsoleHandler];
@@ -105,7 +105,7 @@
   end
 }.
 
-%% SASL 
+%% SASL
 %% We should never care about this
 {mapping, "sasl", "sasl.sasl_error_logger", [
   {default, off},
@@ -116,7 +116,7 @@
 { translation,
   "sasl.sasl_error_logger",
   fun(Conf) ->
-    case cuttlefish_util:conf_get_value("sasl", Conf) of %%how to pull default?
+    case cuttlefish:conf_get("sasl", Conf) of %%how to pull default?
         on -> true;
         _ -> false
     end
@@ -135,13 +135,13 @@
 { translation,
   "riak_core.http",
     fun(Conf) ->
-        HTTP = cuttlefish_util:filter_by_variable_starts_with("listener.http", Conf),
+        HTTP = cuttlefish_variable:filter_by_prefix("listener.http", Conf),
         [ IP || {_, IP} <- HTTP]
     end
 }.
 
 %% protobuf Listeners
-%% @doc listener.protobuf.<name> is an IP address and TCP port that the Riak 
+%% @doc listener.protobuf.<name> is an IP address and TCP port that the Riak
 %% Protocol Buffers interface will bind.
 {mapping, "listener.protobuf.$name", "riak_api.pb", [
   {default, {"127.0.0.1", 8087}},
@@ -152,7 +152,7 @@
 { translation,
   "riak_api.pb",
     fun(Conf) ->
-        PB = cuttlefish_util:filter_by_variable_starts_with("listener.protobuf", Conf),
+        PB = cuttlefish_variable:filter_by_prefix("listener.protobuf", Conf),
         [ IP || {_, IP} <- PB]
     end
 }.
@@ -169,7 +169,7 @@
 
 %% @doc Default location of ringstate
 {mapping, "ring.state_dir", "riak_core.ring_state_dir", [
-  {default, "./data/ring"}
+  {default, "$(platform_data_dir)/ring"}
 ]}.
 
 %% @doc listener.https.<name> is an IP address and TCP port that the Riak
@@ -183,7 +183,7 @@
 { translation,
   "riak_core.https",
     fun(Conf) ->
-        HTTPS = cuttlefish_util:filter_by_variable_starts_with("listener.https", Conf),
+        HTTPS = cuttlefish_variable:filter_by_prefix("listener.https", Conf),
         [ IP || {_, IP} <- HTTPS]
     end
 }.
@@ -233,7 +233,7 @@
 { translation,
   "riak_core.dtrace_support",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("dtrace", Conf), 
+    Setting = cuttlefish:conf_get("dtrace", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -271,8 +271,8 @@
 ]}.
 
 { translation,
-  "riak_search.enabled", fun(Conf) -> 
-    Setting = cuttlefish_util:conf_get_value("search", Conf), 
+  "riak_search.enabled", fun(Conf) ->
+    Setting = cuttlefish:conf_get("search", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -313,7 +313,7 @@ end}.
 
 %% @doc Maximum size in bytes of events in the crash log - defaults to 65536
 %% @datatype integer
-%% @mapping 
+%% @mapping
 {mapping, "log.crash.msg_size", "lager.crash_log_msg_size", [
   {default, "64KB"},
   {datatype, bytesize}
@@ -347,8 +347,8 @@ end}.
 ]}.
 
 { translation,
-  "lager.error_logger_redirect", fun(Conf) -> 
-    Setting = cuttlefish_util:conf_get_value("log.error.redirect", Conf), 
+  "lager.error_logger_redirect", fun(Conf) ->
+    Setting = cuttlefish:conf_get("log.error.redirect", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -374,7 +374,7 @@ end}.
 { translation,
   "riak_kv.storage_backend",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("storage_backend", Conf), 
+    Setting = cuttlefish:conf_get("storage_backend", Conf),
     case Setting of
       bitcask -> riak_kv_bitcask_backend;
       leveldb -> riak_kv_eleveldb_backend;
@@ -396,7 +396,7 @@ end}.
 %% data. Once built, trees stay built until they are expired.
 %% Config is of the form:
 %%   {num-builds, per-timespan}
-%% Default is 1 build per hour. 
+%% Default is 1 build per hour.
 {mapping, "anti_entropy.build_limit.number", "riak_kv.anti_entropy_build_limit", [
   {default, 1},
   {datatype, integer}
@@ -410,8 +410,8 @@ end}.
 {translation,
  "riak_kv.anti_entropy_build_limit",
  fun(Conf) ->
-    {cuttlefish_util:conf_get_value("anti_entropy.build_limit.number", Conf), 
-     cuttlefish_util:conf_get_value("anti_entropy.build_limit.per_timespan", Conf)}
+    {cuttlefish:conf_get("anti_entropy.build_limit.number", Conf),
+     cuttlefish:conf_get("anti_entropy.build_limit.per_timespan", Conf)}
  end}.
 
 %% @doc Determine how often hash trees are expired after being built.
@@ -477,7 +477,7 @@ end}.
 { translation,
   "riak_kv.mapred_2i_pipe",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("mapred_2i_pipe", Conf), 
+    Setting = cuttlefish:conf_get("mapred_2i_pipe", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -488,7 +488,7 @@ end}.
 %% virtual machines are available for executing map, reduce,
 %% pre- and post-commit hook functions.
 %% @datatype integer
-%% @mapping 
+%% @mapping
 {mapping, "javascript_vm.map_js_vm_count", "riak_kv.map_js_vm_count", [
   {default, 8},
   {datatype, integer}
@@ -547,7 +547,7 @@ end}.
 { translation,
   "riak_kv.vnode_vclocks",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("vnode_vclocks", Conf), 
+    Setting = cuttlefish:conf_get("vnode_vclocks", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -568,7 +568,7 @@ end}.
 { translation,
   "riak_kv.listkeys_backpressure",
   fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("listkeys_backpressure", Conf), 
+    Setting = cuttlefish:conf_get("listkeys_backpressure", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -579,14 +579,14 @@ end}.
 %% @doc This option specifies how many of each type of fsm may exist
 %% concurrently.  This is for overload protection and is a new
 %% mechanism that obsoletes 1.3's health checks. Note that this number
-%% represents two potential processes, so +P in vm.args should be at 
+%% represents two potential processes, so +P in vm.args should be at
 %% least 3X the fsm_limit.
 {mapping, "fsm_limit", "riak_kv.fsm_limit", [
   {default, 50000},
   {datatype, integer}
 ]}.
 
-%% @doc object_format controls which binary representation of a riak_object 
+%% @doc object_format controls which binary representation of a riak_object
 %% is stored on disk.
 %% Current options are: v0, v1.
 %% v0: Original erlang:term_to_binary format. Higher space overhead.
@@ -649,7 +649,7 @@ end}.
 {translation,
  "riak_control.enabled",
  fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("riak_control", Conf), 
+    Setting = cuttlefish:conf_get("riak_control", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -667,7 +667,7 @@ end}.
 {translation,
 "riak_control.auth",
 fun(Conf) ->
-  case cuttlefish_util:conf_get_value("riak_control.auth", Conf) of
+  case cuttlefish:conf_get("riak_control.auth", Conf) of
     userlist -> userlist;
     off -> none;
     _ -> none
@@ -686,8 +686,8 @@ end}.
 "riak_control.userlist",
 fun(Conf) ->
   UserList1 = lists:filter(
-    fun({Var, _V}) -> 
-      cuttlefish_util:fuzzy_variable_match(Var, ["riak_control","user","$username","password"])
+    fun({Var, _V}) ->
+      cuttlefish_variable:is_fuzzy_match(Var, ["riak_control","user","$username","password"])
     end,
     Conf),
   UserList = [ begin
@@ -708,7 +708,7 @@ end}.
 {translation,
  "riak_control.admin",
  fun(Conf) ->
-    Setting = cuttlefish_util:conf_get_value("riak_control.admin", Conf), 
+    Setting = cuttlefish:conf_get("riak_control.admin", Conf),
     case Setting of
       on -> true;
       off -> false;
@@ -724,11 +724,11 @@ end}.
 ]}.
 
 
-%% @doc The open_timeout setting specifies the maximum time Bitcask will 
-%% block on startup while attempting to create or open the data directory. 
-%% The value is in seconds and the default is 4. You generally need not 
-%% change this value. If for some reason the timeout is exceeded on open 
-%% you'll see a log message of the form: 
+%% @doc The open_timeout setting specifies the maximum time Bitcask will
+%% block on startup while attempting to create or open the data directory.
+%% The value is in seconds and the default is 4. You generally need not
+%% change this value. If for some reason the timeout is exceeded on open
+%% you'll see a log message of the form:
 %% "Failed to start bitcask backend: .... "
 %% Only then should you consider a longer timeout.
 {mapping, "bitcask.open_timeout", "bitcask.open_timeout", [
@@ -769,15 +769,15 @@ end}.
   {level, advanced}
 ]}.
 
-{translation, 
- "bitcask.sync_strategy", 
- fun(Conf) -> 
-  Setting = cuttlefish_util:conf_get_value("bitcask.sync_strategy", Conf), 
+{translation,
+ "bitcask.sync_strategy",
+ fun(Conf) ->
+  Setting = cuttlefish:conf_get("bitcask.sync_strategy", Conf),
     case Setting of
       none -> none;
       o_sync -> o_sync;
       interval ->
-        Interval = cuttlefish_util:conf_get_value("bitcask.sync_interval", Conf, undefined),
+        Interval = cuttlefish:conf_get("bitcask.sync_interval", Conf, undefined),
         {seconds, Interval};
       _Default -> none
     end
@@ -796,13 +796,13 @@ end}.
 
 %% @doc The `merge_window` setting lets you specify when during the day merge
 %% operations are allowed to be triggered. Valid options are:
-%% 
+%%
 %% * `always` (default) No restrictions
 %% * `never` Merge will never be attempted
-%% * `window` Hours during which merging is permitted, where 
+%% * `window` Hours during which merging is permitted, where
 %%     `bitcask.merge_window.start` and
 %%     `bitcask.merge_window.end` are integers between 0 and 23.
-%% 
+%%
 %% If merging has a significant impact on performance of your cluster, or your
 %% cluster has quiet periods in which little storage activity occurs, you may
 %% want to change this setting from the default.
@@ -825,16 +825,16 @@ end}.
 ]}.
 
 
-{translation, 
- "bitcask.merge_window", 
- fun(Conf) -> 
-  Setting = cuttlefish_util:conf_get_value("bitcask.merge_window", Conf), 
+{translation,
+ "bitcask.merge_window",
+ fun(Conf) ->
+  Setting = cuttlefish:conf_get("bitcask.merge_window", Conf),
     case Setting of
       always -> always;
       never -> never;
       window ->
-        Start = cuttlefish_util:conf_get_value("bitcask.merge_window.start", Conf, undefined),
-        End = cuttlefish_util:conf_get_value("bitcask.merge_window.end", Conf, undefined),
+        Start = cuttlefish:conf_get("bitcask.merge_window.start", Conf, undefined),
+        End = cuttlefish:conf_get("bitcask.merge_window.end", Conf, undefined),
         {Start, End};
       _Default -> always
     end
@@ -846,7 +846,7 @@ end}.
 %% dead keys and 4 live keys, then merge will be triggered at the default
 %% setting. Increasing this value will cause merging to occur less often,
 %% whereas decreasing the value will cause merging to happen more often.
-%% 
+%%
 %% Default is: `60`
 {mapping, "bitcask.frag_merge_trigger", "bitcask.frag_merge_trigger", [
   {datatype, integer},
@@ -854,17 +854,17 @@ end}.
   {default, 60}
 ]}.
 
- 
+
 %% @doc `dead_bytes_merge_trigger` setting describes how much
 %% data stored for dead keys in a single file will trigger merging. The
 %% value is in bytes. If a file meets or exceeds the trigger value for dead
 %% bytes, merge will be triggered. Increasing the value will cause merging
 %% to occur less often, whereas decreasing the value will cause merging to
 %% happen more often.
-%% 
+%%
 %% When either of these constraints are met by any file in the directory,
 %% Bitcask will attempt to merge files.
-%% 
+%%
 %% Default is: 512mb in bytes
 {mapping, "bitcask.dead_bytes_merge_trigger", "bitcask.dead_bytes_merge_trigger", [
   {datatype, bytesize},
@@ -879,7 +879,7 @@ end}.
 %% in the merge at the default ratio. Increasing the value will cause fewer
 %% files to be merged, decreasing the value will cause more files to be
 %% merged.
-%% 
+%%
 %% Default is: `40`
 {mapping, "bitcask.frag_threshold", "bitcask.frag_threshold", [
   {datatype, integer},
@@ -891,7 +891,7 @@ end}.
 %% amount of data occupied by dead keys in a file to cause it to be included
 %% in the merge. Increasing the value will cause fewer files to be merged,
 %% decreasing the value will cause more files to be merged.
-%% 
+%%
 %% Default is: 128mb in bytes
 {mapping, "bitcask.dead_bytes_threshold", "bitcask.dead_bytes_threshold", [
   {datatype, bytesize},
@@ -904,7 +904,7 @@ end}.
 %% than the threshold will be included. Increasing the value will cause
 %% _more_ files to be merged, decreasing the value will cause _fewer_ files
 %% to be merged.
-%% 
+%%
 %% Default is: 10mb in bytes
 {mapping, "bitcask.small_file_threshold", "bitcask.small_file_threshold", [
   {datatype, bytesize},
@@ -933,7 +933,7 @@ end}.
 %% limited time-value, or if for space reasons you need to purge data, you can
 %% set the `expiry_secs` option. If you needed to purge data automatically
 %% after 1 day, set the value to `1d`.
-%% 
+%%
 %% Default is: `-1` which disables automatic expiration
 {mapping, "bitcask.expiry", "bitcask.expiry_secs", [
   {datatype, {duration, s}},
@@ -987,9 +987,9 @@ end}.
   {default, "./data/leveldb"}
 ]}.
 
-%% @doc The `max_open_files` value is multiplied by 4 megabytes to create a 
-%% file cache. The file cache may end up holding more or fewer files at any 
-%% given moment due to variations in file metadata size. `max_open_files` 
+%% @doc The `max_open_files` value is multiplied by 4 megabytes to create a
+%% file cache. The file cache may end up holding more or fewer files at any
+%% given moment due to variations in file metadata size. `max_open_files`
 %% applies to a single vnode, not to the entire server.
 {mapping, "leveldb.max_open_files", "eleveldb.max_open_files", [
   {datatype, integer},
@@ -997,10 +997,10 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc The cache_size determines the size of each vnode's block cache. The 
-%% block cache holds data blocks that leveldb has recently retrieved from 
-%% `.sst` table files. Any given block contains one or more complete key/value 
-%% pairs. The cache speeds up repeat access to the same key and potential 
+%% @doc The cache_size determines the size of each vnode's block cache. The
+%% block cache holds data blocks that leveldb has recently retrieved from
+%% `.sst` table files. Any given block contains one or more complete key/value
+%% pairs. The cache speeds up repeat access to the same key and potential
 %% access to adjacent keys.
 {mapping, "leveldb.cache_size", "eleveldb.cache_size", [
   {datatype, bytesize},
@@ -1008,12 +1008,12 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc The 'sync' parameter defines how new key/value data is placed in the 
-%% recovery log. The recovery log is only used if the Riak program crashes or 
-%% the server loses power unexpectedly. The parameter's original intent was 
-%% to guarantee that each new key / value was written to the physical disk 
-%% before leveldb responded with “write good”. The reality in modern servers 
-%% is that many layers of data caching exist between the database program and 
+%% @doc The 'sync' parameter defines how new key/value data is placed in the
+%% recovery log. The recovery log is only used if the Riak program crashes or
+%% the server loses power unexpectedly. The parameter's original intent was
+%% to guarantee that each new key / value was written to the physical disk
+%% before leveldb responded with “write good”. The reality in modern servers
+%% is that many layers of data caching exist between the database program and
 %% the physical disks. This flag influences only one of the layers.
 {mapping, "leveldb.sync", "eleveldb.sync", [
   {default, false},
@@ -1021,10 +1021,10 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc Each vnode first stores new key/value data in a memory based write 
-%% buffer. This write buffer is in parallel to the recovery log mentioned 
-%% in the “sync” parameter. Riak creates each vnode with a randomly sized 
-%% write buffer for performance reasons. The random size is somewhere 
+%% @doc Each vnode first stores new key/value data in a memory based write
+%% buffer. This write buffer is in parallel to the recovery log mentioned
+%% in the “sync” parameter. Riak creates each vnode with a randomly sized
+%% write buffer for performance reasons. The random size is somewhere
 %% between write_buffer_size_min and write_buffer_size_max.
 {mapping, "leveldb.write_buffer_size_min", "eleveldb.write_buffer_size_min", [
   {default, "30MB"},
@@ -1038,10 +1038,10 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc Each database .sst table file can include an optional "bloom filter" 
-%% that is highly effective in shortcutting data queries that are destined 
-%% to not find the requested key. The bloom_filter typically increases the 
-%% size of an .sst table file by about 2%. This option must be set to true 
+%% @doc Each database .sst table file can include an optional "bloom filter"
+%% that is highly effective in shortcutting data queries that are destined
+%% to not find the requested key. The bloom_filter typically increases the
+%% size of an .sst table file by about 2%. This option must be set to true
 %% in the riak.conf to take effect.
 {mapping, "leveldb.bloomfilter", "eleveldb.use_bloomfilter", [
   {default, on},
@@ -1051,7 +1051,7 @@ end}.
 { translation,
   "eleveldb.use_bloomfilter",
   fun(Conf) ->
-    case cuttlefish_util:conf_get_value("leveldb.bloomfilter", Conf) of
+    case cuttlefish:conf_get("leveldb.bloomfilter", Conf) of
         on -> true;
         off -> false;
         _ -> true
@@ -1059,7 +1059,7 @@ end}.
   end
 }.
 
-%% @doc sst_block_size defines the size threshold for a block / chunk of data 
+%% @doc sst_block_size defines the size threshold for a block / chunk of data
 %% within one .sst table file. Each new block gets an index entry in the .sst
 %% table file's master index.
 {mapping, "leveldb.block_size", "eleveldb.sst_block_size", [
@@ -1068,7 +1068,7 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc block_restart_interval defines the key count threshold for a new key 
+%% @doc block_restart_interval defines the key count threshold for a new key
 %% entry in the key index for a block.
 %% Most clients should leave this parameter alone.
 {mapping, "leveldb.block_restart_interval", "eleveldb.block_restart_interval", [
@@ -1085,7 +1085,7 @@ end}.
   {level, advanced}
 ]}.
 
-%% @doc verify_compaction controls whether or not validation occurs when 
+%% @doc verify_compaction controls whether or not validation occurs when
 %% leveldb reads data as part of its background compaction operations.
 {mapping, "leveldb.verify_compaction", "eleveldb.verify_compaction", [
   {default, true},
@@ -1101,10 +1101,10 @@ end}.
   {level, advanced}
 ]}.
 
-{translation, 
- "riak_kv.memory_backend.max_memory", 
- fun(Conf) -> 
-  Bytes = cuttlefish_util:conf_get_value("memory_backend.max_memory", Conf),
+{translation,
+ "riak_kv.memory_backend.max_memory",
+ fun(Conf) ->
+  Bytes = cuttlefish:conf_get("memory_backend.max_memory", Conf),
   cuttlefish_util:ceiling(Bytes / 1048576)
  end
 }.
@@ -1137,7 +1137,7 @@ end}.
 %% @doc Name of the riak node
 {mapping, "nodename", "vm_args.-name", [
   {default, "dev1@127.0.0.1"}
-]}. 
+]}.
 
 %% @doc Cookie for distributed node communication.  All nodes in the same cluster
 %% should use the same cookie or they will not be able to communicate.
@@ -1154,7 +1154,7 @@ end}.
   {default, "64000"}
 ]}.
 
-%% @doc Tweak GC to run more often 
+%% @doc Tweak GC to run more often
 {mapping, "erlang.fullsweep_after", "vm_args.-env ERL_FULLSWEEP_AFTER", [
   {default, "0"},
   {level, advanced}
@@ -1170,15 +1170,15 @@ end}.
   {default, "256000"}
 ]}.
 
-%% @doc Raise the default erlang process limit 
+%% @doc Raise the default erlang process limit
 {mapping, "process_limit", "vm_args.+P", [
   {datatype, integer},
   {default, 256000}
 ]}.
 
-{translation, "vm_args.+P", 
-fun(Conf) -> 
-  Procs = cuttlefish_util:conf_get_value("process_limit", Conf),
+{translation, "vm_args.+P",
+fun(Conf) ->
+  Procs = cuttlefish:conf_get("process_limit", Conf),
   integer_to_list(Procs)
 end}.
 
@@ -1195,8 +1195,20 @@ end}.
 
 %% @doc Erlang VM scheduler tuning.
 %% Prerequisite: a patched VM from Basho, or a VM compiled separately
-%% with this patch applied:
+%% with this patch applied (R15B only):
 %%     https://gist.github.com/evanmcc/a599f4c6374338ed672e
 {mapping, "erlang.swiffy", "vm_args.+sfwi", [
   {commented, "500"}
+]}.
+
+{mapping, "erlang.scl", "vm_args.+scl", [
+  {commented, "false"},
+  {datatype, {enum, [true, false]}},
+  {level, advanced}
+]}.
+
+{mapping, "erlang.sub", "vm_args.+sub", [
+  {commented, "true"},
+  {datatype, {enum, [true, false]}},
+  {level, advanced}
 ]}.

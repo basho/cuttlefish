@@ -24,7 +24,10 @@
 -export([init/1, handle_call/2, handle_event/2, handle_info/2, terminate/2,
         code_change/3]).
 
--record(state, {level, formatter,format_config,colors=[]}).
+-record(state, {level :: {'mask', integer()},
+                formatter :: atom(),
+                format_config :: any(),
+                colors=[] :: list()}).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -41,7 +44,7 @@ init([Level,false]) -> % for backwards compatibility
     init([Level,{lager_default_formatter,?TERSE_FORMAT ++ [eol()]}]);
 init([Level,{Formatter,FormatterConfig}]) when is_atom(Formatter) ->
     Colors = case application:get_env(lager, colored) of
-        {ok, true} -> 
+        {ok, true} ->
             {ok, LagerColors} = application:get_env(lager, colors),
             LagerColors;
         _ -> []
@@ -62,7 +65,7 @@ init([Level,{Formatter,FormatterConfig}]) when is_atom(Formatter) ->
             {error, {fatal, old_shell}};
         {true, Levels} ->
             {ok, #state{level=Levels,
-                    formatter=Formatter, 
+                    formatter=Formatter,
                     format_config=FormatterConfig,
                     colors=Colors}}
     catch
@@ -116,7 +119,7 @@ eol() ->
     case application:get_env(lager, colored) of
         {ok, true}  ->
             "\e[0m\r\n";
-        _ -> 
+        _ ->
             "\r\n"
     end.
 
@@ -165,7 +168,7 @@ console_log_test_() ->
                 application:load(lager),
                 application:set_env(lager, handlers, []),
                 application:set_env(lager, error_logger_redirect, false),
-                application:start(lager),
+                lager:start(),
                 whereis(standard_error)
         end,
         fun(User) ->
@@ -221,7 +224,7 @@ console_log_test_() ->
                         unregister(standard_error),
                         register(standard_error, Pid),
                         erlang:group_leader(Pid, whereis(lager_event)),
-                        gen_event:add_handler(lager_event, lager_stderr_backend, 
+                        gen_event:add_handler(lager_event, lager_stderr_backend,
                           [info, {lager_default_formatter, [date,"#",time,"#",severity,"#",node,"#",pid,"#",
                                                             module,"#",function,"#",file,"#",line,"#",message,"\r\n"]}]),
                         lager_config:set(loglevel, {?INFO, []}),
@@ -232,7 +235,7 @@ console_log_test_() ->
                         receive
                             {io_request, _, _, {put_chars, unicode, Msg}} ->
                                 TestMsg = "Test message" ++ eol(),
-                                ?assertMatch([_, _, "info", NodeStr, PidStr, ModuleStr, _, _, _, TestMsg], 
+                                ?assertMatch([_, _, "info", NodeStr, PidStr, ModuleStr, _, _, _, TestMsg],
                                              re:split(Msg, "#", [{return, list}, {parts, 10}]))
                         after
                             500 ->
