@@ -66,6 +66,8 @@ file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
             {error, [{error, ?FMT("Could not open file (~s) for Reason ~s", [Filename, Reason])}]};
+        {_Conf, Remainder, {{line, L}, {column, C}}} when is_binary(Remainder) ->
+            {error, [{error, ?FMT("Syntax error in ~s after line ~p column ~p, parsing incomplete", [Filename, L, C])}]};
         Conf ->
             %% Conf is a proplist, check if any of the values are cuttlefish_errors
             {_, Values} = lists:unzip(Conf),
@@ -271,6 +273,11 @@ duplicates_multi_test() ->
 files_one_nonent_test() ->
     Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
     ?assertEqual({error,[{error,"Could not open file (../test/nonent.conf) for Reason enoent"}]}, Conf),
+    ok.
+
+files_incomplete_parse_test() ->
+    Conf = file("../test/incomplete.conf"),
+    ?assertEqual({error, [{error,"Syntax error in ../test/incomplete.conf after line 3 column 1, parsing incomplete"}]}, Conf),
     ok.
 
 generate_element_level_advanced_test() ->
