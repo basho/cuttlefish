@@ -35,15 +35,15 @@
 
 -export([map/2, find_mapping/2, add_defaults/2]).
 
--spec map(
-        cuttlefish_schema:schema(),
-        cuttlefish_conf:conf()) ->
-             [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                 [proplists:property()] |
+                 {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
     map_add_defaults(Schema, Config).
 
--spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                              [proplists:property()] |
+                              {error, atom(), cuttlefish_error:errorlist()}.
 map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
@@ -56,8 +56,9 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
             map_value_sub(Schema, DConfig)
     end.
 
--spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                           [proplists:property()] |
+                           {error, atom(), cuttlefish_error:errorlist()}.
 map_value_sub(Schema, Config) ->
     lager:debug("Right Hand Side Substitutions"),
      case value_sub(Config) of
@@ -67,8 +68,9 @@ map_value_sub(Schema, Config) ->
             {error, rhs_subs, {error, EList}}
     end.
 
--spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                                     [proplists:property()] |
+                                     {error, atom(), cuttlefish_error:errorlist()}.
 map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
@@ -81,8 +83,9 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
             {error, transform_datatypes, {error, EList}}
     end.
 
--spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                          [proplists:property()] |
+                          {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:debug("Validation"),
@@ -94,8 +97,8 @@ map_validate(Schema, Conf) ->
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop)
     end.
 
--spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> {[proplists:property()], [string()]}.
+-spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                            {[proplists:property()], [string()]}.
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -135,11 +138,9 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
 
--spec apply_translations(
-    cuttlefish_schema:schema(),
-    cuttlefish_conf:conf(),
-    [proplists:property()],
-    [string()]) -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec apply_translations(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()], [string()]) ->
+                                [proplists:property()] |
+                                {error, atom(), cuttlefish_error:errorlist()}.
 apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
     %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
@@ -215,8 +216,8 @@ try_apply_translation(Mapping, XlatFun, XlatArgs) ->
         %% Any unknown error, perhaps caused by stdlib
         %% stuff.
         E:R ->
-            {error, ?FMT("Error running translation for ~s, "
-                         "[~p, ~p].", [Mapping, E, R])}
+            {error, ?FMT("Error running translation for ~s, [~p, ~p].",
+                         [Mapping, E, R])}
     end.
 
 %for each token, is it special?
