@@ -144,67 +144,31 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
     %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
-    {Proplist, Errorlist} = lists:foldl(
-        fun(TranslationRecord, {Acc, Errors}) ->
+    {Proplist, Errorlist} = lists:foldl(fold_apply_translation(Conf, Schema, TranslationsToDrop),
+                                        {DirectMappings, []}, Translations),
+    case Errorlist of
+        [] ->
+            lager:debug("Applied Translations"),
+            Proplist;
+        Es ->
+            {error, apply_translations, {error, Es}}
+    end.
+
+
+fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
+    fun(TranslationRecord, {Acc, Errors}) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
-                    Tokens = string:tokens(Mapping, "."),
-                    %% get Xlat arity
-                    Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    {XlatFun, XlatArgs} = case Arity of
-                         1 -> {Xlat, [Conf]};
-                         2 -> {Xlat, [Conf, Schema]};
-                         OtherArity ->
-                             {fun(_) ->
-                                 {error, ?FMT("~p is not a valid arity for "
-                                              "translation fun() ~s. Try 1 or "
-                                              "2.",
-                                              [OtherArity, Mapping]
-                                             )
-                                 }
-                             end, error}
-                    end,
-
+                    {XlatFun, XlatArgs} = prepare_translation_fun(Conf, Schema,
+                                                                  Mapping, Xlat),
                     lager:debug("Running translation for ~s", [Mapping]),
-                    Translated = try apply(XlatFun, XlatArgs) of
-                        {ok, Value} ->
-                            {set, Value};
-                        X ->
-                            {set, X}
-                    catch
-                        %% cuttlefish:conf_get/2 threw not_found
-                        throw:{not_found, NotFound} ->
-                            {error,
-                             ?FMT("Translation for '~s' expected to find"
-                                  " setting '~s' but was missing",
-                                  [Mapping,
-                                   string:join(NotFound, ".")])};
-                        %% For explicitly omitting an output setting.
-                        %% See cuttlefish:unset/0
-                        throw:unset ->
-                            unset;
-                        %% For translations that found invalid
-                        %% settings, even after mapping. See
-                        %% cuttlefish:invalid/1.
-                        throw:{invalid, Invalid} ->
-                            {error,
-                             ?FMT("Translation for '~s' found "
-                                  "invalid configuration: ~s",
-                                  [Mapping, Invalid])};
-                        %% Any unknown error, perhaps caused by stdlib
-                        %% stuff.
-                        E:R ->
-                            {error, ?FMT("Error running translation for ~s, "
-                                         "[~p, ~p].", [Mapping, E, R])}
-                    end,
-
-                    case Translated of
+                    case try_apply_translation(Mapping, XlatFun, XlatArgs) of
                         unset ->
                             {Acc, Errors};
                         {set, NewValue} ->
-                            {set_value(Tokens, Acc, NewValue), Errors};
+                            {set_value(string:tokens(Mapping, "."), Acc, NewValue), Errors};
                         {error, Reason} ->
                             {Acc, [{error, Reason}|Errors]}
                     end;
@@ -212,15 +176,47 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     lager:debug("~p in Translations to drop...", [Mapping]),
                     {Acc, Errors}
             end
-        end,
-        {DirectMappings, []},
-        Translations),
-    case Errorlist of
-        [] ->
-            lager:debug("Applied Translations"),
-            Proplist;
-        Es ->
-            {error, apply_translations, {error, Es}}
+        end.
+
+prepare_translation_fun(Conf, Schema, Mapping, Xlat) ->
+    case proplists:get_value(arity, erlang:fun_info(Xlat)) of
+        1 -> {Xlat, [Conf]};
+        2 -> {Xlat, [Conf, Schema]};
+        OtherArity ->
+            {fun(_) ->
+                     {error,
+                      ?FMT("~p is not a valid arity for translation fun() ~s."
+                           " Try 1 or 2.", [OtherArity, Mapping])}
+             end, error}
+    end.
+
+try_apply_translation(Mapping, XlatFun, XlatArgs) ->
+    try erlang:apply(XlatFun, XlatArgs) of
+        {ok, Value} ->
+            {set, Value};
+        X ->
+            {set, X}
+    catch
+        %% cuttlefish:conf_get/2 threw not_found
+        throw:{not_found, NotFound} ->
+            {error,
+             ?FMT("Translation for '~s' expected to find setting '~s' but was missing",
+                  [Mapping, string:join(NotFound, ".")])};
+        %% For explicitly omitting an output setting.
+        %% See cuttlefish:unset/0
+        throw:unset ->
+            unset;
+        %% For translations that found invalid
+        %% settings, even after mapping. See
+        %% cuttlefish:invalid/1.
+        throw:{invalid, Invalid} ->
+            {error, ?FMT("Translation for '~s' found invalid configuration: ~s",
+                         [Mapping, Invalid])};
+        %% Any unknown error, perhaps caused by stdlib
+        %% stuff.
+        E:R ->
+            {error, ?FMT("Error running translation for ~s, "
+                         "[~p, ~p].", [Mapping, E, R])}
     end.
 
 %for each token, is it special?
