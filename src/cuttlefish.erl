@@ -33,7 +33,8 @@
     unset/0,
     invalid/1,
     otp/2,
-    otp/3
+    otp/3,
+    warn/1
 ]).
 
 % @doc If DesiredMinimum =< the OTP you're running, then return
@@ -114,6 +115,12 @@ unset() ->
 -spec invalid(string()) -> no_return().
 invalid(Reason) ->
     throw({invalid, Reason}).
+
+%% @doc When called inside a translation, results in a warning message
+%% being logged.
+-spec warn(iodata()) -> ok.
+warn(Str) ->
+    lager:warning(Str, []).
 
 -ifdef(TEST).
 
