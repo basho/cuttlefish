@@ -134,6 +134,8 @@ async_threads_stack_size_test() ->
     TooLarge    = cuttlefish_bytesize:to_string(WordSize * 1024 * 9000),
     Indivisible = cuttlefish_bytesize:to_string(WordSize * 1024 * 16 - 2),
     Correct     = cuttlefish_bytesize:to_string(WordSize * 1024 * 32),
+    MinSize     = cuttlefish_bytesize:to_string(WordSize * 1024 * 16),
+    MaxSize     = cuttlefish_bytesize:to_string(WordSize * 1024 * 8192),
     CorrectRaw = 32,
     
     Conf0 = [],
@@ -146,15 +148,15 @@ async_threads_stack_size_test() ->
 
     Conf2 = [{["erlang", "async_threads", "stack_size"], TooSmall}],
     Config2 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf2, context()),
-    cuttlefish_unit:assert_error_message(Config2, "erlang.async_threads.stack_size invalid, must be in the range of (16..8192) * 1024 * system word-size"),
+    cuttlefish_unit:assert_error_message(Config2, "erlang.async_threads.stack_size invalid, must be in the range of " ++ MinSize ++ " to " ++ MaxSize),
 
     Conf3 = [{["erlang", "async_threads", "stack_size"], TooLarge}],
     Config3 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf3, context()),
-    cuttlefish_unit:assert_error_message(Config3, "erlang.async_threads.stack_size invalid, must be in the range of (16..8192) * 1024 * system word-size"),
+    cuttlefish_unit:assert_error_message(Config3, "erlang.async_threads.stack_size invalid, must be in the range of " ++ MinSize ++ " to " ++ MaxSize),
 
     Conf4 = [{["erlang", "async_threads", "stack_size"], Indivisible}],
     Config4 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf4, context()),
-    cuttlefish_unit:assert_error_message(Config4, "erlang.async_threads.stack_size invalid, must be divisible by the system word-size"),
+    cuttlefish_unit:assert_error_message(Config4, "erlang.async_threads.stack_size invalid, must be divisible by " ++ integer_to_list(WordSize)),
 
     ok.
 

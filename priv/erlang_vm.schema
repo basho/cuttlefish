@@ -137,10 +137,15 @@
   hidden
 ]}.
 
-{validator, "stack-size-divisible", "must be divisible by the system word-size",
+{validator, "stack-size-divisible", ("must be divisible by " ++ integer_to_list(erlang:system_info({wordsize,external}))),
  fun(X) -> X rem (erlang:system_info({wordsize, external})) == 0 end}.
 
-{validator, "stack-size-range", "must be in the range of (16..8192) * 1024 * system word-size",
+{validator, "stack-size-range",
+ begin
+     WordSize = erlang:system_info({wordsize, external}),
+     ("must be in the range of " ++ cuttlefish_bytesize:to_string(16 * 1024 * WordSize)
+      ++ " to " ++ cuttlefish_bytesize:to_string(8192 * 1024 * WordSize))
+ end,
  fun(X) ->
    Scaled = X div (1024 * erlang:system_info({wordsize, external})),
    Scaled =< 8192 andalso Scaled >= 16
