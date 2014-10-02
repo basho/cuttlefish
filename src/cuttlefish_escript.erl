@@ -373,8 +373,11 @@ engage_cuttlefish(ParsedArgs) ->
             case file:consult(AdvancedConfigFile) of
                 {ok, [AdvancedConfig]} ->
                     cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
+                {ok, OtherTerms} ->
+                    lager:error("Error parsing ~s, incorrect format: ~p", [AdvancedConfigFile, OtherTerms]),
+                    stop_deactivate();
                 {error, Error} ->
-                    lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
+                    lager:error("Error parsing ~s: ~s", [AdvancedConfigFile, file:format_error(Error)]),
                     stop_deactivate()
             end;
         _ ->
