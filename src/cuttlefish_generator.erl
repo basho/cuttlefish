@@ -595,7 +595,7 @@ run_validations({_, Mappings, Validators}, Conf) ->
                     LogString = ?FMT(
                         "~s invalid, ~s",
                         [
-                            cuttlefish_mapping:variable(M),
+                            cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                             cuttlefish_validator:description(V)
                         ]),
                     lager:error(LogString),

@@ -25,11 +25,15 @@
 -export_type([variable/0]).
 
 -ifdef(TEST).
+-ifdef(EQC).
+-include_lib("eqc/include/eqc.hrl").
+-endif.
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 -endif.
 
 -export([
+     format/1,
      tokenize/1,
      split_on_match/1,
      replace_match/2,
@@ -38,6 +42,14 @@
      is_fuzzy_match/2,
      filter_by_prefix/2
 ]).
+
+%% @doc Formats a variable back into its dot-separated version.
+%% Inverse of tokenize/1.
+-spec format(variable()) -> string().
+format(Key=[H|_]) when is_list(H) ->
+    Escaped = [re:replace(Word, "[.]", "\\\\&", [{return, list}, global]) || 
+                  Word <- Key],
+    string:join(Escaped, ".").
 
 %% @doc like string:tokens(Key, "."), but if the dot was escaped
 %% i.e. \\., don't tokenize that
@@ -238,4 +250,20 @@ filter_by_variable_starts_with_test() ->
         ],
         FilteredByString),
     ok.
+
+variable_roundtrip_test() ->
+   ?assert(eqc:quickcheck(eqc:testing_time(3, eqc:on_output(fun(F,A) -> io:format(user, F, A) end, prop_format_tokenize_roundtrip())))).
+
+prop_format_tokenize_roundtrip() ->
+    ?FORALL(Variable, non_empty(list(gen_word())),
+            tokenize(format(Variable)) == Variable).
+
+gen_word() ->
+    ?LET(F, non_empty(list(gen_word_char())), lists:flatten(F)).
+
+gen_word_char() ->
+    oneof([$., $_, $-,
+           choose($0, $9),
+           choose($A, $Z),
+           choose($a, $z)]).
 -endif.
