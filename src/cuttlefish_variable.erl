@@ -252,7 +252,7 @@ filter_by_variable_starts_with_test() ->
     ok.
 
 variable_roundtrip_test() ->
-   ?assert(eqc:quickcheck(eqc:testing_time(3, eqc:on_output(fun(F,A) -> io:format(user, F, A) end, prop_format_tokenize_roundtrip())))).
+   ?assert(eqc:quickcheck(eqc:numtests(200,eqc:on_output(fun(F,A) -> io:format(user, F, A) end, prop_format_tokenize_roundtrip())))).
 
 prop_format_tokenize_roundtrip() ->
     ?FORALL(Variable, non_empty(list(gen_word())),
