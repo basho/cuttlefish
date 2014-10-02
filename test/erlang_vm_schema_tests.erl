@@ -128,6 +128,36 @@ erlang_scheduler_test() ->
 
     ok.
 
+async_threads_stack_size_test() ->
+    WordSize = erlang:system_info({wordsize, external}),
+    TooSmall    = cuttlefish_bytesize:to_string(WordSize * 1024 * 10),
+    TooLarge    = cuttlefish_bytesize:to_string(WordSize * 1024 * 9000),
+    Indivisible = cuttlefish_bytesize:to_string(WordSize * 1024 * 16 - 2),
+    Correct     = cuttlefish_bytesize:to_string(WordSize * 1024 * 32),
+    CorrectRaw = 32,
+    
+    Conf0 = [],
+    Config0 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf0, context()),
+    cuttlefish_unit:assert_not_configured(Config0, "vm_args.+a"),
+    
+    Conf1 = [{["erlang", "async_threads", "stack_size"], Correct}],
+    Config1 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf1, context()),
+    cuttlefish_unit:assert_config(Config1, "vm_args.+a", CorrectRaw),
+
+    Conf2 = [{["erlang", "async_threads", "stack_size"], TooSmall}],
+    Config2 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf2, context()),
+    cuttlefish_unit:assert_error_message(Config2, "erlang.async_threads.stack_size invalid, must be in the range of (16..8192) * 1024 * system word-size"),
+
+    Conf3 = [{["erlang", "async_threads", "stack_size"], TooLarge}],
+    Config3 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf3, context()),
+    cuttlefish_unit:assert_error_message(Config3, "erlang.async_threads.stack_size invalid, must be in the range of (16..8192) * 1024 * system word-size"),
+
+    Conf4 = [{["erlang", "async_threads", "stack_size"], Indivisible}],
+    Config4 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf4, context()),
+    cuttlefish_unit:assert_error_message(Config4, "erlang.async_threads.stack_size invalid, must be divisible by the system word-size"),
+
+    ok.
+
 %% this context() represents the substitution variables that rebar
 %% will use during the build process.  riak_core's schema file is
 %% written with some {{mustache_vars}} for substitution during
