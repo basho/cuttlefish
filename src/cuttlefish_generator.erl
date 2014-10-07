@@ -533,17 +533,12 @@ transform_supported_type(DT, Tail, Value, ErrorAcc) ->
                                      {ok, term()} | [cuttlefish_error:error()].
 transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
     case transform_supported_type(DT, [], Value, Errors) of
-        {ok, NewValue} ->
-            case NewValue =:= AcceptableValue of
-                true -> {ok, NewValue};
-                _ -> transform_type(Tail, Value,
-                                    [{error,
-                                      ?FMT("~p is not accepted value: ~p",
-                                           [Value, AcceptableValue])}
-                                     |Errors])
-            end;
-        {error, EList} ->
-            EList
+        {ok, AcceptableValue} -> {ok, AcceptableValue};
+        {ok, _NewValue} ->
+            transform_type(Tail, Value,
+                           [{error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])}
+                                     |Errors]);
+        {error, EList} -> EList
     end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
