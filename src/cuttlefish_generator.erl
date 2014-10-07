@@ -516,13 +516,6 @@ transform_supported_type(DT, Tail, Value, ErrorAcc) ->
     case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
         {_, {error, Message}} ->
             transform_type(Tail, Value, [{error, Message}|ErrorAcc]);
-        {{enum, PossibleValues}, NewValue} ->
-            case lists:member(NewValue, PossibleValues) of
-                true -> {ok, NewValue};
-                false ->
-                    transform_type(Tail, Value, [
-                        {error, ?FMT("Bad value for enum: ~s", [Value])}|ErrorAcc])
-            end;
         {_, NewValue} -> {ok, NewValue}
     end.
 
