@@ -512,8 +512,12 @@ transform_type([DT|DatatypeTail], Value, Errors) ->
                                any(),
                                [cuttlefish_error:error()]) ->
                                      {ok, term()} | cuttlefish_error:errorlist().
+
 transform_supported_type(DT, Tail, Value, ErrorAcc) ->
-    case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
+    case {DT, catch cuttlefish_datatypes:from_string(Value, DT)} of
+        {_, {'EXIT', Error}} ->
+            transform_type(Tail, Value,
+                           [{error, ?FMT("Caught exception converting to ~p: ~p", [DT, Error])}|ErrorAcc]);
         {_, {error, Message}} ->
             transform_type(Tail, Value, [{error, Message}|ErrorAcc]);
         {_, NewValue} -> {ok, NewValue}
@@ -1033,6 +1037,9 @@ extended_datatypes_test() ->
     assert_extended_datatype([integer, {atom, never}], "never", never),
     assert_extended_datatype([integer, {atom, never}], "always", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
     assert_extended_datatype([{duration, s}, {atom, never}], "never", never),
+    assert_extended_datatype([{atom, never}, integer], "1", 1),
+    assert_extended_datatype([{enum, [never, always]}, {duration, s}], "1s", 1),
+    assert_extended_datatype([{atom, never}, {atom, always}], "foo", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
     %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
     ok.
 
