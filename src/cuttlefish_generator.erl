@@ -535,7 +535,8 @@ transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
             transform_type(Tail, Value,
                            [{error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])}
                                      |Errors]);
-        {error, EList} -> EList
+        {error, EList} -> 
+            transform_type(Tail, Value, [{error, EList}|Errors])
     end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
