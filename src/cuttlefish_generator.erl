@@ -486,57 +486,42 @@ head_sub(Value) ->
             end
     end.
 
--spec transform_type(
-        cuttlefish_datatypes:datatype_list(),
-        string()) -> {ok, term()} | cuttlefish_error:errorlist().
-transform_type(DTs, Value) ->
-    transform_type(DTs, Value, []).
+-spec transform_type(cuttlefish_datatypes:datatype_list() | cuttlefish_datatypes:datatype(), term()) -> 
+                            {ok, term()} | cuttlefish_error:errorlist().
+transform_type(DTs, Value) when is_list(DTs) ->
+    foldm_either(fun(DT) -> transform_type(DT, Value) end, DTs);
 
--spec transform_type(
-        cuttlefish_datatypes:datatype_list(),
-        string(), [cuttlefish_error:error()]) -> {ok, term()} | cuttlefish_error:errorlist().
-transform_type([], _, Errors) -> {error, Errors};
-transform_type([DT|DatatypeTail], Value, Errors) ->
-    case {cuttlefish_datatypes:is_supported(DT), cuttlefish_datatypes:is_extended(DT)} of
-        {true, _} ->
-            transform_supported_type(DT, DatatypeTail, Value, Errors);
-        {_ , true} ->
-            transform_extended_type(DT, DatatypeTail, Value, Errors);
-        {false, false} ->
-            Error = {error, ?FMT("~p is not a supported datatype.", [DT])},
-            {error, [Error]}
+transform_type(DT, Value) ->
+    Supported = cuttlefish_datatypes:is_supported(DT),
+    Extended = cuttlefish_datatypes:is_extended(DT),
+    if 
+        Supported -> transform_supported_type(DT, Value);
+        Extended  -> transform_extended_type(DT, Value);
+        true ->
+            {error, ?FMT("~p is not a supported datatype.", [DT])}
     end.
 
--spec transform_supported_type(cuttlefish_datatypes:datatype(),
-                               cuttlefish_datatypes:datatype_list(),
-                               any(),
-                               [cuttlefish_error:error()]) ->
+-spec transform_supported_type(cuttlefish_datatypes:datatype(), any()) ->
                                      {ok, term()} | cuttlefish_error:errorlist().
-
-transform_supported_type(DT, Tail, Value, ErrorAcc) ->
-    case {DT, catch cuttlefish_datatypes:from_string(Value, DT)} of
-        {_, {'EXIT', Error}} ->
-            transform_type(Tail, Value,
-                           [{error, ?FMT("Caught exception converting to ~p: ~p", [DT, Error])}|ErrorAcc]);
-        {_, {error, Message}} ->
-            transform_type(Tail, Value, [{error, Message}|ErrorAcc]);
-        {_, NewValue} -> {ok, NewValue}
+transform_supported_type(DT, Value) ->
+    try cuttlefish_datatypes:from_string(Value, DT) of
+        {error, Message} -> {error, Message};
+        NewValue -> {ok, NewValue}
+    catch
+        Class:Error ->
+            {error, ?FMT("Caught exception converting to ~p: ~p:~p", [DT, Class, Error])}
     end.
 
--spec transform_extended_type(cuttlefish_datatypes:extended(),
-                              cuttlefish_datatypes:datatype_list(),
-                              any(),
-                              [cuttlefish_error:error()]) ->
+-spec transform_extended_type(cuttlefish_datatypes:extended(), any()) ->
                                      {ok, term()} | [cuttlefish_error:error()].
-transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
-    case transform_supported_type(DT, [], Value, Errors) of
-        {ok, AcceptableValue} -> {ok, AcceptableValue};
+transform_extended_type({DT, AcceptableValue}, Value) ->
+    case transform_supported_type(DT, Value) of
+        {ok, AcceptableValue} -> 
+            {ok, AcceptableValue};
         {ok, _NewValue} ->
-            transform_type(Tail, Value,
-                           [{error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])}
-                                     |Errors]);
+            {error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])};
         {error, EList} -> 
-            transform_type(Tail, Value, [{error, EList}|Errors])
+            {error, EList}
     end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
@@ -600,6 +585,32 @@ run_validations({_, Mappings, Validators}, Conf) ->
     case lists:all(fun(X) -> X =:= true end, Validations) of
         true -> true;
         _ -> Validations
+    end.
+
+
+%% @doc Calls Fun on each element of the list until it returns {ok,
+%% term()}, otherwise accumulates {error, term()} into a list,
+%% wrapping in {error, _} at the end.
+-spec foldm_either(fun((term()) -> 
+                           {ok, term()}  | cuttlefish_error:errorlist()),
+                   list()) -> 
+                      {ok, term()}  | cuttlefish_error:errorlist().                           
+foldm_either(Fun, List) ->
+    foldm_either(Fun, List, []).
+
+%% @doc Calls Fun on each element of the list until it returns {ok,
+%% term()}, otherwise accumulates {error, term()} into a list,
+%% wrapping in {error, _} at the end.
+-spec foldm_either(fun((term()) -> 
+                           {ok, term()}  | cuttlefish_error:errorlist()),
+                   list(), list()) -> 
+                      {ok, term()}  | cuttlefish_error:errorlist().                           
+foldm_either(_Fun, [], Acc) -> {error, lists:reverse(Acc)};
+foldm_either(Fun, [H|T], Acc) ->
+    case Fun(H) of
+        {ok, Result} -> {ok, Result};
+        {error, _}=Error -> 
+            foldm_either(Fun, T, [Error|Acc])
     end.
 
 -ifdef(TEST).
