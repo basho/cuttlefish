@@ -195,7 +195,7 @@ to_string(Value, MaybeExtendedDatatype) ->
 
 -spec from_string(term(), datatype()) -> term() | cuttlefish_error:error().
 from_string(Atom, atom) when is_atom(Atom) -> Atom;
-from_string(String, atom) -> list_to_atom(String);
+from_string(String, atom) when is_list(String) -> list_to_atom(String);
 
 from_string(Value, {enum, Enum}) ->
     cuttlefish_enum:parse(Value, {enum, Enum});
@@ -209,7 +209,7 @@ from_string(String, integer) when is_list(String) ->
     end;
 
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
-from_string(String, ip) ->
+from_string(String, ip) when is_list(String) ->
     try begin
         Parts = string:tokens(String, ":"),
         [Port|BackwardsIP] = lists:reverse(Parts),
