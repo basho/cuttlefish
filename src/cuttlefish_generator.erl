@@ -121,7 +121,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                     Translations)
                 } of
                 {true, false} ->
-                    Tokens = string:tokens(Mapping, "."),
+                    Tokens = cuttlefish_variable:tokenize(Mapping),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue),
 		     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
@@ -169,7 +169,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                         unset ->
                             {Acc, Errors};
                         {set, NewValue} ->
-                            {set_value(string:tokens(Mapping, "."), Acc, NewValue), Errors};
+                            {set_value(cuttlefish_variable:tokenize(Mapping), Acc, NewValue), Errors};
                         {error, Reason} ->
                             {Acc, [{error, Reason}|Errors]}
                     end;
@@ -202,7 +202,7 @@ try_apply_translation(Mapping, XlatFun, XlatArgs) ->
         throw:{not_found, NotFound} ->
             {error,
              ?FMT("Translation for '~s' expected to find setting '~s' but was missing",
-                  [Mapping, string:join(NotFound, ".")])};
+                  [Mapping, cuttlefish_variable:format(NotFound)])};
         %% For explicitly omitting an output setting.
         %% See cuttlefish:unset/0
         throw:unset ->
@@ -384,12 +384,12 @@ transform_datatypes(Conf, Mappings) ->
 
                     %% It will prevent anything from starting, and will let you know
                     %% that you're trying to set something that has no effect
-                    VarName = string:join(Variable, "."),
+                    VarName = cuttlefish_variable:format(Variable),
                     lager:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
                     lager:error("  Did you mean one of these?"),
 
                     Possibilities = [ begin
-                        MapVarName = string:join(cuttlefish_mapping:variable(M), "."),
+                        MapVarName = cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
@@ -404,7 +404,7 @@ transform_datatypes(Conf, Mappings) ->
                             {[{Variable, NewValue}|Acc], ErrorAcc};
                         {error, EList} ->
                             ErrorMsg = ?FMT("Error transforming datatype for: "
-                                            "~s", [string:join(Variable, ".")]),
+                                            "~s", [cuttlefish_variable:format(Variable)]),
                             {Acc, [{error, ErrorMsg} | (EList ++ ErrorAcc)]}
                     end
             end
@@ -448,7 +448,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                     case proplists:get_value(NextVar, Conf) of
                         undefined ->
                             {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
-                                         [string:join(Var, "."), string:join(NextVar, ".")])};
+                                         [cuttlefish_variable:format(Var), cuttlefish_variable:format(NextVar)])};
                         SubVal ->
                             %% Do a sub-subsitution, in case the substituted
                             %% value contains substitutions itself. Do this as
@@ -544,12 +544,13 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
 
     %% The input to this function is massaged enough that you'll never see a hard mapping count > 1
     %% You might see more than one fuzzy match, there's really nothing to stop that.
+    FVariable = cuttlefish_variable:format(Variable),
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, ?FMT("~s not_found", [string:join(Variable, ".")])};
+        {0, 0} -> {error, ?FMT("~s not_found", [FVariable])};
         {X, Y} -> {error, ?FMT("~p hard mappings and ~p fuzzy mappings found "
-                               "for ~s", [X, Y, string:join(Variable, ".")])}
+                               "for ~s", [X, Y, FVariable])}
     end;
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
@@ -1052,7 +1053,6 @@ extended_datatypes_test() ->
     assert_extended_datatype([{atom, never}, integer], "1", 1),
     assert_extended_datatype([{enum, [never, always]}, {duration, s}], "1s", 1),
     assert_extended_datatype([{atom, never}, {atom, always}], "foo", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
-    %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
     ok.
 
 not_found_test() ->

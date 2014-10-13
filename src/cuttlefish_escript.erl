@@ -151,11 +151,10 @@ describe(_ParsedArgs, []) ->
     ?STDOUT("cuttlefish's describe command required a variable to query.", []),
     ?STDOUT("Try `describe setting.name`", []),
     stop_deactivate();
-describe(ParsedArgs, Query) when is_list(Query) ->
-    Q = string:join(Query, "."),
-    QDef = string:tokens(Q, "."),
+describe(ParsedArgs, [Query|_]) when is_list(Query) ->
+    QDef = cuttlefish_variable:tokenize(Query),
 
-    lager:debug("cuttlefish describe '~s'", [Q]),
+    lager:debug("cuttlefish describe '~s'", [Query]),
     {_, Mappings, _} = load_schema(ParsedArgs),
 
     FindResults = fun(QueryVar) ->
@@ -168,9 +167,9 @@ describe(ParsedArgs, Query) when is_list(Query) ->
 
     case FindResults(QDef) of
         [] ->
-            ?STDOUT("Variable '~s' not found", [Q]);
+            ?STDOUT("Variable '~s' not found", [Query]);
         [Match|_] ->
-            ?STDOUT("Documentation for ~s", [string:join(cuttlefish_mapping:variable(Match), ".")]),
+            ?STDOUT("Documentation for ~s", [cuttlefish_variable:format(cuttlefish_mapping:variable(Match))]),
             _ = case {cuttlefish_mapping:doc(Match), cuttlefish_mapping:see(Match)} of
                 {[], []} ->
                     ok;
@@ -185,7 +184,7 @@ describe(ParsedArgs, Query) when is_list(Query) ->
                 {Docs, See} ->
                     _ = [ ?STDOUT("~s", [Line]) || Line <- Docs],
                     ?STDOUT("See also:", []),
-                    [?STDOUT("    ~s", [string:join(S, ".")]) || S <- See]
+                    [?STDOUT("    ~s", [cuttlefish_variable:format(S)]) || S <- See]
             end,
             ?STDOUT("", []),
             ValidValues = [
@@ -483,7 +482,7 @@ print_schema(Schema) ->
                 true -> CandidateMax;
                 _ -> OldMax
             end,
-            {NewMax, [{cuttlefish_mapping:mapping(M), string:join(cuttlefish_mapping:variable(M), ".")}|List]}
+            {NewMax, [{cuttlefish_mapping:mapping(M), cuttlefish_variable:format(cuttlefish_mapping:variable(M))}|List]}
         end,
         {0, []},
         Mappings
