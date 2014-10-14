@@ -35,15 +35,15 @@
 
 -export([map/2, find_mapping/2, add_defaults/2]).
 
--spec map(
-        cuttlefish_schema:schema(),
-        cuttlefish_conf:conf()) ->
-             [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                 [proplists:property()] |
+                 {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
     map_add_defaults(Schema, Config).
 
--spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                              [proplists:property()] |
+                              {error, atom(), cuttlefish_error:errorlist()}.
 map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
@@ -56,8 +56,9 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
             map_value_sub(Schema, DConfig)
     end.
 
--spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                           [proplists:property()] |
+                           {error, atom(), cuttlefish_error:errorlist()}.
 map_value_sub(Schema, Config) ->
     lager:debug("Right Hand Side Substitutions"),
      case value_sub(Config) of
@@ -67,8 +68,9 @@ map_value_sub(Schema, Config) ->
             {error, rhs_subs, {error, EList}}
     end.
 
--spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                                     [proplists:property()] |
+                                     {error, atom(), cuttlefish_error:errorlist()}.
 map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
@@ -81,8 +83,9 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
             {error, transform_datatypes, {error, EList}}
     end.
 
--spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                          [proplists:property()] |
+                          {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:debug("Validation"),
@@ -94,8 +97,8 @@ map_validate(Schema, Conf) ->
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop)
     end.
 
--spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> {[proplists:property()], [string()]}.
+-spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                            {[proplists:property()], [string()]}.
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     %% This fold handles 1:1 mappings, that have no cooresponding translations
     %% The accumlator is the app.config proplist that we start building from
@@ -118,7 +121,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                     Translations)
                 } of
                 {true, false} ->
-                    Tokens = string:tokens(Mapping, "."),
+                    Tokens = cuttlefish_variable:tokenize(Mapping),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue),
 		     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
@@ -135,76 +138,38 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
 
--spec apply_translations(
-    cuttlefish_schema:schema(),
-    cuttlefish_conf:conf(),
-    [proplists:property()],
-    [string()]) -> [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+-spec apply_translations(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()], [string()]) ->
+                                [proplists:property()] |
+                                {error, atom(), cuttlefish_error:errorlist()}.
 apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, TranslationsToDrop) ->
     %% The fold handles the translations. After we've build the DirectMappings,
     %% we use that to seed this fold's accumulator. As we go through each translation
     %% we write that to the `app.config` that lives in the accumutator.
-    {Proplist, Errorlist} = lists:foldl(
-        fun(TranslationRecord, {Acc, Errors}) ->
+    {Proplist, Errorlist} = lists:foldl(fold_apply_translation(Conf, Schema, TranslationsToDrop),
+                                        {DirectMappings, []}, Translations),
+    case Errorlist of
+        [] ->
+            lager:debug("Applied Translations"),
+            Proplist;
+        Es ->
+            {error, apply_translations, {error, Es}}
+    end.
+
+
+fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
+    fun(TranslationRecord, {Acc, Errors}) ->
             Mapping = cuttlefish_translation:mapping(TranslationRecord),
             Xlat = cuttlefish_translation:func(TranslationRecord),
             case lists:member(Mapping, TranslationsToDrop) of
                 false ->
-                    Tokens = string:tokens(Mapping, "."),
-                    %% get Xlat arity
-                    Arity = proplists:get_value(arity, erlang:fun_info(Xlat)),
-                    {XlatFun, XlatArgs} = case Arity of
-                         1 -> {Xlat, [Conf]};
-                         2 -> {Xlat, [Conf, Schema]};
-                         OtherArity ->
-                             {fun(_) ->
-                                 {error, ?FMT("~p is not a valid arity for "
-                                              "translation fun() ~s. Try 1 or "
-                                              "2.",
-                                              [OtherArity, Mapping]
-                                             )
-                                 }
-                             end, error}
-                    end,
-
+                    {XlatFun, XlatArgs} = prepare_translation_fun(Conf, Schema,
+                                                                  Mapping, Xlat),
                     lager:debug("Running translation for ~s", [Mapping]),
-                    Translated = try apply(XlatFun, XlatArgs) of
-                        {ok, Value} ->
-                            {set, Value};
-                        X ->
-                            {set, X}
-                    catch
-                        %% cuttlefish:conf_get/2 threw not_found
-                        throw:{not_found, NotFound} ->
-                            {error,
-                             ?FMT("Translation for '~s' expected to find"
-                                  " setting '~s' but was missing",
-                                  [Mapping,
-                                   string:join(NotFound, ".")])};
-                        %% For explicitly omitting an output setting.
-                        %% See cuttlefish:unset/0
-                        throw:unset ->
-                            unset;
-                        %% For translations that found invalid
-                        %% settings, even after mapping. See
-                        %% cuttlefish:invalid/1.
-                        throw:{invalid, Invalid} ->
-                            {error,
-                             ?FMT("Translation for '~s' found "
-                                  "invalid configuration: ~s",
-                                  [Mapping, Invalid])};
-                        %% Any unknown error, perhaps caused by stdlib
-                        %% stuff.
-                        E:R ->
-                            {error, ?FMT("Error running translation for ~s, "
-                                         "[~p, ~p].", [Mapping, E, R])}
-                    end,
-
-                    case Translated of
+                    case try_apply_translation(Mapping, XlatFun, XlatArgs) of
                         unset ->
                             {Acc, Errors};
                         {set, NewValue} ->
-                            {set_value(Tokens, Acc, NewValue), Errors};
+                            {set_value(cuttlefish_variable:tokenize(Mapping), Acc, NewValue), Errors};
                         {error, Reason} ->
                             {Acc, [{error, Reason}|Errors]}
                     end;
@@ -212,15 +177,47 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                     lager:debug("~p in Translations to drop...", [Mapping]),
                     {Acc, Errors}
             end
-        end,
-        {DirectMappings, []},
-        Translations),
-    case Errorlist of
-        [] ->
-            lager:debug("Applied Translations"),
-            Proplist;
-        Es ->
-            {error, apply_translations, {error, Es}}
+        end.
+
+prepare_translation_fun(Conf, Schema, Mapping, Xlat) ->
+    case proplists:get_value(arity, erlang:fun_info(Xlat)) of
+        1 -> {Xlat, [Conf]};
+        2 -> {Xlat, [Conf, Schema]};
+        OtherArity ->
+            {fun(_) ->
+                     {error,
+                      ?FMT("~p is not a valid arity for translation fun() ~s."
+                           " Try 1 or 2.", [OtherArity, Mapping])}
+             end, error}
+    end.
+
+try_apply_translation(Mapping, XlatFun, XlatArgs) ->
+    try erlang:apply(XlatFun, XlatArgs) of
+        {ok, Value} ->
+            {set, Value};
+        X ->
+            {set, X}
+    catch
+        %% cuttlefish:conf_get/2 threw not_found
+        throw:{not_found, NotFound} ->
+            {error,
+             ?FMT("Translation for '~s' expected to find setting '~s' but was missing",
+                  [Mapping, cuttlefish_variable:format(NotFound)])};
+        %% For explicitly omitting an output setting.
+        %% See cuttlefish:unset/0
+        throw:unset ->
+            unset;
+        %% For translations that found invalid
+        %% settings, even after mapping. See
+        %% cuttlefish:invalid/1.
+        throw:{invalid, Invalid} ->
+            {error, ?FMT("Translation for '~s' found invalid configuration: ~s",
+                         [Mapping, Invalid])};
+        %% Any unknown error, perhaps caused by stdlib
+        %% stuff.
+        E:R ->
+            {error, ?FMT("Error running translation for ~s, [~p, ~p].",
+                         [Mapping, E, R])}
     end.
 
 %for each token, is it special?
@@ -387,12 +384,12 @@ transform_datatypes(Conf, Mappings) ->
 
                     %% It will prevent anything from starting, and will let you know
                     %% that you're trying to set something that has no effect
-                    VarName = string:join(Variable, "."),
+                    VarName = cuttlefish_variable:format(Variable),
                     lager:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
                     lager:error("  Did you mean one of these?"),
 
                     Possibilities = [ begin
-                        MapVarName = string:join(cuttlefish_mapping:variable(M), "."),
+                        MapVarName = cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
@@ -407,7 +404,7 @@ transform_datatypes(Conf, Mappings) ->
                             {[{Variable, NewValue}|Acc], ErrorAcc};
                         {error, EList} ->
                             ErrorMsg = ?FMT("Error transforming datatype for: "
-                                            "~s", [string:join(Variable, ".")]),
+                                            "~s", [cuttlefish_variable:format(Variable)]),
                             {Acc, [{error, ErrorMsg} | (EList ++ ErrorAcc)]}
                     end
             end
@@ -451,7 +448,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                     case proplists:get_value(NextVar, Conf) of
                         undefined ->
                             {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
-                                         [string:join(Var, "."), string:join(NextVar, ".")])};
+                                         [cuttlefish_variable:format(Var), cuttlefish_variable:format(NextVar)])};
                         SubVal ->
                             %% Do a sub-subsitution, in case the substituted
                             %% value contains substitutions itself. Do this as
@@ -489,64 +486,42 @@ head_sub(Value) ->
             end
     end.
 
--spec transform_type(
-        cuttlefish_datatypes:datatype_list(),
-        string()) -> {ok, term()} | cuttlefish_error:errorlist().
-transform_type(DTs, Value) ->
-    transform_type(DTs, Value, []).
+-spec transform_type(cuttlefish_datatypes:datatype_list() | cuttlefish_datatypes:datatype(), term()) -> 
+                            {ok, term()} | cuttlefish_error:errorlist().
+transform_type(DTs, Value) when is_list(DTs) ->
+    foldm_either(fun(DT) -> transform_type(DT, Value) end, DTs);
 
--spec transform_type(
-        cuttlefish_datatypes:datatype_list(),
-        string(), [cuttlefish_error:error()]) -> {ok, term()} | cuttlefish_error:errorlist().
-transform_type([], _, Errors) -> {error, Errors};
-transform_type([DT|DatatypeTail], Value, Errors) ->
-    case {cuttlefish_datatypes:is_supported(DT), cuttlefish_datatypes:is_extended(DT)} of
-        {true, _} ->
-            transform_supported_type(DT, DatatypeTail, Value, Errors);
-        {_ , true} ->
-            transform_extended_type(DT, DatatypeTail, Value, Errors);
-        {false, false} ->
-            Error = {error, ?FMT("~p is not a supported datatype.", [DT])},
-            {error, [Error]}
+transform_type(DT, Value) ->
+    Supported = cuttlefish_datatypes:is_supported(DT),
+    Extended = cuttlefish_datatypes:is_extended(DT),
+    if 
+        Supported -> transform_supported_type(DT, Value);
+        Extended  -> transform_extended_type(DT, Value);
+        true ->
+            {error, ?FMT("~p is not a supported datatype.", [DT])}
     end.
 
--spec transform_supported_type(cuttlefish_datatypes:datatype(),
-                               cuttlefish_datatypes:datatype_list(),
-                               any(),
-                               [cuttlefish_error:error()]) ->
+-spec transform_supported_type(cuttlefish_datatypes:datatype(), any()) ->
                                      {ok, term()} | cuttlefish_error:errorlist().
-transform_supported_type(DT, Tail, Value, ErrorAcc) ->
-    case {DT, cuttlefish_datatypes:from_string(Value, DT)} of
-        {_, {error, Message}} ->
-            transform_type(Tail, Value, [{error, Message}|ErrorAcc]);
-        {{enum, PossibleValues}, NewValue} ->
-            case lists:member(NewValue, PossibleValues) of
-                true -> {ok, NewValue};
-                false ->
-                    transform_type(Tail, Value, [
-                        {error, ?FMT("Bad value for enum: ~s", [Value])}|ErrorAcc])
-            end;
-        {_, NewValue} -> {ok, NewValue}
+transform_supported_type(DT, Value) ->
+    try cuttlefish_datatypes:from_string(Value, DT) of
+        {error, Message} -> {error, Message};
+        NewValue -> {ok, NewValue}
+    catch
+        Class:Error ->
+            {error, ?FMT("Caught exception converting to ~p: ~p:~p", [DT, Class, Error])}
     end.
 
--spec transform_extended_type(cuttlefish_datatypes:extended(),
-                              cuttlefish_datatypes:datatype_list(),
-                              any(),
-                              [cuttlefish_error:error()]) ->
+-spec transform_extended_type(cuttlefish_datatypes:extended(), any()) ->
                                      {ok, term()} | [cuttlefish_error:error()].
-transform_extended_type({DT, AcceptableValue}, Tail, Value, Errors) ->
-    case transform_supported_type(DT, [], Value, Errors) of
-        {ok, NewValue} ->
-            case NewValue =:= AcceptableValue of
-                true -> {ok, NewValue};
-                _ -> transform_type(Tail, Value,
-                                    [{error,
-                                      ?FMT("~p is not accepted value: ~p",
-                                           [Value, AcceptableValue])}
-                                     |Errors])
-            end;
-        {error, EList} ->
-            EList
+transform_extended_type({DT, AcceptableValue}, Value) ->
+    case transform_supported_type(DT, Value) of
+        {ok, AcceptableValue} -> 
+            {ok, AcceptableValue};
+        {ok, _NewValue} ->
+            {error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])};
+        {error, EList} -> 
+            {error, EList}
     end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
@@ -569,12 +544,13 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
 
     %% The input to this function is massaged enough that you'll never see a hard mapping count > 1
     %% You might see more than one fuzzy match, there's really nothing to stop that.
+    FVariable = cuttlefish_variable:format(Variable),
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, ?FMT("~s not_found", [string:join(Variable, ".")])};
+        {0, 0} -> {error, ?FMT("~s not_found", [FVariable])};
         {X, Y} -> {error, ?FMT("~p hard mappings and ~p fuzzy mappings found "
-                               "for ~s", [X, Y, string:join(Variable, ".")])}
+                               "for ~s", [X, Y, FVariable])}
     end;
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
@@ -610,6 +586,32 @@ run_validations({_, Mappings, Validators}, Conf) ->
     case lists:all(fun(X) -> X =:= true end, Validations) of
         true -> true;
         _ -> Validations
+    end.
+
+
+%% @doc Calls Fun on each element of the list until it returns {ok,
+%% term()}, otherwise accumulates {error, term()} into a list,
+%% wrapping in {error, _} at the end.
+-spec foldm_either(fun((term()) -> 
+                           {ok, term()}  | cuttlefish_error:errorlist()),
+                   list()) -> 
+                      {ok, term()}  | cuttlefish_error:errorlist().                           
+foldm_either(Fun, List) ->
+    foldm_either(Fun, List, []).
+
+%% @doc Calls Fun on each element of the list until it returns {ok,
+%% term()}, otherwise accumulates {error, term()} into a list,
+%% wrapping in {error, _} at the end.
+-spec foldm_either(fun((term()) -> 
+                           {ok, term()}  | cuttlefish_error:errorlist()),
+                   list(), list()) -> 
+                      {ok, term()}  | cuttlefish_error:errorlist().                           
+foldm_either(_Fun, [], Acc) -> {error, lists:reverse(Acc)};
+foldm_either(Fun, [H|T], Acc) ->
+    case Fun(H) of
+        {ok, Result} -> {ok, Result};
+        {error, _}=Error -> 
+            foldm_either(Fun, T, [Error|Acc])
     end.
 
 -ifdef(TEST).
@@ -1048,7 +1050,9 @@ extended_datatypes_test() ->
     assert_extended_datatype([integer, {atom, never}], "never", never),
     assert_extended_datatype([integer, {atom, never}], "always", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
     assert_extended_datatype([{duration, s}, {atom, never}], "never", never),
-    %%("Bad datatype: ~s ~s", [string:join(Variable, "."), Message]
+    assert_extended_datatype([{atom, never}, integer], "1", 1),
+    assert_extended_datatype([{enum, [never, always]}, {duration, s}], "1s", 1),
+    assert_extended_datatype([{atom, never}, {atom, always}], "foo", {error, transform_datatypes, "Error transforming datatype for: a.b"}),
     ok.
 
 not_found_test() ->

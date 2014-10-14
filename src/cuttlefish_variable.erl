@@ -27,6 +27,7 @@
 -ifdef(TEST).
 -ifdef(EQC).
 -include_lib("eqc/include/eqc.hrl").
+-define(QC_OUT(Prop), on_output(fun(F,A) -> io:format(user, F, A) end, Prop)).
 -endif.
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
@@ -251,8 +252,10 @@ filter_by_variable_starts_with_test() ->
         FilteredByString),
     ok.
 
-variable_roundtrip_test() ->
-   ?assert(eqc:quickcheck(eqc:numtests(200,eqc:on_output(fun(F,A) -> io:format(user, F, A) end, prop_format_tokenize_roundtrip())))).
+-ifdef(EQC).
+variable_roundtrip_test_() ->
+   {timeout, 15, 
+    [?_assert(quickcheck(eqc:testing_time(3,?QC_OUT(prop_format_tokenize_roundtrip()))))]}.
 
 prop_format_tokenize_roundtrip() ->
     ?FORALL(Variable, non_empty(list(gen_word())),
@@ -266,4 +269,5 @@ gen_word_char() ->
            choose($0, $9),
            choose($A, $Z),
            choose($a, $z)]).
+-endif.
 -endif.

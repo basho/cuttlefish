@@ -5,15 +5,15 @@
 
 nested_schema_test() ->
     Conf = [
-        {["thing", "a"], on},
+        {["thing", "a"], foo},
         {["nested", "thing1", "type"], "thing"},
-        {["nested", "thing1", "thing", "a"], off},
+        {["nested", "thing1", "thing", "a"], 0},
         {["nested", "thing2", "type"], "thing"}
     ],
     Config = cuttlefish_generator:map(schema(), Conf),
     ?assertEqual(
-        [{thing, [{a, true}]},
-         {nested_things, [{thing, [{a, false}]}, {thing, [{a, true}]}]}],
+        [{thing, [{a, foo}]},
+         {nested_things, [{thing, [{a, 0}]}, {thing, [{a, 5}]}]}],
          Config
         ),
     ok.
@@ -21,15 +21,15 @@ nested_schema_test() ->
 schema() ->
     Mappings = [
         {mapping, "thing.a", "thing.a", [
-            {datatype, flag},
-            {default, on}
+            {datatype, [{atom, foo}, integer]},
+            {default, 5}
         ]},
         {mapping, "nested.$name.type", "nested_things", [
             {datatype, {enum, [thing]}}
         ]},
         {mapping, "nested.$name.thing.a", "nested_things", [
-            {datatype, flag},
-            {default, on}
+            {datatype, [{atom, foo}, integer]},
+            {default, 5}
         ]}
     ],
     Translations = [
