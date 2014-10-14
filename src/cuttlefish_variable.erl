@@ -252,6 +252,7 @@ filter_by_variable_starts_with_test() ->
         FilteredByString),
     ok.
 
+-ifdef(EQC).
 variable_roundtrip_test_() ->
    {timeout, 15, 
     [?_assert(quickcheck(testing_time(3,?QC_OUT(prop_format_tokenize_roundtrip()))))]}.
@@ -268,4 +269,5 @@ gen_word_char() ->
            choose($0, $9),
            choose($A, $Z),
            choose($a, $z)]).
+-endif.
 -endif.
