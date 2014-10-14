@@ -255,7 +255,7 @@ filter_by_variable_starts_with_test() ->
 -ifdef(EQC).
 variable_roundtrip_test_() ->
    {timeout, 15, 
-    [?_assert(quickcheck(testing_time(3,?QC_OUT(prop_format_tokenize_roundtrip()))))]}.
+    [?_assert(quickcheck(eqc:testing_time(3,?QC_OUT(prop_format_tokenize_roundtrip()))))]}.
 
 prop_format_tokenize_roundtrip() ->
     ?FORALL(Variable, non_empty(list(gen_word())),
