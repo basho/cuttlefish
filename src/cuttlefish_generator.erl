@@ -33,13 +33,35 @@
 -define(LSUBLEN, 2).
 -define(RSUBLEN, 1).
 
--export([map/2, find_mapping/2, add_defaults/2]).
+-export([map/2, find_mapping/2, add_defaults/2, minimal_map/2]).
 
 -spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                  [proplists:property()] |
                  {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
     map_add_defaults(Schema, Config).
+
+%% @doc Generates an Erlang config that only includes the settings
+%% encompassed by the passed Config, excluding defaults from the
+%% schema for unspecified settings.
+-spec minimal_map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+                         [proplists:property()] | {error, atom(), cuttlefish_error:errorlist()}.
+minimal_map({AllTranslations,AllMappings,V}, Config) ->
+    ConfigKeys = sets:from_list([K || {K, _} <- Config]),
+    {RestrictedMappings, MappingKeys} = lists:foldr(fun(M,Acc) ->
+                                                            restrict_mappings(M, Acc, ConfigKeys)
+                                                    end, {[], sets:new()}, AllMappings),
+    RestrictedTranslations = [ T || T <- AllTranslations,
+                                    sets:is_element(cuttlefish_translation:mapping(T), MappingKeys)],
+    map({RestrictedTranslations,RestrictedMappings,V}, Config).
+
+restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
+    case sets:is_element(cuttlefish_mapping:variable(M), ConfigKeys) of
+        true ->
+            {[M|Mappings], sets:add_element(cuttlefish_mapping:mapping(M), Keys)};
+        false ->
+            {Mappings, Keys}
+    end.
 
 -spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                               [proplists:property()] |
@@ -725,6 +747,15 @@ map_test() ->
     NewHTTPS = proplists:get_value(https, proplists:get_value(riak_core, NewConfig)),
     ?assertEqual(undefined, NewHTTPS),
     ok.
+
+minimal_map_test() ->
+    lager:start(),
+    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Conf = [{["ring_size"], "32"},
+            {["anti_entropy"], "debug"}],
+    NewConfig = minimal_map(Schema, Conf),
+    ?assertEqual([{riak_core, [{ring_creation_size, 32}]},{riak_kv,[{anti_entropy, {on, [debug]}}]}],
+                 lists:sort(NewConfig)).
 
 
 apply_mappings_test() ->
