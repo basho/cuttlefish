@@ -63,7 +63,7 @@ level.
 
 ## What's it look like to Erlang Developers?
 
-You can learn more about the techincal implementation of schemas at:
+You can learn more about the technical implementation of schemas at:
 https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Erlang-Developers
 
 ## What's it look like to users?
