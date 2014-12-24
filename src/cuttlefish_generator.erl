@@ -72,8 +72,8 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
     lager:debug("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
     case cuttlefish_error:errorlist_maybe(DConfig) of
-        {error, EList} ->
-            {error, add_defaults, {error, EList}};
+        {errorlist, EList} ->
+            {error, add_defaults, {errorlist, EList}};
         _ ->
             map_value_sub(Schema, DConfig)
     end.
@@ -87,7 +87,7 @@ map_value_sub(Schema, Config) ->
          {SubbedConfig, []} ->
             map_transform_datatypes(Schema, SubbedConfig);
          {_, EList} ->
-            {error, rhs_subs, {error, EList}}
+            {error, rhs_subs, {errorlist, EList}}
     end.
 
 -spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
@@ -102,7 +102,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
         {NewConf, []} ->
             map_validate(Schema, NewConf);
         {_, EList} ->
-            {error, transform_datatypes, {error, EList}}
+            {error, transform_datatypes, {errorlist, EList}}
     end.
 
 -spec map_validate(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
@@ -112,8 +112,8 @@ map_validate(Schema, Conf) ->
     %% Any more advanced validators
     lager:debug("Validation"),
     case cuttlefish_error:errorlist_maybe(run_validations(Schema, Conf)) of
-        {error, EList} ->
-            {error, validation, {error, EList}};
+        {errorlist, EList} ->
+            {error, validation, {errorlist, EList}};
         true ->
             {DirectMappings, TranslationsToDrop} = apply_mappings(Schema, Conf),
             apply_translations(Schema, Conf, DirectMappings, TranslationsToDrop)
@@ -146,7 +146,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
                     Tokens = cuttlefish_variable:tokenize(Mapping),
                     NewValue = proplists:get_value(Variable, Conf),
                     {set_value(Tokens, ConfAcc, NewValue),
-		     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
+                     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
                 {true, true} ->
                     {ConfAcc, {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
                 _ ->
@@ -174,7 +174,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
             lager:debug("Applied Translations"),
             Proplist;
         Es ->
-            {error, apply_translations, {error, Es}}
+            {error, apply_translations, {errorlist, Es}}
     end.
 
 
@@ -192,8 +192,8 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                             {Acc, Errors};
                         {set, NewValue} ->
                             {set_value(cuttlefish_variable:tokenize(Mapping), Acc, NewValue), Errors};
-                        {error, Reason} ->
-                            {Acc, [{error, Reason}|Errors]}
+                        {error, Term} ->
+                            {Acc, [{error, Term}|Errors]}
                     end;
                 _ ->
                     lager:debug("~p in Translations to drop...", [Mapping]),
@@ -207,9 +207,7 @@ prepare_translation_fun(Conf, Schema, Mapping, Xlat) ->
         2 -> {Xlat, [Conf, Schema]};
         OtherArity ->
             {fun(_) ->
-                     {error,
-                      ?FMT("~p is not a valid arity for translation fun() ~s."
-                           " Try 1 or 2.", [OtherArity, Mapping])}
+                     {error, {translation_arity, {Mapping, OtherArity}}}
              end, error}
     end.
 
@@ -222,9 +220,8 @@ try_apply_translation(Mapping, XlatFun, XlatArgs) ->
     catch
         %% cuttlefish:conf_get/2 threw not_found
         throw:{not_found, NotFound} ->
-            {error,
-             ?FMT("Translation for '~s' expected to find setting '~s' but was missing",
-                  [Mapping, cuttlefish_variable:format(NotFound)])};
+            {error, {translation_missing_setting,
+                     {Mapping, cuttlefish_variable:format(NotFound)}}};
         %% For explicitly omitting an output setting.
         %% See cuttlefish:unset/0
         throw:unset ->
@@ -233,13 +230,13 @@ try_apply_translation(Mapping, XlatFun, XlatArgs) ->
         %% settings, even after mapping. See
         %% cuttlefish:invalid/1.
         throw:{invalid, Invalid} ->
-            {error, ?FMT("Translation for '~s' found invalid configuration: ~s",
-                         [Mapping, Invalid])};
+            {error, {translation_invalid_configuration,
+                     {Mapping, Invalid}}};
         %% Any unknown error, perhaps caused by stdlib
         %% stuff.
         E:R ->
-            {error, ?FMT("Error running translation for ~s, [~p, ~p].",
-                         [Mapping, E, R])}
+            {error, {translation_unknown_error,
+                     {Mapping, {E, R}}}}
     end.
 
 %for each token, is it special?
@@ -299,8 +296,7 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
         _ ->
             %% TODO: Handle with more style and grace
             lager:error("Both fuzzy and strict match! should not happen"),
-            [{error, ?FMT("~p has both a fuzzy and strict match",
-                          [VariableDef])}|Acc]
+            [{error, {map_multiple_match, VariableDef}}|Acc]
     end.
 
 is_strict_prefix([H|T1], [H|T2]) ->
@@ -416,18 +412,19 @@ transform_datatypes(Conf, Mappings) ->
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
                     _ = [ lager:error("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
-                    {Acc, [ {error, ?FMT("Conf file attempted to set unknown variable: ~s", [VarName])} | ErrorAcc ]};
+                    {Acc, [ {error, {unknown_variable, VarName}} | ErrorAcc ]};
                 MappingRecord ->
                     DTs = cuttlefish_mapping:datatype(MappingRecord),
 
-                    %% DTs is a list now!
+                    %% DTs is a list now, which means we'll receive an
+                    %% errorlist, not a single error
                     case transform_type(DTs, Value) of
                         {ok, NewValue} ->
                             {[{Variable, NewValue}|Acc], ErrorAcc};
-                        {error, EList} ->
-                            ErrorMsg = ?FMT("Error transforming datatype for: "
-                                            "~s", [cuttlefish_variable:format(Variable)]),
-                            {Acc, [{error, ErrorMsg} | (EList ++ ErrorAcc)]}
+                        {errorlist, EList} ->
+                            NewError = {transform_type,
+                                        cuttlefish_variable:format(Variable)},
+                            {Acc, [{error, NewError}] ++ EList ++ ErrorAcc}
                     end
             end
         end,
@@ -462,15 +459,16 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
-             {error, ?FMT("Circular RHS substitutions: ~p", [History])};
+             {error, {circular_rhs, History}};
          _ ->
              case head_sub(Value) of
                  none -> {Value, Conf};
                  {sub, NextVar, {SubFront, SubBack}} ->
                     case proplists:get_value(NextVar, Conf) of
                         undefined ->
-                            {error, ?FMT("'~s' substitution requires a config variable '~s' to be set",
-                                         [cuttlefish_variable:format(Var), cuttlefish_variable:format(NextVar)])};
+                            {error, {substitution_missing_config,
+                                     {cuttlefish_variable:format(Var),
+                                      cuttlefish_variable:format(NextVar)}}};
                         SubVal ->
                             %% Do a sub-subsitution, in case the substituted
                             %% value contains substitutions itself. Do this as
@@ -508,42 +506,44 @@ head_sub(Value) ->
             end
     end.
 
--spec transform_type(cuttlefish_datatypes:datatype_list() | cuttlefish_datatypes:datatype(), term()) -> 
-                            {ok, term()} | cuttlefish_error:errorlist().
+%% If transform_type takes a list as first argument, foldm_either will
+%% give us back an errorlist for a single error
+-spec transform_type(cuttlefish_datatypes:datatype_list() | cuttlefish_datatypes:datatype(), term()) ->
+                            {ok, term()} | cuttlefish_error:error() | cuttlefish_error:errorlist().
 transform_type(DTs, Value) when is_list(DTs) ->
     foldm_either(fun(DT) -> transform_type(DT, Value) end, DTs);
 
 transform_type(DT, Value) ->
     Supported = cuttlefish_datatypes:is_supported(DT),
     Extended = cuttlefish_datatypes:is_extended(DT),
-    if 
+    if
         Supported -> transform_supported_type(DT, Value);
         Extended  -> transform_extended_type(DT, Value);
         true ->
-            {error, ?FMT("~p is not a supported datatype.", [DT])}
+            {error, {unsupported_type, DT}}
     end.
 
 -spec transform_supported_type(cuttlefish_datatypes:datatype(), any()) ->
-                                     {ok, term()} | cuttlefish_error:errorlist().
+                                     {ok, term()} | cuttlefish_error:error().
 transform_supported_type(DT, Value) ->
     try cuttlefish_datatypes:from_string(Value, DT) of
         {error, Message} -> {error, Message};
         NewValue -> {ok, NewValue}
     catch
         Class:Error ->
-            {error, ?FMT("Caught exception converting to ~p: ~p:~p", [DT, Class, Error])}
+            {error, {transform_type_exception, {DT, {Class, Error}}}}
     end.
 
 -spec transform_extended_type(cuttlefish_datatypes:extended(), any()) ->
-                                     {ok, term()} | [cuttlefish_error:error()].
+                                     {ok, term()} | cuttlefish_error:error().
 transform_extended_type({DT, AcceptableValue}, Value) ->
     case transform_supported_type(DT, Value) of
-        {ok, AcceptableValue} -> 
+        {ok, AcceptableValue} ->
             {ok, AcceptableValue};
         {ok, _NewValue} ->
-            {error, ?FMT("~p is not accepted value: ~p",[Value, AcceptableValue])};
-        {error, EList} -> 
-            {error, EList}
+            {error, {transform_type_unacceptable, {Value, AcceptableValue}}};
+        {error, Term} ->
+            {error, Term}
     end.
 %% Ok, this is tricky
 %% There are three scenarios we have to deal with:
@@ -570,15 +570,14 @@ find_mapping([H|_]=Variable, Mappings) when is_list(H) ->
     case {length(HardMappings), length(FuzzyMappings)} of
         {1, _} -> hd(HardMappings);
         {0, 1} -> hd(FuzzyMappings);
-        {0, 0} -> {error, ?FMT("~s not_found", [FVariable])};
-        {X, Y} -> {error, ?FMT("~p hard mappings and ~p fuzzy mappings found "
-                               "for ~s", [X, Y, FVariable])}
+        {0, 0} -> {error, {mapping_not_found, FVariable}};
+        {X, Y} -> {error, {mapping_multiple, {FVariable, {X, Y}}}}
     end;
 find_mapping(Variable, Mappings) ->
     find_mapping(cuttlefish_variable:tokenize(Variable), Mappings).
 
 -spec run_validations(cuttlefish_schema:schema(), cuttlefish_conf:conf())
-    -> boolean().
+    -> boolean()|list(cuttlefish_error:error()).
 run_validations({_, Mappings, Validators}, Conf) ->
     Validations = lists:flatten([ begin
         Vs = cuttlefish_mapping:validators(M, Validators),
@@ -590,14 +589,12 @@ run_validations({_, Mappings, Validators}, Conf) ->
                 {_, true} ->
                     true;
                 _ ->
-                    LogString = ?FMT(
-                        "~s invalid, ~s",
-                        [
-                            cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
-                            cuttlefish_validator:description(V)
-                        ]),
-                    lager:error(LogString),
-                    {error, LogString}
+                    Error = {validation, { cuttlefish_variable:format(
+                                             cuttlefish_mapping:variable(M)),
+                                           cuttlefish_validator:description(V)
+                                         }},
+                    lager:error(cuttlefish_error:xlate(Error)),
+                    {error, Error}
             end
         end || V <- Vs]
 
@@ -614,29 +611,31 @@ run_validations({_, Mappings, Validators}, Conf) ->
 %% @doc Calls Fun on each element of the list until it returns {ok,
 %% term()}, otherwise accumulates {error, term()} into a list,
 %% wrapping in {error, _} at the end.
--spec foldm_either(fun((term()) -> 
+-spec foldm_either(fun((term()) ->
                            {ok, term()}  | cuttlefish_error:errorlist()),
-                   list()) -> 
-                      {ok, term()}  | cuttlefish_error:errorlist().                           
+                   list()) ->
+                      {ok, term()}  | cuttlefish_error:errorlist().
 foldm_either(Fun, List) ->
     foldm_either(Fun, List, []).
 
 %% @doc Calls Fun on each element of the list until it returns {ok,
 %% term()}, otherwise accumulates {error, term()} into a list,
-%% wrapping in {error, _} at the end.
--spec foldm_either(fun((term()) -> 
-                           {ok, term()}  | cuttlefish_error:errorlist()),
-                   list(), list()) -> 
-                      {ok, term()}  | cuttlefish_error:errorlist().                           
-foldm_either(_Fun, [], Acc) -> {error, lists:reverse(Acc)};
+%% wrapping in {errorlist, _} at the end.
+-spec foldm_either(fun((term()) ->
+                           {ok, term()}  | cuttlefish_error:error()),
+                   list(), list()) ->
+                      {ok, term()}  | cuttlefish_error:errorlist().
+foldm_either(_Fun, [], Acc) -> {errorlist, lists:reverse(Acc)};
 foldm_either(Fun, [H|T], Acc) ->
     case Fun(H) of
         {ok, Result} -> {ok, Result};
-        {error, _}=Error -> 
+        {error, _}=Error ->
             foldm_either(Fun, T, [Error|Acc])
     end.
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 bad_conf_test() ->
     Conf = [
@@ -871,8 +870,8 @@ find_mapping_test() ->
 
     %% Test variable name with dot
     ?assertEqual(
-        {error, "variable.with.E.F.name not_found"},
-        find_mapping(["variable","with","E","F","name"], Mappings)
+       "variable.with.E.F.name not_found",
+       ?XLATE(find_mapping(["variable","with","E","F","name"], Mappings))
         ),
     %% Test variable name with escaped dot
     ?assertEqual(
@@ -888,8 +887,8 @@ multiple_hard_match_test() ->
         cuttlefish_mapping:parse({mapping, "variable.with.fixed.name", "",  [{ default, 1}]})
     ],
     ?assertEqual(
-        {error, "2 hard mappings and 0 fuzzy mappings found for variable.with.fixed.name"},
-        find_mapping(["variable","with","fixed","name"], Mappings)
+       "2 hard mappings and 0 fuzzy mappings found for variable.with.fixed.name",
+       ?XLATE(find_mapping(["variable","with","fixed","name"], Mappings))
         ),
     ok.
 
@@ -996,7 +995,7 @@ transform_datatypes_not_found_test() ->
         {["conf", "other"], "string"}
     ],
     NewConf = transform_datatypes(Conf, Mappings),
-    ?assertEqual({[], [{error,"Conf file attempted to set unknown variable: conf.other"}]}, NewConf),
+    ?assertEqual({[], [{error, {unknown_variable, "conf.other"}}]}, NewConf),
     ok.
 
 validation_test() ->
@@ -1070,7 +1069,7 @@ assert_extended_datatype(
     case Expected of
         {error, Phase, EMsg} ->
             ?assertMatch({error, Phase, _}, Actual),
-            ?assertEqual({error, EMsg}, hd(element(2, element(3, Actual))));
+            ?assertEqual(EMsg, ?XLATE(hd(element(2, element(3, Actual)))));
         _ ->
             ?assertEqual([{e, [{k, Expected}]}], map({[], Mappings, []}, Conf))
     end,
@@ -1094,10 +1093,10 @@ not_found_test() ->
     ],
     AppConf = map({Translations, Mappings, []}, [{["a"], "foo"}]),
     ?assertEqual({error, apply_translations,
-                  {error, [{error,
-                            "Translation for 'b.c' expected to find"
-                    " setting 'd' but was missing"}]}},
-                AppConf).
+                  {errorlist,
+                   [{error, {translation_missing_setting,
+                             {"b.c", "d"}}}]}},
+                 AppConf).
 
 invalid_test() ->
     Mappings = [cuttlefish_mapping:parse({mapping, "a", "b.c", []})],
@@ -1107,8 +1106,9 @@ invalid_test() ->
     ],
     AppConf = map({Translations, Mappings, []}, [{["a"], "foo"}]),
     ?assertEqual({error, apply_translations,
-                  {error, [{error, "Translation for 'b.c' found invalid "
-                            "configuration: review all files"}]}},
+                  {errorlist,
+                   [{error, {translation_invalid_configuration,
+                             {"b.c", "review all files"}}}]}},
                  AppConf).
 
 value_sub_test() ->
@@ -1129,11 +1129,18 @@ value_sub_infinite_loop_test() ->
             {["c"], "$(b)/d"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
-    ?assertEqual([
-                     {error, "Circular RHS substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]"},
-                     {error, "Circular RHS substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]"},
-                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]"}
-                 ], Errors),
+    ?assertEqual(
+       "Circular RHS substitutions: [[\"a\"],[\"b\"],[\"c\"],[\"a\"]]",
+       ?XLATE(hd(Errors))
+      ),
+    ?assertEqual(
+       "Circular RHS substitutions: [[\"b\"],[\"c\"],[\"a\"],[\"b\"]]",
+       ?XLATE(hd(tl(Errors)))
+      ),
+    ?assertEqual(
+       "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"b\"],[\"c\"]]",
+       ?XLATE(hd(tl(tl(Errors))))
+      ),
     ok.
 
 value_sub_not_found_test() ->
@@ -1141,9 +1148,10 @@ value_sub_not_found_test() ->
             {["a"], "$(b)/c"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
-    ?assertEqual([
-                   {error, "'a' substitution requires a config variable 'b' to be set"}
-                 ], Errors),
+    ?assertEqual(
+       "'a' substitution requires a config variable 'b' to be set",
+       ?XLATE(hd(Errors))
+      ),
     ok.
 
 value_sub_whitespace_test() ->
@@ -1178,10 +1186,14 @@ value_sub_error_in_second_sub_test() ->
             {["c"], "$(a)/c"}
            ],
     {_NewConf, Errors} = value_sub(Conf),
-    ?assertEqual([
-                     {error, "Circular RHS substitutions: [[\"a\"],[\"c\"],[\"a\"]]"},
-                     {error, "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"c\"]]"}
-                 ], Errors),
+    ?assertEqual(
+       "Circular RHS substitutions: [[\"a\"],[\"c\"],[\"a\"]]",
+       ?XLATE(hd(Errors))
+      ),
+    ?assertEqual(
+       "Circular RHS substitutions: [[\"c\"],[\"a\"],[\"c\"]]",
+       ?XLATE(hd(tl(Errors)))
+      ),
     ok.
 
 value_sub_false_circle_test() ->

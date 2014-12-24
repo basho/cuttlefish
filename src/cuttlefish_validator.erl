@@ -45,7 +45,7 @@
     func/1,
     replace/2]).
 
--spec parse(raw_validator()) -> validator() | {error, list()}.
+-spec parse(raw_validator()) -> validator() | cuttlefish_error:error().
 parse({validator, Name, Description, Fun}) ->
     #validator{
         name = Name,
@@ -53,17 +53,13 @@ parse({validator, Name, Description, Fun}) ->
         func = Fun
     };
 parse(X) ->
-    {error,
-     io_lib:format(
-        "poorly formatted input to cuttlefish_validator:parse/1 : ~p",
-        [X]
-    )}.
+    {error, {validator_parse, X}}.
 
 %% This assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
-    raw_validator(), [validator()]) -> [validator()|{error, list()}].
+    raw_validator(), [validator()]) -> [validator()|cuttlefish_error:error()].
 parse_and_merge({validator, ValidatorName, _, _} = ValidatorSource, Validators) ->
     NewValidator = parse(ValidatorSource),
     case lists:keyfind(ValidatorName, #validator.name, Validators) of
@@ -96,6 +92,8 @@ replace(Validator, ListOfValidators) ->
     end.
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 parse_test() ->
     ValidatorDataStruct = {
@@ -184,11 +182,11 @@ remove_duplicates_test() ->
     ok.
 
 parse_error_test() ->
-    {ErrorAtom, IOList} = parse(not_a_raw_validator),
+    {ErrorAtom, ErrorTerm} = parse(not_a_raw_validator),
     ?assertEqual(error, ErrorAtom),
     ?assertEqual(
-        "poorly formatted input to cuttlefish_validator:parse/1 : not_a_raw_validator",
-        lists:flatten(IOList)),
+        "Poorly formatted input to cuttlefish_validator:parse/1 : not_a_raw_validator",
+        ?XLATE(ErrorTerm)),
     ok.
 
 is_validator_test() ->
