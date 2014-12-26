@@ -122,43 +122,39 @@ map_validate(Schema, Conf) ->
 -spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                             {[proplists:property()], [string()]}.
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
-    %% This fold handles 1:1 mappings, that have no cooresponding translations
+    %% This fold handles 1:1 mappings, that have no corresponding translations
     %% The accumlator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings".
     %% It also builds a list of "TranslationsToDrop". It's basically saying that
     %% if a user didn't actually configure this setting in the .conf file and
     %% there's no default in the schema, then there won't be enough information
     %% during the translation phase to succeed, so we'll earmark it to be skipped
-    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} = lists:foldr(
-        fun(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}) ->
-            Mapping = cuttlefish_mapping:mapping(MappingRecord),
-            Default = cuttlefish_mapping:default(MappingRecord),
-            Variable = cuttlefish_mapping:variable(MappingRecord),
-            case {
-                Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf),
-                lists:any(
-                    fun(T) ->
-                        cuttlefish_translation:mapping(T) =:= Mapping
-                    end,
-                    Translations)
-                } of
-                {true, false} ->
-                    Tokens = cuttlefish_variable:tokenize(Mapping),
-                    NewValue = proplists:get_value(Variable, Conf),
-                    {set_value(Tokens, ConfAcc, NewValue),
-		     {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
-                {true, true} ->
-                    {ConfAcc, {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
-                _ ->
-                    {ConfAcc, {ordsets:add_element(Mapping,MaybeDrop), Keep}}
-            end
-        end,
-        {[], {ordsets:new(),ordsets:new()}},
-        Mappings),
+    {DirectMappings, {TranslationsToMaybeDrop, TranslationsToKeep}} =
+        lists:foldr(fun(M, A) -> fold_apply_mappings(M, A, Translations, Conf) end,
+                    {[], {ordsets:new(),ordsets:new()}},
+          Mappings),
     lager:debug("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
+
+fold_apply_mappings(MappingRecord, {ConfAcc, {MaybeDrop, Keep}}, Translations, Conf) ->
+    Mapping = cuttlefish_mapping:mapping(MappingRecord),
+    Default = cuttlefish_mapping:default(MappingRecord),
+    Variable = cuttlefish_mapping:variable(MappingRecord),
+    IsDefined = (Default =/= undefined orelse cuttlefish_conf:is_variable_defined(Variable, Conf)),
+    HasTranslation = lists:any(fun(T) -> cuttlefish_translation:mapping(T) =:= Mapping end, Translations),
+    if 
+        IsDefined andalso not HasTranslation ->
+            Tokens = cuttlefish_variable:tokenize(Mapping),
+            NewValue = proplists:get_value(Variable, Conf),
+            {set_value(Tokens, ConfAcc, NewValue), 
+             {MaybeDrop, ordsets:add_element(Mapping, Keep)}};
+        IsDefined andalso HasTranslation ->
+            {ConfAcc, {MaybeDrop, ordsets:add_element(Mapping,Keep)}};
+        true ->
+            {ConfAcc, {ordsets:add_element(Mapping,MaybeDrop), Keep}}
+    end.
 
 -spec apply_translations(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()], [string()]) ->
                                 [proplists:property()] |
