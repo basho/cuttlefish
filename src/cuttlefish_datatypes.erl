@@ -205,7 +205,7 @@ from_string(String, integer) when is_list(String) ->
     try list_to_integer(String) of
         X -> X
     catch
-        _:_ -> {error, {conversion, {String, "integer"}}}
+        _:_ -> {error, {conversion, {String, integer}}}
     end;
 
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
@@ -217,7 +217,7 @@ from_string(String, ip) when is_list(String) ->
     end of
         X -> X
     catch
-        _:_ -> {error, {conversion, {String, "IP"}}}
+        _:_ -> {error, {conversion, {String, 'IP'}}}
     end;
 
 from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
@@ -261,7 +261,7 @@ from_string(String, float) when is_list(String) ->
     try list_to_float(String) of
         X -> X
     catch
-        _:_ -> {error, {conversion, {String, "float"}}}
+        _:_ -> {error, {conversion, {String, float}}}
     end;
 
 from_string(Thing, InvalidDatatype) ->
