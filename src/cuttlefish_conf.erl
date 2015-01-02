@@ -43,7 +43,7 @@ files(ListOfConfFiles) ->
     {ValidConf, Errors} = lists:foldl(
       fun(ConfFile, {ConfAcc, ErrorAcc}) ->
               case cuttlefish_conf:file(ConfFile) of
-                  {error, ErrorList} ->
+                  {errorlist, ErrorList} ->
                       {ConfAcc, ErrorList ++ ErrorAcc};
                   Conf ->
                       {lists:foldl(
@@ -58,25 +58,26 @@ files(ListOfConfFiles) ->
       ListOfConfFiles),
     case {ValidConf, Errors} of
         {_, []} -> ValidConf;
-        _ -> {error, Errors}
+        _ -> {errorlist, Errors}
     end.
 
 -spec file(file:name()) -> conf() | cuttlefish_error:errorlist().
 file(Filename) ->
     case conf_parse:file(Filename) of
         {error, Reason} ->
-            {error, [{error, ?FMT("Could not open file (~s) for Reason ~s", [Filename, Reason])}]};
+            %% Reason is an atom via file:open
+            {errorlist, [{error, {file_open, {Filename, Reason}}}]};
         {_Conf, Remainder, {{line, L}, {column, C}}} when is_binary(Remainder) ->
-            {error, [{error, ?FMT("Syntax error in ~s after line ~p column ~p, parsing incomplete", [Filename, L, C])}]};
+            {errorlist, [{error, {conf_syntax, {Filename, {L, C}}}}]};
         Conf ->
             %% Conf is a proplist, check if any of the values are cuttlefish_errors
             {_, Values} = lists:unzip(Conf),
             case cuttlefish_error:filter(Values) of
-                {error, []} ->
+                {errorlist, []} ->
                     remove_duplicates(Conf);
-                {error, ErrorList} ->
-                    NewErrorList = [ {error, ?FMT("~s: ~s", [Filename, E])} || {error, E} <- ErrorList ],
-                    {error, NewErrorList}
+                {errorlist, ErrorList} ->
+                    NewErrorList = [ {error, {in_file, {Filename, E}}} || {error, E} <- ErrorList ],
+                    {errorlist, NewErrorList}
             end
     end.
 
@@ -272,12 +273,12 @@ duplicates_multi_test() ->
 
 files_one_nonent_test() ->
     Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
-    ?assertEqual({error,[{error,"Could not open file (../test/nonent.conf) for Reason enoent"}]}, Conf),
+    ?assertEqual({errorlist,[{error, {file_open, {"../test/nonent.conf", enoent}}}]}, Conf),
     ok.
 
 files_incomplete_parse_test() ->
     Conf = file("../test/incomplete.conf"),
-    ?assertEqual({error, [{error,"Syntax error in ../test/incomplete.conf after line 3 column 1, parsing incomplete"}]}, Conf),
+    ?assertEqual({errorlist, [{error, {conf_syntax, {"../test/incomplete.conf", {3, 1}}}}]}, Conf),
     ok.
 
 generate_element_level_advanced_test() ->

@@ -76,7 +76,7 @@ parse(InputDurationString) ->
         Int when is_integer(Int) ->
             Int;
         _ ->
-            {error, ?FMT("Invalid duration value: ~s", [InputDurationString])}
+            {error, {duration, InputDurationString}}
     end.
 
 -ifdef(TEST).

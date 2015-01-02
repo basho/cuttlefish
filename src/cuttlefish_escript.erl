@@ -304,10 +304,11 @@ load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
     lager:debug("ConfFiles: ~p", [ConfFiles]),
     case cuttlefish_conf:files(ConfFiles) of
-        {error, Errors} ->
-            _ = [ lager:error(E) || {error, E} <- Errors],
+        {errorlist, Errors} ->
+            _ = [ lager:error(cuttlefish_error:xlate(E)) ||
+                    {error, E} <- Errors],
             stop_deactivate(),
-            {error, Errors};
+            {errorlist, Errors};
         GoodConf ->
             GoodConf
     end.
@@ -358,7 +359,7 @@ engage_cuttlefish(ParsedArgs) ->
 
     Conf = load_conf(ParsedArgs),
     NewConfig = case cuttlefish_generator:map(Schema, Conf) of
-        {error, Phase, {error, Errors}} ->
+        {error, Phase, {errorlist, Errors}} ->
             lager:error("Error generating configuration in phase ~s", [Phase]),
             _ = [ cuttlefish_error:print(E) || E <- Errors],
             stop_deactivate();

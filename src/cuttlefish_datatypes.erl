@@ -190,7 +190,7 @@ to_string(Value, MaybeExtendedDatatype) ->
         true ->
             to_string(Value, extended_from(MaybeExtendedDatatype));
         _ ->
-            {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p to_string.", [Value, MaybeExtendedDatatype]))}
+            {error, {type, {Value, MaybeExtendedDatatype}}}
     end.
 
 -spec from_string(term(), datatype()) -> term() | cuttlefish_error:error().
@@ -205,7 +205,7 @@ from_string(String, integer) when is_list(String) ->
     try list_to_integer(String) of
         X -> X
     catch
-        _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to an integer", [String]))}
+        _:_ -> {error, {conversion, {String, integer}}}
     end;
 
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
@@ -217,7 +217,7 @@ from_string(String, ip) when is_list(String) ->
     end of
         X -> X
     catch
-        _:_ -> {error, lists:flatten(io_lib:format("~p cannot be converted into an IP", [String]))}
+        _:_ -> {error, {conversion, {String, 'IP'}}}
     end;
 
 from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
@@ -240,7 +240,7 @@ from_string(Flag, {flag, _, _}=Type) when is_atom(Flag) -> cuttlefish_flag:parse
 
 from_string(Percent, {percent, integer}) when is_integer(Percent), Percent >= 0, Percent =< 100 -> Percent;
 from_string(Percent, {percent, integer}) when is_integer(Percent) ->
-    {error, lists:flatten(io_lib:format("~p% can't be outside the range 0 - 100%", [Percent]))};
+    {error, {range, {{Percent, {percent, integer}}, "0 - 100%"}}};
 %% This clause ends with a percent sign!
 from_string(Percent, {percent, integer}) when is_list(Percent) ->
     from_string(
@@ -249,7 +249,7 @@ from_string(Percent, {percent, integer}) when is_list(Percent) ->
 
 from_string(Percent, {percent, float}) when is_float(Percent), Percent >= 0, Percent =< 1 -> Percent;
 from_string(Percent, {percent, float}) when is_float(Percent) ->
-    {error, lists:flatten(io_lib:format("~s can't be outside the range 0 - 100%", [to_string(Percent, {percent, float})]))};
+    {error, {range, {{Percent, {percent, float}}, "0 - 100%"}}};
 %% This clause ends with a percent sign!
 from_string(Percent, {percent, float}) when is_list(Percent) ->
     from_string(
@@ -261,13 +261,15 @@ from_string(String, float) when is_list(String) ->
     try list_to_float(String) of
         X -> X
     catch
-        _:_ -> {error, lists:flatten(io_lib:format("~p can't be converted to a float", [String]))}
+        _:_ -> {error, {conversion, {String, float}}}
     end;
 
 from_string(Thing, InvalidDatatype) ->
-   {error, lists:flatten(io_lib:format("Tried to convert ~p, an invalid datatype ~p from_string.", [Thing, InvalidDatatype]))}.
+   {error, {type, {Thing, InvalidDatatype}}}.
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 to_string_atom_test() ->
     ?assertEqual("split_the", to_string(split_the, atom)),
@@ -332,7 +334,7 @@ to_string_extended_type_test() ->
     ok.
 
 to_string_unsupported_datatype_test() ->
-    ?assertEqual({error, "Tried to convert \"Something\", an invalid datatype unsupported_datatype to_string."}, to_string("Something", unsupported_datatype)).
+    ?assertEqual("Tried to convert \"Something\" but invalid datatype: unsupported_datatype", ?XLATE(to_string("Something", unsupported_datatype))).
 
 from_string_atom_test() ->
     ?assertEqual(split_the, from_string(split_the, atom)),
@@ -341,7 +343,7 @@ from_string_atom_test() ->
 from_string_integer_test() ->
     ?assertEqual(32, from_string(32, integer)),
     ?assertEqual(32, from_string("32", integer)),
-    ?assertEqual({error, "\"thirty_two\" can't be converted to an integer"}, from_string("thirty_two", integer)),
+    ?assertEqual("\"thirty_two\" cannot be converted to a(n) integer", ?XLATE(from_string("thirty_two", integer))),
     ok.
 
 from_string_ip_test() ->
@@ -351,13 +353,13 @@ from_string_ip_test() ->
         from_string("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
 
     ?assertEqual(
-        {error, "\"This is not an IP\" cannot be converted into an IP"},
-        from_string("This is not an IP", ip)
+       "\"This is not an IP\" cannot be converted to a(n) IP",
+       ?XLATE(from_string("This is not an IP", ip))
         ),
     ok.
 
 from_string_enum_test() ->
-    ?assertEqual({error, "\"a\" is not a valid enum value, acceptable values are [\"b\",\"c\"]."}, from_string(a, {enum, [b, c]})),
+    ?assertEqual("\"a\" is not a valid enum value, acceptable values are: b, c", ?XLATE(from_string(a, {enum, [b, c]}))),
     ?assertEqual(true, from_string("true", {enum, [true, false]})),
     ?assertEqual(true, from_string(true, {enum, [true, false]})).
 
@@ -380,8 +382,8 @@ from_string_percent_integer_test() ->
     %% Range!
     ?assertEqual(0, from_string("0%", {percent, integer})),
     ?assertEqual(100, from_string("100%", {percent, integer})),
-    ?assertEqual({error, "110% can't be outside the range 0 - 100%"}, from_string("110%", {percent, integer})),
-    ?assertEqual({error, "-1% can't be outside the range 0 - 100%"}, from_string("-1%", {percent, integer})),
+    ?assertEqual("110% can't be outside the range 0 - 100%", ?XLATE(from_string("110%", {percent, integer}))),
+    ?assertEqual("-1% can't be outside the range 0 - 100%", ?XLATE(from_string("-1%", {percent, integer}))),
     ok.
 
 from_string_percent_float_test() ->
@@ -390,8 +392,8 @@ from_string_percent_float_test() ->
     %% Range!
     ?assertEqual(0.0, from_string("0%", {percent, float})),
     ?assertEqual(1.0, from_string("100%", {percent, float})),
-    ?assertEqual({error, "110% can't be outside the range 0 - 100%"}, from_string("110%", {percent, float})),
-    ?assertEqual({error, "-1% can't be outside the range 0 - 100%"}, from_string("-1%", {percent, float})),
+    ?assertEqual("110% can't be outside the range 0 - 100%", ?XLATE(from_string("110%", {percent, float}))),
+    ?assertEqual("-1% can't be outside the range 0 - 100%", ?XLATE(from_string("-1%", {percent, float}))),
     ok.
 
 from_string_float_test() ->
@@ -403,7 +405,7 @@ from_string_string_test() ->
     ?assertEqual("string", from_string("string", string)).
 
 from_string_unsupported_datatype_test() ->
-    ?assertEqual({error, "Tried to convert \"string\", an invalid datatype unsupported_datatype from_string."}, from_string("string", unsupported_datatype)).
+    ?assertEqual("Tried to convert \"string\" but invalid datatype: unsupported_datatype", ?XLATE(from_string("string", unsupported_datatype))).
 
 is_supported_test() ->
     ?assert(is_supported(integer)),
