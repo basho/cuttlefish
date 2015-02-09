@@ -1,15 +1,15 @@
+.rebar3
+_build
 .DS_Store
 generated.config
 generated.conf
 ebin/*
 .eunit
-src/conf_parse.erl
 deps
 cuttlefish
 *.sublime-project
 *.sublime-workspace
 log
 .local_dialyzer_plt
-src/cuttlefish_duration_parse.erl
 erln8.config
 test_fixtures/escript_prune_test/generated.config/*
