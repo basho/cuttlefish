@@ -43,7 +43,7 @@
     func/1,
     replace/2]).
 
--spec parse(raw_translation()) -> translation() | {error, list()}.
+-spec parse(raw_translation()) -> translation() | cuttlefish_error:error().
 parse({translation, Mapping}) ->
     #translation{
         mapping = Mapping
@@ -54,11 +54,7 @@ parse({translation, Mapping, Fun}) ->
         func = Fun
     };
 parse(X) ->
-    {error,
-     io_lib:format(
-        "poorly formatted input to cuttlefish_translation:parse/1 : ~p",
-        [X]
-    )}.
+    {error, {translation_parse, X}}.
 
 %% This assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
@@ -96,6 +92,8 @@ replace(Translation, ListOfTranslations) ->
     end.
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 parse_test() ->
     TranslationDataStruct = {
@@ -173,11 +171,11 @@ parse_and_merge_test() ->
     ok.
 
 parse_error_test() ->
-    {ErrorAtom, IOList} = parse(not_a_raw_translation),
+    {ErrorAtom, ErrorTuple} = parse(not_a_raw_translation),
     ?assertEqual(error, ErrorAtom),
     ?assertEqual(
-        "poorly formatted input to cuttlefish_translation:parse/1 : not_a_raw_translation",
-        lists:flatten(IOList)),
+        "Poorly formatted input to cuttlefish_translation:parse/1 : not_a_raw_translation",
+        ?XLATE(ErrorTuple)),
     ok.
 
 parse_empty_test() ->

@@ -90,9 +90,7 @@ parse_by_value(Value, {enum, FriendlEnum}) ->
 -spec to_error(atom() | string()| term(), strict_enum_list()) -> cuttlefish_error:error().
 to_error(Value, FriendlEnum) ->
     Acceptable = [Key || {Key, _} <- FriendlEnum],
-    {error,
-     ?FMT("~p is not a valid enum value, acceptable values are ~p.",
-          [atom_to_list_maybe(Value), Acceptable])}.
+    {error, {enum_name, {atom_to_list_maybe(Value), Acceptable}}}.
 
 -spec atom_to_list_maybe(term()) -> term().
 atom_to_list_maybe(Atom) when is_atom(Atom) ->
@@ -125,11 +123,13 @@ assuage_enum([Key|EnumTail], FriendlEnum) when is_atom(Key) ->
 assuage_enum([Key|EnumTail], FriendlEnum) when is_list(Key) ->
     assuage_enum(EnumTail, [{Key, Key} | FriendlEnum]);
 assuage_enum([BadTuple|_], _) when is_tuple(BadTuple) ->
-    {error, ?FMT("An enum element's tuple must be a 2-tuple and the first element must be an atom or a string. The value was: ~w", [BadTuple])};
+    {error, {enum_format, BadTuple}};
 assuage_enum([ErroneousItem|_], _) ->
-    {error, ?FMT("An enum element needs to be a 2-tuple, a string, or an atom, but was: ~w", [ErroneousItem])}.
+    {error, {enum_format, ErroneousItem}}.
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 parse_test() ->
     ?assertEqual(1, parse("one", {enum, [{"one", 1}, two]})),
@@ -149,12 +149,14 @@ assuage_enum_test() ->
 
 assuage_enum_error_test() ->
     ?assertEqual(
-       {error, "An enum element's tuple must be a 2-tuple and the first element must be an atom or a string. The value was: {one,two,three}"},
-       assuage_enum({enum, [{one, two, three}, oops]})
+       "Enum elements must be atoms, strings, or 2-tuples with "
+       "atom or string as first element. Bad value: {one,two,three}",
+       ?XLATE(assuage_enum({enum, [{one, two, three}, oops]}))
     ),
     ?assertEqual(
-       {error, "An enum element needs to be a 2-tuple, a string, or an atom, but was: 7"},
-       assuage_enum({enum, [oops, 7]})
+       "Enum elements must be atoms, strings, or 2-tuples with "
+       "atom or string as first element. Bad value: 7",
+       ?XLATE(assuage_enum({enum, [oops, 7]}))
     ),
     ok.
 

@@ -17,6 +17,18 @@ escript_utf8_test() ->
     ok.
 
 
+advanced_config_format_test() ->
+    cuttlefish_lager_test_backend:bounce(error),
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(
+                                    "-d ../test_fixtures/acformat/generated.config "
+                                    "-s ../test_fixtures/acformat/lib "
+                                    "-e ../test_fixtures/acformat/etc "
+                                    "-c ../test_fixtures/acformat/etc/acformat.conf generate"
+                                   )),
+    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    ?assertMatch({match, _}, re:run(Log, "Error parsing [.][.]/test_fixtures/acformat/etc/advanced.config, incorrect format: \\[\\[a\\],\\[b\\]\\]")),
+    ok.
+
 escript_prune_test_() ->
     {timeout, 20, [
                    escript_prune("-m 3", 3),

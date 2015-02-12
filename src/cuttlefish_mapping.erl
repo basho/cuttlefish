@@ -67,7 +67,7 @@
     remove_all_but_first/2
     ]).
 
--spec parse(raw_mapping()) -> mapping() | {error, list()}.
+-spec parse(raw_mapping()) -> mapping() | cuttlefish_error:error().
 parse({mapping, Variable, Mapping, Proplist}) ->
 
     Datatype = case proplists:get_value(datatype, Proplist, string) of
@@ -82,7 +82,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
         L when is_list(L) ->
             case cuttlefish_datatypes:is_valid_list(L) of
                 true -> L;
-                _ -> {error, "Invalid datatype list for mapping: " ++ Variable ++ "."}
+                _ -> {error, {mapping_types, L}}
             end;
         D -> [D]
     end,
@@ -106,11 +106,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
             }
     end;
 parse(X) ->
-    {error,
-     io_lib:format(
-        "poorly formatted input to cuttlefish_mapping:parse/1 : ~p",
-        [X]
-    )}.
+    {error, {mapping_parse, X}}.
 
 %% If this mapping exists, do something.
 %% That something is usually a simple replace, unless the proplist in
@@ -243,6 +239,8 @@ remove_all_but_first(MappingName, Mappings) ->
         end, [], Mappings).
 
 -ifdef(TEST).
+
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
 
 mapping_test() ->
 
@@ -482,11 +480,11 @@ accidentally_used_strings_for_enums_test() ->
     ok.
 
 parse_error_test() ->
-    {ErrorAtom, IOList} = parse(not_a_raw_mapping),
+    {ErrorAtom, ErrorTuple} = parse(not_a_raw_mapping),
     ?assertEqual(error, ErrorAtom),
     ?assertEqual(
-        "poorly formatted input to cuttlefish_mapping:parse/1 : not_a_raw_mapping",
-        lists:flatten(IOList)),
+        "Poorly formatted input to cuttlefish_mapping:parse/1 : not_a_raw_mapping",
+        ?XLATE(ErrorTuple)),
     ok.
 
 is_mapping_test() ->

@@ -51,7 +51,7 @@ key <- head:word tail:("." word)* %{
 value <- (!((ws* crlf) / comment) .)+ %{
     case unicode:characters_to_binary(Node, utf8, latin1) of
         {_Status, _Begining, _Rest} ->
-            {error, ?FMT("Error converting value on line #~p to latin1", [line(Idx)])};
+            {error, {conf_to_latin1, line(Idx)}};
         Bin ->
             binary_to_list(Bin)
     end
@@ -159,7 +159,7 @@ file_test() ->
 utf8_test() ->
     Conf = conf_parse:parse("setting = thingŒ\n"),
     ?assertEqual([{["setting"],
-            {error, "Error converting value on line #1 to latin1"}
+            {error, {conf_to_latin1, 1}}
         }], Conf),
     ok.
 -endif.

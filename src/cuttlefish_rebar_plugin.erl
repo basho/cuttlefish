@@ -51,7 +51,7 @@ generate(Config0, ReltoolFile) ->
                     io:format("Schema: ~p~n", [Schemas]),
 
                     case cuttlefish_schema:files(Schemas) of
-                        {error, _Es} ->
+                        {errorlist, _Es} ->
                             %% These errors were already printed
                             error;
                         {_Translations, Mappings, _Validators} ->
