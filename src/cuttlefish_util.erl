@@ -72,8 +72,9 @@ fuzzy_variable_match(Var, VarDef) ->
 replace_proplist_value(Key, Value, Proplist) ->
     lists:keystore(Key, 1, Proplist, {Key, Value}).
 
-%% @doc turn a string into a number in a way I am happy with
--spec numerify(string()) -> integer()|float()|{error, string()}.
+%% @doc Turn a string into a number if `list_to_float' or
+%% `list_to_integer' accept it as valid
+-spec numerify(string()) -> integer()|float()|cuttlefish_error:error().
 numerify([$.|_]=Num) -> numerify([$0|Num]);
 numerify(String) ->
     try list_to_float(String) of
@@ -84,7 +85,7 @@ numerify(String) ->
                 Int -> Int
             catch
                 _:_ ->
-                    {error, String}
+                    {error, {number_parse, String}}
             end
     end.
 

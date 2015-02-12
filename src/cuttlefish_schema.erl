@@ -59,11 +59,11 @@ merger(ListOfFunInputPairs) ->
     Schema = lists:foldr(
         fun({Fun, Input}, {TranslationAcc, MappingAcc, ValidatorAcc}) ->
             case Fun(Input, {TranslationAcc, MappingAcc, ValidatorAcc}) of
-                {error, Errors} ->
+                {errorlist, Errors} ->
                     %% These have already been logged. We're not moving forward with this
                     %% but, return them anyway so the rebar plugin can display them
                     %% with io:format, since it doesn't have lager.
-                    {error, Errors};
+                    {errorlist, Errors};
                 {Translations, Mappings, Validators} ->
                     NewMappings = lists:foldr(
                         fun cuttlefish_mapping:replace/2,
@@ -91,8 +91,8 @@ merger(ListOfFunInputPairs) ->
 %% erlang app setting, *AND* there's no corresponding translation for
 %% that app setting
 -spec filter(schema() | cuttlefish_error:errorlist()) -> schema() | cuttlefish_error:errorlist().
-filter({error, Errorlist}) ->
-    {error, Errorlist};
+filter({errorlist, Errorlist}) ->
+    {errorlist, Errorlist};
 filter({Translations, Mappings, Validators}) ->
     Counts = count_mappings(Mappings),
     {MappingsToCheck, _} = lists:unzip(Counts),
@@ -125,9 +125,9 @@ file(Filename, Schema) ->
     %% support in the future.
     S = unicode:characters_to_list(B, latin1),
     case string(S, Schema) of
-        {error, Errors} ->
+        {errorlist, Errors} ->
             cuttlefish_error:print("Error parsing schema: ~s", [Filename]),
-            {error, Errors};
+            {errorlist, Errors};
         NewSchema ->
             NewSchema
     end.
@@ -150,20 +150,16 @@ string(S, {T, M, V}) ->
                 0 ->
                     {Translations, Mappings, Validators};
                 _ ->
-                    _ = [begin
-                        case Desc of
-                            [H|_] when is_list(H) ->
-                                [cuttlefish_error:print(D) || D <- Desc];
-                            _ ->
-                                cuttlefish_error:print(Desc)
-                        end
-                    end || {error, Desc} <- Errors],
-                    {error, Errors}
+                    lists:foreach(fun({error, _Term}=E) ->
+                                          cuttlefish_error:print(E) end,
+                                  Errors),
+                    {errorlist, Errors}
             end;
         {error, {Line, erl_scan, _}, _} ->
-            ErrStr = "Error scanning erlang near line " ++ integer_to_list(Line),
-            lager:error(ErrStr),
-            {error, [{error, [ErrStr]}]}
+            Error = {erl_scan, Line},
+            ErrStr = cuttlefish_error:xlate(Error),
+            lager:error(lists:flatten(ErrStr)),
+            {errorlist, [{error, Error}]}
     end.
 
 -spec parse_schema(
@@ -172,12 +168,12 @@ string(S, {T, M, V}) ->
     {[cuttlefish_translation:translation()],
      [cuttlefish_mapping:mapping()],
      [cuttlefish_validator:validator()],
-     [cuttlefish_error:errorlist()]}
+     [cuttlefish_error:error()]}
     ) ->
         {[cuttlefish_translation:translation()],
          [cuttlefish_mapping:mapping()],
          [cuttlefish_validator:validator()],
-         [cuttlefish_error:errorlist()]}.
+         [cuttlefish_error:error()]}.
 %% We're done! We don't care about any comments after the last schema item
 parse_schema([], _LeftoverComments, {TAcc, MAcc, VAcc, EAcc}) ->
     {lists:reverse(TAcc), lists:reverse(MAcc), lists:reverse(VAcc), lists:reverse(EAcc)};
@@ -194,9 +190,8 @@ parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
         CommentTokens),
 
     NewAcc = case parse(Tokens) of
-        {error, Reason} ->
-            MoreInfo = "Schema parse error near line number " ++ integer_to_list(LineNo),
-            {TAcc, MAcc, VAcc, [{error, [MoreInfo|Reason]} | EAcc]};
+        {error, {erl_parse, Reason}} ->
+            {TAcc, MAcc, VAcc, [{error, {erl_parse, {Reason, LineNo}}} | EAcc]};
         {mapping, {mapping, Variable, Mapping, Proplist}} ->
             Attributes = comment_parser(Comments),
             Doc = proplists:get_value(doc, Attributes, []),
@@ -208,7 +203,7 @@ parse_schema(ScannedTokens, CommentTokens, {TAcc, MAcc, VAcc, EAcc}) ->
         {validator, Return} ->
             {TAcc, MAcc, cuttlefish_validator:parse_and_merge(Return, VAcc), EAcc};
         Other ->
-            {TAcc, MAcc, VAcc, [{error, lists:flatten(io_lib:format("Unknown parse return: ~p", [Other]))} | EAcc]}
+            {TAcc, MAcc, VAcc, [{error, {parse_schema, Other}} | EAcc]}
     end,
     parse_schema(TailTokens, TailComments, NewAcc).
 
@@ -224,16 +219,18 @@ parse_schema_tokens(Scanned, Acc=[{dot, LineNo}|_]) ->
 parse_schema_tokens([H|Scanned], Acc) ->
     parse_schema_tokens(Scanned, [H|Acc]).
 
--spec parse(list()) -> { mapping | translation | validator, tuple()} | cuttlefish_error:errorlist().
+-spec parse(list()) -> { mapping | translation | validator, tuple()} | cuttlefish_error:error().
 parse(Scanned) ->
     case erl_parse:parse_exprs(Scanned) of
         {ok, Parsed} ->
             {value, X, _} = erl_eval:exprs(Parsed,[]),
             {element(1, X), X};
-        {error, {_Line, erl_parse, String}} ->
-            {error, String};
+        {error, {_Line, erl_parse, [H|_T]=Strings}} when is_list(H) ->
+            {error, {erl_parse, lists:flatten(Strings)}};
+        {error, {_Line, erl_parse, Term}} ->
+            {error, {erl_parse, io_lib:format("~p", [Term])}};
         E ->
-            {error, E}
+            {error, {erl_parse_unexpected, E}}
     end.
 
 -spec get_see([proplists:property()]) -> [cuttlefish_variable:variable()].
@@ -282,6 +279,8 @@ percent_stripper_r(Line) ->
             lists:reverse(Line))).
 -ifdef(TEST).
 
+-define(XLATE(X), lists:flatten(cuttlefish_error:xlate(X))).
+
 %% Test helpers
 -spec file(string()) -> schema() | cuttlefish_error:errorlist().
 file(Filename) ->
@@ -325,7 +324,7 @@ comment_parser_test() ->
 
 bad_file_test() ->
     cuttlefish_lager_test_backend:bounce(),
-    {error, ErrorList} = file("../test/bad_erlang.schema"),
+    {errorlist, ErrorList} = file("../test/bad_erlang.schema"),
 
     Logs = cuttlefish_lager_test_backend:get_logs(),
     [L1|Tail] = Logs,
@@ -334,7 +333,7 @@ bad_file_test() ->
     ?assertMatch({match, _}, re:run(L2, "Error parsing schema: ../test/bad_erlang.schema")),
 
     ?assertEqual([
-        {error, ["Error scanning erlang near line 10"]}
+        {error, {erl_scan, 10}}
         ], ErrorList),
     ok.
 
@@ -349,12 +348,13 @@ parse_invalid_erlang_test() ->
         ]),
     Parsed = string(SchemaString),
 
-    [Log1, Log2, Log3] = cuttlefish_lager_test_backend:get_logs(),
-    ?assertMatch({match, _}, re:run(Log1, "Schema parse error near line number 4")),
-    ?assertMatch({match, _}, re:run(Log2, "syntax error before: ")),
-    ?assertMatch({match, _}, re:run(Log3, "'}'")),
+    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    ?assertMatch({match, _}, re:run(Log, "Schema parse error near line number 4")),
+    ?assertMatch({match, _}, re:run(Log, "syntax error before: ")),
+    ?assertMatch({match, _}, re:run(Log, "'}'")),
 
-    ?assertEqual({error, [{error, ["Schema parse error near line number 4", "syntax error before: ","'}'"]}]}, Parsed).
+   ?assertEqual({errorlist, [{error, {erl_parse, {"syntax error before: '}'", 4}}}]},
+                Parsed).
 
 
 parse_bad_datatype_test() ->
@@ -485,12 +485,12 @@ strings_filtration_test() ->
 error_test() ->
     {ErrorAtom, Errors} = strings(["tyktorp"]),
     io:format("~p", [Errors]),
-    ?assertEqual(error, ErrorAtom),
+    ?assertEqual(errorlist, ErrorAtom),
 
-    {error, [{error, Error}]} = strings(["{mapping, \"a\", [{datatype, unsupported_datatype}]}."]),
+    {errorlist, [{error, Error}]} = strings(["{mapping, \"a\", [{datatype, unsupported_datatype}]}."]),
     ?assertEqual(
         "Unknown parse return: {mapping,\n                          {mapping,\"a\",[{datatype,unsupported_datatype}]}}",
-        Error),
+        ?XLATE(Error)),
     ok.
 
 merge_across_multiple_schemas_test() ->
