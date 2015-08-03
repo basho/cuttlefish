@@ -157,7 +157,7 @@ file_test() ->
     ok.
 
 utf8_test() ->
-    Conf = conf_parse:parse("setting = thingŒ\n"),
+    Conf = conf_parse:parse("setting = thing" ++ [338] ++ "\n"),
     ?assertEqual([{["setting"],
             {error, {conf_to_latin1, 1}}
         }], Conf),
