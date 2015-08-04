@@ -193,9 +193,17 @@ to_string(Value, MaybeExtendedDatatype) ->
             {error, {type, {Value, MaybeExtendedDatatype}}}
     end.
 
--spec from_string(term(), datatype()) -> term() | cuttlefish_error:error().
+-spec from_string(term(), datatype()|'existing_atom') -> term() | cuttlefish_error:error().
 from_string(Atom, atom) when is_atom(Atom) -> Atom;
 from_string(String, atom) when is_list(String) -> list_to_atom(String);
+
+from_string(String, existing_atom) when is_list(String) ->
+    try
+        list_to_existing_atom(String)
+    catch
+        error:badarg ->
+            {error, {conversion, {String, atom}}}
+    end;
 
 from_string(Value, {enum, Enum}) ->
     cuttlefish_enum:parse(Value, {enum, Enum});
@@ -338,7 +346,12 @@ to_string_unsupported_datatype_test() ->
 
 from_string_atom_test() ->
     ?assertEqual(split_the, from_string(split_the, atom)),
-    ?assertEqual(split_the, from_string("split_the", atom)).
+    ?assertEqual(split_the, from_string("split_the", atom)),
+    ?assertMatch({error, {conversion, _}}, from_string("unknown_atom_to_explode_table", existing_atom)),
+    %% Using `assertEqual' as above introduces the atom to be created,
+    %% so they don't actually test that the following works for
+    %% unknown atoms.
+    ?assert(is_atom(from_string("unknown_atom_to_explode_table", atom))).
 
 from_string_integer_test() ->
     ?assertEqual(32, from_string(32, integer)),
