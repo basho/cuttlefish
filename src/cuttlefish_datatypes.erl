@@ -213,7 +213,13 @@ from_string(String, ip) when is_list(String) ->
     try begin
         Parts = string:tokens(String, ":"),
         [Port|BackwardsIP] = lists:reverse(Parts),
-        {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)}
+        [IP|_] = BackwardsIP,
+        case inet:parse_address(IP) of
+            {ok, _} -> 
+                {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)};
+            {error, einval} -> 
+                {error, {conversion, {String, 'IP'}}}
+        end
     end of
         X -> X
     catch
