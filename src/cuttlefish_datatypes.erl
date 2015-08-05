@@ -349,8 +349,7 @@ from_string_atom_test() ->
     ?assertEqual(split_the, from_string("split_the", atom)),
     ?assertMatch({error, {conversion, _}}, from_string("unknown_atom_to_explode_table", existing_atom)),
     %% Using `assertEqual' as above introduces the atom to be created,
-    %% so they don't actually test that the following works for
-    %% unknown atoms.
+    %% so they don't actually test that unknown atoms work properly.
     ?assert(is_atom(from_string("unknown_atom_to_explode_table", atom))).
 
 from_string_integer_test() ->
