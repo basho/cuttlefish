@@ -210,15 +210,7 @@ from_string(String, integer) when is_list(String) ->
 
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
 from_string(String, ip) when is_list(String) ->
-    try begin
-        Parts = string:tokens(String, ":"),
-        [Port|BackwardsIP] = lists:reverse(Parts),
-        {string:join(lists:reverse(BackwardsIP), ":"), list_to_integer(Port)}
-    end of
-        X -> X
-    catch
-        _:_ -> {error, {conversion, {String, 'IP'}}}
-    end;
+    from_string_to_ip(String, lists:split(string:rchr(String, $:), String));
 
 from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
 from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit);
@@ -266,6 +258,43 @@ from_string(String, float) when is_list(String) ->
 
 from_string(Thing, InvalidDatatype) ->
    {error, {type, {Thing, InvalidDatatype}}}.
+
+
+%%% Utility functions for IP conversion
+
+port_to_integer(Str) ->
+    try
+        list_to_integer(Str)
+    of
+        X when X >= 0 ->
+            X;
+        %% Negative ports are nonsensical
+        _X ->
+            undefined
+    catch
+        _:_ ->
+            undefined
+    end.
+
+ip_conversions(String, _IPStr, {error, einval}, _Port) ->
+    {error, {conversion, {String, 'IP'}}};
+ip_conversions(String, _IPStr, _IP, undefined) ->
+    {error, {conversion, {String, 'IP'}}};
+ip_conversions(_String, IPStr, {ok, _}, Port) ->
+    {IPStr, Port}.
+
+droplast(List) ->
+    lists:sublist(List, length(List)-1).
+
+from_string_to_ip(String, {[], String}) ->
+    {error, {conversion, {String, 'IP'}}}; %% No port
+from_string_to_ip(String, {IpPlusColon, PortString}) ->
+    %% Still need to drop last character from IP, the trailing
+    %% colon. Perfect use case for lists:droplast/1 but it's a recent
+    %% addition
+    IP = droplast(IpPlusColon),
+    ip_conversions(String, IP, inet:parse_address(IP), port_to_integer(PortString)).
+
 
 -ifdef(TEST).
 
@@ -351,11 +380,30 @@ from_string_ip_test() ->
     ?assertEqual(
         {"2001:0db8:85a3:0042:1000:8a2e:0370:7334", 8098},
         from_string("2001:0db8:85a3:0042:1000:8a2e:0370:7334:8098", ip)),
-
     ?assertEqual(
-       "\"This is not an IP\" cannot be converted to a(n) IP",
-       ?XLATE(from_string("This is not an IP", ip))
-        ),
+        {"2001:0db8:85a3::0370:7334", 8098},
+        from_string("2001:0db8:85a3::0370:7334:8098", ip)),
+    ?assertEqual(
+        {"::1", 1},
+        from_string("::1:1", ip)),
+
+    BadIPs = [
+              "This is not an IP:80",
+              "2001:0db8:85a3:0042:1000:8a2e:0370:80",
+              "127.0.0.1.1:80",
+              "127.256.0.1:80",
+              "127.0.0.1", %% No port
+              "127.0.0.1:-5",
+              "0:127.0.0.1:80",
+              "127.0.0.1:80l",
+              ":1:1"
+             ],
+
+    lists:foreach(fun(Bad) ->
+                          ?assertEqual({error, {conversion, {Bad, 'IP'}}},
+                                       from_string(Bad, ip))
+                  end,
+                  BadIPs),
     ok.
 
 from_string_enum_test() ->
