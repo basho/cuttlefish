@@ -33,17 +33,18 @@
 cli_options() ->
 %% Option Name, Short Code, Long Code, Argument Spec, Help Message
 [
- {help,         $h, "help",        undefined,          "Print this usage page"},
- {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
- {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
- {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
- {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
- {conf_file,    $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
- {app_config,   $a, "app_config",  string,             "the advanced erlangy app.config"},
- {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
- {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"}
+ {help,         $h,        "help",        undefined,          "Print this usage page"},
+ {etc_dir,      $e,        "etc_dir",     {string, "/etc"},   "etc dir"},
+ {dest_dir,     $d,        "dest_dir",    string,             "specifies the directory to write the config file to"},
+ {dest_file,    $f,        "dest_file",   {string, "app"},    "the file name to write"},
+ {schema_dir,   $s,        "schema_dir",  string,             "a directory containing .schema files"},
+ {schema_file,  $i,        "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
+ {conf_file,    $c,        "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
+ {app_config,   $a,        "app_config",  string,             "the advanced erlangy app.config"},
+ {log_level,    $l,        "log_level",   {string, "notice"}, "log level for cuttlefish output"},
+ {print_schema, $p,        "print",       undefined,          "prints schema mappings on stderr"},
+ {max_history,  $m,        "max_history", {integer, 3},       "the maximum number of generated config files to keep"},
+ {parser,       undefined, "parser",      atom,               "parser module to parse config file"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -303,8 +304,13 @@ load_schema(ParsedArgs) ->
 
 load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
+    Parser = proplists:get_value(parser, ParsedArgs),
+    ParserMod = case Parser of
+        undefined -> conf_parse;
+        _         -> ensure_parser(Parser)
+    end,
     lager:debug("ConfFiles: ~p", [ConfFiles]),
-    case cuttlefish_conf:files(ConfFiles) of
+    case cuttlefish_conf:files(ConfFiles, ParserMod) of
         {errorlist, Errors} ->
             _ = [ lager:error(cuttlefish_error:xlate(E)) ||
                     {error, E} <- Errors],
@@ -312,6 +318,23 @@ load_conf(ParsedArgs) ->
             {errorlist, Errors};
         GoodConf ->
             GoodConf
+    end.
+
+ensure_parser(Module) ->
+    case code:ensure_loaded(Module) of
+        {module, Module} ->
+            case erlang:function_exported(Module, file, 1) of
+                true  -> Module;
+                false -> 
+                    lager:error("Unable to parse config. No function ~p:file/1 exported", [Module]),
+                    stop_deactivate(),
+                    {error, function_not_exported}
+
+            end;
+        {error, Reason}  ->
+            lager:error("Unable to parse config. Unable to load parser module ~p. Reason: ~p", [Module, Reason]),
+            stop_deactivate(),
+            {error, Reason}
     end.
 
 -spec writable_destination_path([proplists:property()]) -> file:filename() | error.
