@@ -162,7 +162,7 @@
 %% Valid range is 1024-134217727
 {mapping, "erlang.max_ports",
   cuttlefish:otp("R16", "vm_args.+Q", "vm_args.-env ERL_MAX_PORTS"), [
-  {default, 65536},
+  {default, 262144},
   {datatype, integer},
   {validators, ["range4ports"]}
 ]}.
