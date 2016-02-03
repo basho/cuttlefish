@@ -30,7 +30,7 @@ basic_schema_test() ->
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_max"),
     case erlang:system_info(otp_release) of
         [$R, $1, N|_] when N >= $6 ->
-            cuttlefish_unit:assert_config(Config, "vm_args.+Q", 65536),
+            cuttlefish_unit:assert_config(Config, "vm_args.+Q", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000);
         _ ->
             cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 65536),
