@@ -107,7 +107,7 @@ effective(ParsedArgs) ->
 
     case {AppConfigExists, VMArgsExists} of
         {false, false} ->
-            AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+            AdvancedConfigFile = proplists:get_value(app_config, ParsedArgs, filename:join(EtcDir, "advanced.config")),
             AdvConfig = case filelib:is_file(AdvancedConfigFile) of
                 true ->
                     lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
@@ -367,7 +367,7 @@ engage_cuttlefish(ParsedArgs) ->
         ValidConfig -> ValidConfig
     end,
 
-    AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+    AdvancedConfigFile = proplists:get_value(app_config, ParsedArgs, filename:join(EtcDir, "advanced.config")),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
         true ->
             lager:info("~s/advanced.config detected, overlaying proplists", [EtcDir]),
