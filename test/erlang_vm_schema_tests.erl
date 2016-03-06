@@ -28,8 +28,8 @@ basic_schema_test() ->
     cuttlefish_unit:assert_not_configured(Config, "vm_args.-kernel net_ticktime"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_min"),
     cuttlefish_unit:assert_not_configured(Config, "kernel.inet_dist_listen_max"),
-    case erlang:system_info(otp_release) of
-        [$R, $1, N|_] when N >= $6 ->
+    case cuttlefish:otp("R16", erlang:system_info(otp_release)) of
+        true ->
             cuttlefish_unit:assert_config(Config, "vm_args.+Q", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000);
         _ ->
@@ -88,8 +88,8 @@ override_schema_test() ->
     %% These settings are version dependent, so we won't even test them here
     %% because we don't know what version you're running, so we'll cover it
     %% in two tests below
-    case erlang:system_info(otp_release) of
-        [$R, $1, N|_] when N >= $6 ->
+    case cuttlefish:otp("R16", erlang:system_info(otp_release)) of
+        true ->
             cuttlefish_unit:assert_config(Config, "vm_args.+Q", 32000),
             cuttlefish_unit:assert_config(Config, "vm_args.+e", 128000);
         _ ->
