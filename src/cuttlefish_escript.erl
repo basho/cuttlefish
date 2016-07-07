@@ -112,7 +112,12 @@ effective(ParsedArgs) ->
                     lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
                     case file:consult(AdvancedConfigFile) of
                         {ok, [AdvancedConfig]} ->
-                            AdvancedConfig;
+                            case is_valid_adv_conf(AdvancedConfig) of
+                                true  -> AdvancedConfig;
+                                false ->
+                                    lager:error("Error parsing ~s, config was missing some expected proplists: ~p", [AdvancedConfigFile, AdvancedConfig]),
+                                    stop_deactivate()
+                            end;
                         {error, Error} ->
                             lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                             stop_deactivate()
@@ -372,7 +377,12 @@ engage_cuttlefish(ParsedArgs) ->
             lager:info("~s/advanced.config detected, overlaying proplists", [EtcDir]),
             case file:consult(AdvancedConfigFile) of
                 {ok, [AdvancedConfig]} ->
-                    cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
+                    case is_valid_adv_conf(AdvancedConfig) of
+                        true  -> cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
+                        false ->
+                            lager:error("Error parsing ~s, config was missing some expected proplists: ~p", [AdvancedConfigFile, AdvancedConfig]),
+                            stop_deactivate()
+                    end;
                 {error, Error} ->
                     lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                     stop_deactivate()
@@ -508,6 +518,18 @@ format_datatype(Value, Datatypes) when is_list(Datatypes) ->
 format_datatype(Value, Datatype) ->
     cuttlefish_datatypes:to_string(cuttlefish_datatypes:from_string(Value, Datatype), Datatype).
 
+%% We expect that the advanced config will be a proplist where values are proplists
+is_valid_adv_conf([]) -> true;
+is_valid_adv_conf([{Key, Value} | Remainder]) when is_atom(Key) ->
+    case is_proplist(Value) of
+        true  -> is_valid_adv_conf(Remainder);
+        false -> false
+    end;
+is_valid_adv_conf(_) -> false.
+
+is_proplist([]) -> true;
+is_proplist([{Key, _} | Remainder]) when is_atom(Key) -> is_proplist(Remainder);
+is_proplist(_) -> false.
 
 -ifdef(TEST).
 
