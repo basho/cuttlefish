@@ -244,6 +244,31 @@ generate_element_test() ->
       ),
     ok.
 
+generate_conf_default_test() ->
+    TestMappings = [{mapping, "default.absent", "undefined",
+                     [{datatype, integer},
+                      {config_file_default, 42}]},
+                     {mapping, "default.present", "undefined",
+                      [{datatype, integer},
+                       {default, -1},
+                       {config_file_default, 9001}]}],
+
+    TestSchema = lists:map(fun cuttlefish_mapping:parse/1, TestMappings),
+    GeneratedConf = generate(TestSchema),
+
+    %% TODO Feels pretty fragile to rely on the number of comment lines not changing...
+    %% Would be nice if we had a good way to pinpoint the line we want to check without
+    %% having to hardcode the line numbers into the lists:nth calls.
+    ?assertEqual(
+       "default.absent = 42",
+       lists:nth(4, GeneratedConf)
+      ),
+    ?assertEqual(
+       "default.present = 9001",
+       lists:nth(11, GeneratedConf)
+      ),
+    ok.
+
 generate_dollar_test() ->
     TestSchemaElement =
         cuttlefish_mapping:parse({ mapping, "listener.http.$name", "riak_core.http", [
