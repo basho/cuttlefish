@@ -101,7 +101,8 @@ generate_file(Mappings, Filename) ->
 
 -spec generate_element(cuttlefish_mapping:mapping()) -> [string()].
 generate_element(MappingRecord) ->
-    Default = cuttlefish_mapping:default(MappingRecord),
+    Default0 = cuttlefish_mapping:default(MappingRecord),
+    ConfFileDefault = cuttlefish_mapping:config_file_default(MappingRecord),
     Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
@@ -121,6 +122,11 @@ generate_element(MappingRecord) ->
         Level ->
             lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
+
+    Default = case ConfFileDefault of
+                  undefined -> Default0;
+                  _ -> ConfFileDefault
+              end,
 
     case generate_element(Hidden, Level, Default, Commented) of
         no ->
