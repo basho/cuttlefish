@@ -261,6 +261,7 @@ mapping_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_config_file_val"},
             {doc, ["documentation", "for feature"]},
             {validators, ["valid.the.impailer"]},
             hidden
@@ -276,6 +277,7 @@ mapping_test() ->
     ?assertEqual([{enum, [on, off]}], Record#mapping.datatype),
     ?assertEqual(["documentation", "for feature"], Record#mapping.doc),
     ?assertEqual("default_substitution", Record#mapping.include_default),
+    ?assertEqual("default_config_file_val", Record#mapping.config_file_default),
     ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
     ?assertEqual(true, Record#mapping.hidden),
 
@@ -287,6 +289,7 @@ mapping_test() ->
     ?assertEqual([{enum, [on, off]}], datatype(Record)),
     ?assertEqual(["documentation", "for feature"], doc(Record)),
     ?assertEqual("default_substitution", include_default(Record)),
+    ?assertEqual("default_config_file_val", config_file_default(Record)),
     ?assertEqual(["valid.the.impailer"], validators(Record)),
     ?assertEqual(true, hidden(Record)),
 
@@ -303,6 +306,7 @@ replace_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_conf_val18"},
             {doc, ["documentation", "for feature"]}
         ]
     }),
@@ -318,6 +322,7 @@ replace_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_conf_val_A"},
             {doc, ["documentation", "for feature"]}
         ]
     })
@@ -333,6 +338,7 @@ replace_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_conf_val_B"},
             {doc, ["documentation", "for feature"]}
         ]
     }),
@@ -395,6 +401,7 @@ parse_and_merge_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_conf_val_A"},
             {doc, ["documentation", "for feature"]},
             hidden
         ]
@@ -409,6 +416,7 @@ parse_and_merge_test() ->
             {datatype, {enum, [on, off]}},
             {commented, "commented value"},
             {include_default, "default_substitution"},
+            {config_file_default, "default_conf_val_B"},
             {doc, ["documentation", "for feature"]}
         ]
     })
