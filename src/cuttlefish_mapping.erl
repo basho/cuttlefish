@@ -35,6 +35,7 @@
         level = basic :: basic | intermediate | advanced,
         doc = [] :: list(),
         include_default = undefined :: string() | undefined,
+        config_file_default = undefined :: string() | undefined,
         validators = [] :: [string()],
         is_merge = false :: boolean(),
         see = [] :: [cuttlefish_variable:variable()],
@@ -61,6 +62,7 @@
     doc/1,
     see/1,
     include_default/1,
+    config_file_default/1,
     replace/2,
     validators/1,
     validators/2,
@@ -101,6 +103,7 @@ parse({mapping, Variable, Mapping, Proplist}) ->
                 doc = proplists:get_value(doc, Proplist, []),
                 see = proplists:get_value(see, Proplist, []),
                 include_default = proplists:get_value(include_default, Proplist),
+                config_file_default = proplists:get_value(config_file_default, Proplist),
                 validators = proplists:get_value(validators, Proplist, []),
                 hidden = proplists:get_value(hidden, Proplist, false)
             }
@@ -144,6 +147,7 @@ merge(NewMappingSource, OldMapping) ->
         level = choose(level, NewMappingSource, MergeMapping, OldMapping),
         doc = choose(doc, NewMappingSource, MergeMapping, OldMapping),
         include_default = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
+        config_file_default = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
         validators = choose(validators, NewMappingSource, MergeMapping, OldMapping),
         see = choose(see, NewMappingSource, MergeMapping, OldMapping),
         hidden = choose(hidden, NewMappingSource, MergeMapping, OldMapping)
@@ -206,6 +210,9 @@ see(M) -> M#mapping.see.
 
 -spec include_default(mapping()) -> string() | undefined.
 include_default(M) -> M#mapping.include_default.
+
+-spec config_file_default(mapping()) -> string() | undefined.
+config_file_default(M) -> M#mapping.config_file_default.
 
 -spec validators(mapping()) -> [string()].
 validators(M) -> M#mapping.validators.
