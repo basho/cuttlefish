@@ -140,12 +140,11 @@ get_default(MappingRecord) ->
     %% default directly) is that `default` also affects default values used for
     %% config keys that haven't been set to any particular value in the .conf file.
     %% (See `cuttlefish_generator:add_defaults` for the relevant bits of code.)
-    Default = cuttlefish_mapping:default(MappingRecord),
-    NewConfValue = cuttlefish_mapping:new_conf_value(MappingRecord),
-
-    case NewConfValue of
-        undefined -> Default;
-        _ -> NewConfValue
+    case cuttlefish_mapping:new_conf_value(MappingRecord) of
+        undefined ->
+            cuttlefish_mapping:default(MappingRecord);
+        Value ->
+            Value
     end.
 
 generate_element(true, _, _, _) -> no;
