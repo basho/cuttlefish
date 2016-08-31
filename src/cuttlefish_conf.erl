@@ -101,7 +101,7 @@ generate_file(Mappings, Filename) ->
 
 -spec generate_element(cuttlefish_mapping:mapping()) -> [string()].
 generate_element(MappingRecord) ->
-    Default = cuttlefish_mapping:default(MappingRecord),
+    Default = get_default(MappingRecord),
     Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
@@ -132,6 +132,21 @@ generate_element(MappingRecord) ->
             Comments = generate_comments(MappingRecord),
             Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]
     end.
+
+get_default(MappingRecord) ->
+    %% Normally we use `default` to determine what value to use when generating
+    %% a config file, but `new_conf_value` can override that. The reason we need
+    %% a separate attribute to override `default` (instead of just changing the
+    %% default directly) is that `default` also affects default values used for
+    %% config keys that haven't been set to any particular value in the .conf file.
+    %% (See `cuttlefish_generator:add_defaults` for the relevant bits of code.)
+    case cuttlefish_mapping:new_conf_value(MappingRecord) of
+        undefined ->
+            cuttlefish_mapping:default(MappingRecord);
+        Value ->
+            Value
+    end.
+
 generate_element(true, _, _, _) -> no;
 generate_element(false, _, undefined, undefined) -> no;
 generate_element(false, basic, _Default, undefined) -> default;
@@ -235,6 +250,31 @@ generate_element_test() ->
     ?assertEqual(
        "## ring_size = 64",
        lists:nth(6, GeneratedConf)
+      ),
+    ok.
+
+generate_conf_default_test() ->
+    TestMappings = [{mapping, "default.absent", "undefined",
+                     [{datatype, integer},
+                      {new_conf_value, 42}]},
+                     {mapping, "default.present", "undefined",
+                      [{datatype, integer},
+                       {default, -1},
+                       {new_conf_value, 9001}]}],
+
+    TestSchema = lists:map(fun cuttlefish_mapping:parse/1, TestMappings),
+    GeneratedConf = generate(TestSchema),
+
+    %% TODO Feels pretty fragile to rely on the number of comment lines not changing...
+    %% Would be nice if we had a good way to pinpoint the line we want to check without
+    %% having to hardcode the line numbers into the lists:nth calls.
+    ?assertEqual(
+       "default.absent = 42",
+       lists:nth(4, GeneratedConf)
+      ),
+    ?assertEqual(
+       "default.present = 9001",
+       lists:nth(11, GeneratedConf)
       ),
     ok.
 
