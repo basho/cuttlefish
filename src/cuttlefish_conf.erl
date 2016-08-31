@@ -101,8 +101,7 @@ generate_file(Mappings, Filename) ->
 
 -spec generate_element(cuttlefish_mapping:mapping()) -> [string()].
 generate_element(MappingRecord) ->
-    Default0 = cuttlefish_mapping:default(MappingRecord),
-    ConfFileDefault = cuttlefish_mapping:config_file_default(MappingRecord),
+    Default = get_default(MappingRecord),
     Key = cuttlefish_mapping:variable(MappingRecord),
     Commented = cuttlefish_mapping:commented(MappingRecord),
     Level = cuttlefish_mapping:level(MappingRecord),
@@ -123,11 +122,6 @@ generate_element(MappingRecord) ->
             lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
-    Default = case ConfFileDefault of
-                  undefined -> Default0;
-                  _ -> ConfFileDefault
-              end,
-
     case generate_element(Hidden, Level, Default, Commented) of
         no ->
             [];
@@ -138,6 +132,22 @@ generate_element(MappingRecord) ->
             Comments = generate_comments(MappingRecord),
             Comments ++ [lists:flatten([ Field, " = ", cuttlefish_datatypes:to_string(Default, Datatype) ]), ""]
     end.
+
+get_default(MappingRecord) ->
+    %% Normally we use `default` to determine what value to use when generating
+    %% a config file, but `new_conf_value` can override that. The reason we need
+    %% a separate attribute to override `default` (instead of just changing the
+    %% default directly) is that `default` also affects default values used for
+    %% config keys that haven't been set to any particular value in the .conf file.
+    %% (See `cuttlefish_generator:add_defaults` for the relevant bits of code.)
+    Default = cuttlefish_mapping:default(MappingRecord),
+    NewConfValue = cuttlefish_mapping:new_conf_value(MappingRecord),
+
+    case NewConfValue of
+        undefined -> Default;
+        _ -> NewConfValue
+    end.
+
 generate_element(true, _, _, _) -> no;
 generate_element(false, _, undefined, undefined) -> no;
 generate_element(false, basic, _Default, undefined) -> default;
@@ -247,11 +257,11 @@ generate_element_test() ->
 generate_conf_default_test() ->
     TestMappings = [{mapping, "default.absent", "undefined",
                      [{datatype, integer},
-                      {config_file_default, 42}]},
+                      {new_conf_value, 42}]},
                      {mapping, "default.present", "undefined",
                       [{datatype, integer},
                        {default, -1},
-                       {config_file_default, 9001}]}],
+                       {new_conf_value, 9001}]}],
 
     TestSchema = lists:map(fun cuttlefish_mapping:parse/1, TestMappings),
     GeneratedConf = generate(TestSchema),
