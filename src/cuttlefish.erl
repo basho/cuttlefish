@@ -52,10 +52,10 @@ otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
 otp([], []) ->
     %% They're the same length AND all previous chars were matches
     true;
-otp([$R|TMin], TVer) ->
-    otp(TMin, TVer);
-otp(TMin, [$R|TVer]) ->
-    otp(TMin, TVer);
+otp([$R|TMin], Ver) ->
+    otp(TMin, Ver);
+otp(Min, [$R|TVer]) ->
+    otp(Min, TVer);
 otp([H|TMin], [H|TVer]) ->
     %% The head chars are equal, test the tails
     otp(TMin, TVer);
