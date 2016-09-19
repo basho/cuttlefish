@@ -140,9 +140,10 @@ otp_test() ->
     ?assert(not(otp("R16B01", "R16A"))),
     ?assert(otp("R16A", "R16A")),
     ?assert(otp("R16", "17")),
+    ?assert(otp("R16B03-1", "17")),
     ?assert(not(otp("17", "R16"))),
-    ?assert(otp("R16A", "17.4")),
-    ?assert(not(otp("18.2.4", "17.4"))),
+    ?assert(otp("R16A", "17")),
+    ?assert(not(otp("18", "17"))),
     ok.
 
 -endif.
