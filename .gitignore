@@ -4,9 +4,10 @@
 /.rebar/
 /.rebar3/
 /_build/
-/_checkouts/
-/deps/
 /rebar.lock
+% these *may* be symbolic links, which won't match a trailing /
+/_checkouts
+/deps
 
 # build/test artifacts
 *.crashdump
