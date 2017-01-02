@@ -1,35 +1,44 @@
 # rebar and tools
+*.crashdump
 /.cache/
+/.eqc*
 /.eunit/
 /.rebar/
 /.rebar3/
 /_build/
-/rebar.lock
-% these *may* be symbolic links, which won't match a trailing /
 /_checkouts
 /deps
-
-# build/test artifacts
-*.crashdump
-.local_dialyzer_plt
-/ebin/
-cuttlefish
-erln8.config
-generated.conf
-generated.config
+/rebar.lock
 log/
-src/conf_parse.erl
-src/cuttlefish_duration_parse.erl
-test_fixtures/escript_prune_test/generated.config/*
 
 # work environments
 *.bak
+*.dump
 *.iml
+*.plt
 *.sublime-project
 *.sublime-workspace
+*.tmp
+*.txt
+*_plt
 *~
 .DS_Store
 .idea/
 .project
 .settings/
 .tm_properties
+erln8.config
+tmp/
+
+# Erlang artifacts
+*.app
+*.beam
+/ebin/
+
+# build/test artifacts
+cuttlefish
+generated.conf
+generated.config
+src/conf_parse.erl
+src/cuttlefish_duration_parse.erl
+test_fixtures/escript_prune_test/generated.config/*
