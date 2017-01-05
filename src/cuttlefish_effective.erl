@@ -25,10 +25,10 @@
 
 -export([build/3]).
 
-%%-ifdef(TEST).
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
-%%-endif.
+-endif.
 
 -spec build(cuttlefish_conf:conf(), cuttlefish_schema:schema(), [proplists:property()]) -> [string()].
 build(Conf, {_Translations, Mappings, _Validators} = _Schema, AdvConfig) ->
