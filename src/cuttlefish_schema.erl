@@ -1,8 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_schema: slurps schema files
-%%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -20,6 +18,9 @@
 %%
 %% -------------------------------------------------------------------
 
+%%
+%% @doc Slurps schema files.
+%%
 -module(cuttlefish_schema).
 
 -export([files/1, strings/1]).
@@ -324,13 +325,14 @@ comment_parser_test() ->
 
 bad_file_test() ->
     cuttlefish_lager_test_backend:bounce(),
-    {errorlist, ErrorList} = file("../test/bad_erlang.schema"),
+    BadSch = cuttlefish_test_util:test_file("bad_erlang.schema"),
+    {errorlist, ErrorList} = file(BadSch),
 
     Logs = cuttlefish_lager_test_backend:get_logs(),
     [L1|Tail] = Logs,
     [L2|[]] = Tail,
     ?assertMatch({match, _}, re:run(L1, "Error scanning erlang near line 10")),
-    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: ../test/bad_erlang.schema")),
+    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: " ++ BadSch)),
 
     ?assertEqual([
         {error, {erl_scan, 10}}
@@ -377,9 +379,9 @@ files_test() ->
     %% Loads them in reverse order, as things are overridden
     {Translations, Mappings, Validators} = files(
         [
-            "../test/multi1.schema",
-            "../test/multi2.schema",
-            "../test/multi3.schema"
+            cuttlefish_test_util:test_file("multi1.schema"),
+            cuttlefish_test_util:test_file("multi2.schema"),
+            cuttlefish_test_util:test_file("multi3.schema")
         ]),
 
     ?assertEqual(6, length(Mappings)),

@@ -1,0 +1,12 @@
+minimum_reviewers: 2
+merge: true
+build_steps:
+  - rebar3 clean --all
+  - rebar3 compile
+  - rebar3 as prod escriptize
+  - rebar3 as check brt-deps --check
+  - rebar3 as check xref
+  - rebar3 as check dialyzer
+  - rebar3 eunit
+org_mode: true
+timeout: 1200

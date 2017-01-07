@@ -1,3 +1,23 @@
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2014-2017 Basho Technologies, Inc.
+%%
+%% This file is provided to you under the Apache License,
+%% Version 2.0 (the "License"); you may not use this file
+%% except in compliance with the License.  You may obtain
+%% a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+%%
+%% -------------------------------------------------------------------
+
 -module(cuttlefish_escript_integration_tests).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -6,27 +26,31 @@
 escript_utf8_test() ->
     cuttlefish_lager_test_backend:bounce(error),
 
-    ?assertThrow(stop_deactivate, cuttlefish_escript:main(
-              "-d ../test_fixtures/escript_utf8_test/generated.config "
-              "-s ../test_fixtures/escript_utf8_test/lib "
-              "-e ../test_fixtures/escript_utf8_test/etc "
-              "-c ../test_fixtures/escript_utf8_test/etc/utf8.conf generate"
-            )),
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(lists:flatten([
+        "-d ", cuttlefish_test_util:fixtures_file("escript_utf8_test/generated.config"),
+        " -s ", cuttlefish_test_util:fixtures_file("escript_utf8_test/lib"),
+        " -e ", cuttlefish_test_util:fixtures_file("escript_utf8_test/etc"),
+        " -c ", cuttlefish_test_util:fixtures_file("escript_utf8_test/etc/utf8.conf"),
+        " generate"
+    ]))),
     [Log] = cuttlefish_lager_test_backend:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "utf8.conf: Error converting value on line #1 to latin1")),
     ok.
 
-
 advanced_config_format_test() ->
     cuttlefish_lager_test_backend:bounce(error),
-    ?assertThrow(stop_deactivate, cuttlefish_escript:main(
-                                    "-d ../test_fixtures/acformat/generated.config "
-                                    "-s ../test_fixtures/acformat/lib "
-                                    "-e ../test_fixtures/acformat/etc "
-                                    "-c ../test_fixtures/acformat/etc/acformat.conf generate"
-                                   )),
+
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(lists:flatten([
+        "-d ", cuttlefish_test_util:fixtures_file("acformat/generated.config"),
+        " -s ", cuttlefish_test_util:fixtures_file("acformat/lib"),
+        " -e ", cuttlefish_test_util:fixtures_file("acformat/etc"),
+        " -c ", cuttlefish_test_util:fixtures_file("acformat/etc/acformat.conf"),
+        " generate"
+    ]))),
     [Log] = cuttlefish_lager_test_backend:get_logs(),
-    ?assertMatch({match, _}, re:run(Log, "Error parsing [.][.]/test_fixtures/acformat/etc/advanced.config, incorrect format: \\[\\[a\\],\\[b\\]\\]")),
+    ?assertMatch({match, _}, re:run(Log, "Error parsing "
+        ++ cuttlefish_test_util:fixtures_file("acformat/etc/advanced.config")
+        ++ ", incorrect format: \\[\\[a\\],\\[b\\]\\]")),
     ok.
 
 escript_prune_test_() ->
@@ -38,9 +62,11 @@ escript_prune_test_() ->
 
 escript_prune(DashM, ExpectedMax) ->
     %% Empty workspace
-    case file:list_dir("../test_fixtures/escript_prune_test/generated.config") of
+    GenCfg = cuttlefish_test_util:fixtures_file("escript_prune_test/generated.config"),
+
+    case file:list_dir(GenCfg) of
         {ok, FilenamesToDelete} ->
-            [ file:delete(filename:join(["../test_fixtures/escript_prune_test/generated.config",F])) || F <- FilenamesToDelete ];
+            [ file:delete(filename:join(GenCfg, F)) || F <- FilenamesToDelete ];
         _ -> ok
     end,
 
@@ -49,21 +75,15 @@ escript_prune(DashM, ExpectedMax) ->
             io:format("Running iteration: ~p", [Counter]),
             %% Timer to keep from generating more than one file per second
             timer:sleep(1100),
-            cuttlefish_escript:main(
-              "-d ../test_fixtures/escript_prune_test/generated.config "
-              "-s ../test_fixtures/escript_prune_test/lib "
-              "-e ../test_fixtures/escript_prune_test/etc "
-              ++ DashM ++ " generate"
-            ),
+            cuttlefish_escript:main(lists:flatten([
+                "-d ", GenCfg,
+                " -s ", cuttlefish_test_util:fixtures_file("escript_prune_test/lib"),
+                " -e ", cuttlefish_test_util:fixtures_file("escript_prune_test/etc"),
+                $\s, DashM, " generate"
+            ])),
 
-            AppConfigs =
-                lists:sort(
-                    filelib:wildcard("app.*.config",
-                                     "../test_fixtures/escript_prune_test/generated.config")),
-            VMArgs =
-                lists:sort(
-                    filelib:wildcard("vm.*.args",
-                                     "../test_fixtures/escript_prune_test/generated.config")),
+            AppConfigs = lists:sort(filelib:wildcard("app.*.config", GenCfg)),
+            VMArgs = lists:sort(filelib:wildcard("vm.*.args", GenCfg)),
 
             {AppConfigs,
              VMArgs,

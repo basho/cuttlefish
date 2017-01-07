@@ -1,8 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_conf: handles the reading and generation of .conf files
-%%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -19,6 +17,10 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
+
+%%
+%% @doc Handles the reading and generation of .conf files.
+%%
 -module(cuttlefish_conf).
 
 -export([
@@ -298,27 +300,31 @@ generate_comments_test() ->
     ?assertEqual(["## Hi!", "## Bye!", "## ", "## Acceptable values:", "##   - text"], Comments).
 
 duplicates_test() ->
-    Conf = file("../test/multi1.conf"),
+    Conf = file(cuttlefish_test_util:test_file("multi1.conf")),
     ?assertEqual(2, length(Conf)),
     ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 duplicates_multi_test() ->
-    Conf = files(["../test/multi1.conf", "../test/multi2.conf"]),
+    Conf = files([
+        cuttlefish_test_util:test_file("multi1.conf"),
+        cuttlefish_test_util:test_file("multi2.conf") ]),
     ?assertEqual(2, length(Conf)),
     ?assertEqual("4", proplists:get_value(["a","b","c"], Conf)),
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 files_one_nonent_test() ->
-    Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
-    ?assertEqual({errorlist,[{error, {file_open, {"../test/nonent.conf", enoent}}}]}, Conf),
+    NonEnt = cuttlefish_test_util:test_file("nonent.conf"),
+    Conf = files([cuttlefish_test_util:test_file("multi1.conf"), NonEnt]),
+    ?assertEqual({errorlist,[{error, {file_open, {NonEnt, enoent}}}]}, Conf),
     ok.
 
 files_incomplete_parse_test() ->
-    Conf = file("../test/incomplete.conf"),
-    ?assertEqual({errorlist, [{error, {conf_syntax, {"../test/incomplete.conf", {3, 1}}}}]}, Conf),
+    File = cuttlefish_test_util:test_file("incomplete.conf"),
+    Conf = file(File),
+    ?assertEqual({errorlist, [{error, {conf_syntax, {File, {3, 1}}}}]}, Conf),
     ok.
 
 generate_element_level_advanced_test() ->

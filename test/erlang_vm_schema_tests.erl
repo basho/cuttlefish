@@ -9,7 +9,7 @@ basic_schema_test() ->
     %% The defaults are defined in ../priv/riak_kv.schema and multi_backend.schema.
     %% they are the files under test.
     Config = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], [], context()),
+        [cuttlefish_test_util:priv_file("erlang_vm.schema")], [], context()),
 
     cuttlefish_unit:assert_config(Config, "vm_args.-smp", enable),
     cuttlefish_unit:assert_config(Config, "vm_args.+W", "w"),
@@ -65,7 +65,7 @@ override_schema_test() ->
     ],
 
     Config = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], Conf, context()),
+        [cuttlefish_test_util:priv_file("erlang_vm.schema")], Conf, context()),
 
     cuttlefish_unit:assert_config(Config, "vm_args.-smp", disable),
     cuttlefish_unit:assert_config(Config, "vm_args.+W", "i"),
@@ -99,30 +99,31 @@ override_schema_test() ->
     ok.
 
 erlang_scheduler_test() ->
+    ErlVmSchema = cuttlefish_test_util:priv_file("erlang_vm.schema"),
     Conf1 = [
         {["erlang", "schedulers", "total"], 4},
         {["erlang", "schedulers", "online"], 1}
     ],
     Config1 = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], Conf1, context()),
+        [ErlVmSchema], Conf1, context()),
     cuttlefish_unit:assert_config(Config1, "vm_args.+S", "4:1"),
 
     Conf2 = [
         {["erlang", "schedulers", "total"], 4}
     ],
     Config2 = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], Conf2, context()),
+        [ErlVmSchema], Conf2, context()),
     cuttlefish_unit:assert_config(Config2, "vm_args.+S", "4"),
 
     Conf3 = [
         {["erlang", "schedulers", "online"], 4}
     ],
     Config3 = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], Conf3, context()),
+        [ErlVmSchema], Conf3, context()),
     cuttlefish_unit:assert_config(Config3, "vm_args.+S", ":4"),
 
     Config4 = cuttlefish_unit:generate_templated_config(
-        ["../priv/erlang_vm.schema"], [], context()),
+        [ErlVmSchema], [], context()),
     cuttlefish_unit:assert_not_configured(Config4, "vm_args.+S"),
 
 
@@ -136,27 +137,39 @@ async_threads_stack_size_test() ->
     Correct     = cuttlefish_bytesize:to_string(WordSize * 1024 * 32),
     MinSize     = cuttlefish_bytesize:to_string(WordSize * 1024 * 16),
     MaxSize     = cuttlefish_bytesize:to_string(WordSize * 1024 * 8192),
-    CorrectRaw = 32,
-    
+    CorrectRaw  = 32,
+    ErlVmSchema = cuttlefish_test_util:priv_file("erlang_vm.schema"),
+
     Conf0 = [],
-    Config0 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf0, context()),
+    Config0 = cuttlefish_unit:generate_templated_config(
+        [ErlVmSchema], Conf0, context()),
     cuttlefish_unit:assert_not_configured(Config0, "vm_args.+a"),
-    
+
     Conf1 = [{["erlang", "async_threads", "stack_size"], Correct}],
-    Config1 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf1, context()),
+    Config1 = cuttlefish_unit:generate_templated_config(
+        [ErlVmSchema], Conf1, context()),
     cuttlefish_unit:assert_config(Config1, "vm_args.+a", CorrectRaw),
 
     Conf2 = [{["erlang", "async_threads", "stack_size"], TooSmall}],
-    Config2 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf2, context()),
-    cuttlefish_unit:assert_error_message(Config2, "erlang.async_threads.stack_size invalid, must be in the range of " ++ MinSize ++ " to " ++ MaxSize),
+    Config2 = cuttlefish_unit:generate_templated_config(
+        [ErlVmSchema], Conf2, context()),
+    cuttlefish_unit:assert_error_message(Config2,
+        "erlang.async_threads.stack_size invalid, must be in the range of "
+        ++ MinSize ++ " to " ++ MaxSize),
 
     Conf3 = [{["erlang", "async_threads", "stack_size"], TooLarge}],
-    Config3 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf3, context()),
-    cuttlefish_unit:assert_error_message(Config3, "erlang.async_threads.stack_size invalid, must be in the range of " ++ MinSize ++ " to " ++ MaxSize),
+    Config3 = cuttlefish_unit:generate_templated_config(
+        [ErlVmSchema], Conf3, context()),
+    cuttlefish_unit:assert_error_message(Config3,
+        "erlang.async_threads.stack_size invalid, must be in the range of "
+        ++ MinSize ++ " to " ++ MaxSize),
 
     Conf4 = [{["erlang", "async_threads", "stack_size"], Indivisible}],
-    Config4 = cuttlefish_unit:generate_templated_config(["../priv/erlang_vm.schema"], Conf4, context()),
-    cuttlefish_unit:assert_error_message(Config4, "erlang.async_threads.stack_size invalid, must be divisible by " ++ integer_to_list(WordSize)),
+    Config4 = cuttlefish_unit:generate_templated_config(
+        [ErlVmSchema], Conf4, context()),
+    cuttlefish_unit:assert_error_message(Config4,
+        "erlang.async_threads.stack_size invalid, must be divisible by "
+        ++ integer_to_list(WordSize)),
 
     ok.
 

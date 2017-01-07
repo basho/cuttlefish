@@ -1,8 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_generator: this is where the action is
-%%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -19,6 +17,10 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
+
+%%
+%% @doc This is where the action is.
+%%
 -module(cuttlefish_generator).
 
 -ifdef(TEST).
@@ -722,9 +724,9 @@ add_defaults_test() ->
 
 map_test() ->
     lager:start(),
-    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
 
-    Conf = conf_parse:file("../test/riak.conf"),
+    Conf = conf_parse:file(cuttlefish_test_util:test_file("riak.conf")),
 
     NewConfig = map(Schema, Conf),
 
@@ -749,7 +751,7 @@ map_test() ->
 
 minimal_map_test() ->
     lager:start(),
-    Schema = cuttlefish_schema:file("../test/riak.schema"),
+    Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
     Conf = [{["ring_size"], "32"},
             {["anti_entropy"], "debug"}],
     NewConfig = minimal_map(Schema, Conf),

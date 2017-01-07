@@ -1,7 +1,77 @@
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
+%%
+%% This file is provided to you under the Apache License,
+%% Version 2.0 (the "License"); you may not use this file
+%% except in compliance with the License.  You may obtain
+%% a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+%%
+%% -------------------------------------------------------------------
+
+%%
+%% @doc Support for unit testing.
+%% @end
 -module(cuttlefish_unit).
 
+%% Documented and/or Active API
+-export([
+    assert_config/3,
+    assert_error/1,
+    assert_error/3,
+    assert_error_in_phase/2,
+    assert_error_message/2,
+    assert_errors/2,
+    assert_errors/3,
+    assert_not_configured/2,
+    assert_valid_config/1,
+    generate_config/2,
+    generate_templated_config/3,
+    generate_templated_config/4
+]).
+
+%% Historically Exported by -compile(export_all).
+%% Commented out unless/until somebody screams.
+%% None of these are used anywhere in Riak, nor are they mentioned in any
+%% documentation.
+%%
+%%    chase_message/3,
+%%    dump_to_file/2,
+%%    generate_config/3,
+%%    key_no_match/1,
+%%    path/2,
+%%    render_template/2
+
+% I'm pretty sure these should be defined somewhere else, but where?
+% These types are a rough guess, there doesn't seem to be an explicit
+% statement on their specifications.
+-export_type([
+    mustache_ctx/0,
+    mustache_def/0,
+    mustache_key/0,
+    mustache_val/0
+]).
+% Various mustache modules [claim to] accept the mustache_key() types.
+% The type of mustache_val() could certainly be narrower, but to what?
+-type mustache_ctx()  :: [mustache_def()].
+-type mustache_def()  :: {mustache_key(), mustache_val()}.
+-type mustache_key()  :: atom() | binary() | string().
+-type mustache_val()  :: term().
+
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
+
+%% ===================================================================
+%% Public API
+%% ===================================================================
 
 generate_templated_config(FileName, Conf, Context) ->
     generate_templated_config(FileName, Conf, Context, {[], [], []}).
@@ -15,37 +85,6 @@ generate_templated_config(FileName, Conf, Context, PreexistingSchema) ->
     end,
     Schema = cuttlefish_schema:merger(RenderedSchemas ++ [ { fun(_, _) -> PreexistingSchema end, ""} ]),
     cuttlefish_generator:map(Schema, Conf).
-
-render_template(FileName, Context) ->
-    {ok, Bin} = file:read_file(FileName),
-    %% Stolen from rebar_templater:render/2
-    %% Be sure to escape any double-quotes before rendering...
-    ReOpts = [global, {return, list}],
-    Str0 = re:replace(Bin, "\\\\", "\\\\\\", ReOpts),
-    Str1 = re:replace(Str0, "\"", "\\\\\"", ReOpts),
-
-    %% the mustache module is only available in the context of a rebar run.
-    case {code:ensure_loaded(mustache), code:ensure_loaded(rebar_mustache)} of
-        {{module, mustache}, _} ->
-            mustache:render(Str1, dict:from_list(Context));
-        {_, {module, rebar_mustache}} ->
-            rebar_mustache:render(Str1, dict:from_list(Context));
-        _ ->
-            io:format("mustache and/or rebar_mustache module not loaded. "
-                      "This test can only be run in a rebar context.~n")
-    end.
-
--spec generate_config(atom(), [string()]|string(), list()) -> list().
-generate_config(strings, SchemaStrings, Conf) ->
-    Schema = cuttlefish_schema:strings(SchemaStrings),
-    cuttlefish_generator:map(Schema, Conf);
-
-generate_config(string, SchemaString, Conf) ->
-    Schema = cuttlefish_schema:strings([SchemaString]),
-    cuttlefish_generator:map(Schema, Conf);
-
-generate_config(file, SchemaFile, Conf) ->
-    generate_config(SchemaFile, Conf).
 
 -spec generate_config(string(), list()) -> list().
 generate_config(SchemaFile, Conf) ->
@@ -72,7 +111,8 @@ assert_config(Config, Path, Value) ->
             ?assertEqual({Path, Value}, {Path, nesting_error});
         notset ->
             ?assertEqual({Path, Value}, {Path, notset});
-        {ok, X} -> X
+        {ok, X} ->
+            X
     end,
     ?assertEqual({Path, Value}, {Path, ActualValue}).
 
@@ -125,10 +165,18 @@ assert_error_message(Config, Message) ->
     {errorlist, Errors} = element(3, Config),
     chase_message(Message, Errors, Errors).
 
+%% ===================================================================
+%% Historically Exported
+%%
+%% Everything in this section should be moved to either the Public API
+%% or Internal section or, in the cases of commented-out dead code,
+%% deleted.
+%% ===================================================================
+
 chase_message(Message, [], Errors) ->
     erlang:exit({assert_error_message_failed,
-                 [{expected, Message},
-                  {actual, Errors}]});
+        [{expected, Message}, {actual, Errors}] });
+
 chase_message(Message, [{error, ErrorTerm}|T], Errors) ->
     case lists:flatten(cuttlefish_error:xlate(ErrorTerm)) of
         Message ->
@@ -137,9 +185,37 @@ chase_message(Message, [{error, ErrorTerm}|T], Errors) ->
             chase_message(Message, T, Errors)
     end.
 
--spec path(cuttlefish_variable:variable(),
-           [{ string() | atom() | binary() , term()}]) ->
-                  {ok, any()} | notset | {error, bad_nesting}.
+%%-spec dump_to_file(any(), string()) -> ok.
+%%dump_to_file(ErlangTerm, Filename) ->
+%%    {ok, S} = file:open(Filename, [write,append]),
+%%    io:format(S, "~p~n", [ErlangTerm]),
+%%    _ = file:close(S),
+%%    ok.
+
+%%-spec generate_config(atom(), [string()]|string(), list()) -> list().
+%%generate_config(strings, SchemaStrings, Conf) ->
+%%    Schema = cuttlefish_schema:strings(SchemaStrings),
+%%    cuttlefish_generator:map(Schema, Conf);
+%%
+%%generate_config(string, SchemaString, Conf) ->
+%%    Schema = cuttlefish_schema:strings([SchemaString]),
+%%    cuttlefish_generator:map(Schema, Conf);
+%%
+%%generate_config(file, SchemaFile, Conf) ->
+%%    generate_config(SchemaFile, Conf).
+
+-spec key_no_match(string()) -> fun((atom() | string() | binary()) -> boolean()).
+key_no_match(Key) ->
+    fun({E, _}) when is_atom(E) -> E =/= list_to_atom(Key);
+        ({E, _}) when is_list(E) -> E =/= Key;
+        ({E, _}) when is_binary(E) -> E =/= list_to_binary(Key);
+        (_) -> true
+    end.
+
+-spec path(
+        cuttlefish_variable:variable(),
+        [{ string() | atom() | binary() , term()}])
+            -> {ok, any()} | notset | {error, bad_nesting}.
 path(_, []) ->
     {error, bad_nesting};
 path(_, undefined) ->
@@ -157,42 +233,161 @@ path([H|T], Proplist) when is_list(H)->
             Other
     end.
 
--spec key_no_match(string()) -> fun((atom() | string() | binary()) -> boolean()).
-key_no_match(Key) ->
-    fun({E, _}) when is_atom(E) -> E =/= list_to_atom(Key);
-       ({E, _}) when is_list(E) -> E =/= Key;
-       ({E, _}) when is_binary(E) -> E =/= list_to_binary(Key);
-       (_) -> true
+-spec render_template(FileName :: file:name_all(), Context :: mustache_ctx())
+            -> string().
+render_template(FileName, Context) ->
+    %% The mustache module may only be available in the context of a rebar run.
+    case find_mustache() of
+        false ->
+            erlang:error(
+                "No suitable mustache module loaded. "
+                "Run this test in a rebar context.");
+        Mod ->
+            {ok, Bin} = file:read_file(FileName),
+            render_template(Mod, Bin, Context)
     end.
 
--spec dump_to_file(any(), string()) -> ok.
-dump_to_file(ErlangTerm, Filename) ->
-    {ok, S} = file:open(Filename, [write,append]),
-    io:format(S, "~p~n", [ErlangTerm]),
-    _ = file:close(S),
-    ok.
+%% ===================================================================
+%% Internal
+%% ===================================================================
+
+-spec render_template(
+        Mustache    :: module(),
+        Template    :: binary(),
+        Context     :: mustache_ctx())
+            -> string().
+%
+% Even where we're matching on the module, always use the Module variable so
+% xref and dialyzer don't complain. If running in Rebar there will be a
+% suitable module available at runtime, but usually there won't be an explicit
+% project dependency on one.
+%
+% Unicode support is sketchy, as it is throughout cuttlefish. Someday...
+%
+render_template(bbmustache = Mustache, Template, Context) ->
+    % It's unclear whether there could be supplementary UTF-8 bytes that could
+    % be misinterpreted as relevant characters by the scanner, but as noted
+    % above we're not putting much effort into Unicode for now.
+    % The render call raises an error if there's a problem, so no need to
+    % check return pattern.
+    unicode:characters_to_list(
+        Mustache:render(Template, mustache_context(Mustache, Context)));
+
+render_template(Mustache, Template, Context) ->
+    % Previous versions of this file escaped the template, but that actually
+    % seems to break things I've tested, so it's just converted to a list.
+    Data = case unicode:characters_to_list(Template, utf8) of
+        Utf8 when erlang:is_list(Utf8) ->
+            Utf8;
+        _ ->
+            % Not legal UTF-8, treat it as an 8-bit ISO-8859 encoding, which
+            % will always succeed but _may_ be improperly mapped if it's not
+            % specifically Latin-1. However, all of the punctuation characters
+            % the scanner cares about should be fine.
+            unicode:characters_to_list(Template, latin1)
+    end,
+    Mustache:render(Data, mustache_context(Mustache, Context)).
+
+-spec find_mustache() -> module() | false.
+%
+% Finds a module that is likely to be a mustache implementation that
+% render_template/3 knows how to use.
+% Once identified, the module is cached in the process environment, so it'll
+% be lost when the process goes away, which should coincide with eunit test
+% setup/teardown when the available modules might change.
+%
+find_mustache() ->
+    Key = {?MODULE, mustache_module},
+    case erlang:get(Key) of
+        undefined ->
+            Ret = find_mustache([bbmustache, mustache, rebar_mustache]),
+            _ = erlang:put(Key, Ret),
+            Ret;
+        Val ->
+            Val
+    end.
+
+-spec find_mustache(Mods :: [module()]) -> module() | false.
+%
+% Let find_mustache/0 call this, not much use anywhere else.
+%
+find_mustache([Mod | Mods]) ->
+    case code:ensure_loaded(Mod) of
+        {module, _} ->
+            case erlang:function_exported(Mod, render, 2) of
+                true ->
+                    Mod;
+                _ ->
+                    find_mustache(Mods)
+            end;
+        _ ->
+            find_mustache(Mods)
+    end;
+find_mustache([]) ->
+    false.
+
+-spec mustache_context(Module :: module(), Context :: mustache_ctx()) -> term().
+%
+% Returns an appropriate mapping context for the mustache Module.
+%
+mustache_context(bbmustache, Context) ->
+    % Despite what the docs say, bbmustache seems to need the keys to be
+    % strings. This _could_ be limited to the pre-OTP-17 code, but we need R16
+    % compatibility during the transition so I'm not going to sweat it.
+    [mkey_string(Elem) || Elem <- Context];
+mustache_context(rebar_mustache, Context) ->
+    dict:from_list(Context);
+mustache_context(_, Context) ->
+    Context.
+
+-spec mkey_string(Elem :: mustache_def()) -> {string(), mustache_val()}.
+%
+% Ensure the Key of the specified Elem is a string.
+% Guards are ordered by assumed likelihood.
+%
+mkey_string({Key, Val}) when erlang:is_atom(Key) ->
+    {erlang:atom_to_list(Key), Val};
+mkey_string({Key, _} = Elem) when erlang:is_list(Key) ->
+    Elem;
+mkey_string({Key, Val}) when erlang:is_binary(Key) ->
+    {erlang:binary_to_list(Key), Val}.
+
+%% ===================================================================
+%% Tests
+%% ===================================================================
 
 -ifdef(TEST).
 
 path_test() ->
     ?assertEqual(
-       {ok, "disable"},
-       path(["vm_args", "-smp"], [{vm_args, [{'-smp', "disable"}]}])),
-    ok.
+        {ok, "disable"},
+        path(["vm_args", "-smp"], [{vm_args, [{'-smp', "disable"}]}])).
 
 multiple_schema_generate_templated_config_test() ->
     lager:start(),
-    Context = [
-        {mustache, "mustache"}
-              ],
-    PrereqSchema = {[], [
-        cuttlefish_mapping:parse(
-        {mapping, "c", "app.c", [
-            {default, "/c"}
-                                ]})
-                        ], []},
+    Context = [{mustache, "mustache"}],
+    PrereqSchema = {
+        [],
+        [cuttlefish_mapping:parse({mapping, "c", "app.c", [{default, "/c"}]})],
+        [] },
 
-    Config = cuttlefish_unit:generate_templated_config("../test/sample_mustache.schema", [], Context, PrereqSchema),
+    % For some inexplicable reason xref flags this as an undefined function
+    % when it's specified directly with the module, but using a variable, which
+    % the compiler almost certainly optimizes away when this code is actually
+    % compiled, shuts it up.
+    % Several other modules call functions in the cuttlefish_test_util module
+    % in their TEST sections and none of them get flagged.
+    % In function mode, which is how Rebar uses it, xref uses the debug source
+    % stored in the beam for at least part of its analysis, and somehow it must
+    % be seeing into inactive code.
+    % I think it may be related to the unconditional inclusion of eunit.hrl,
+    % but I'm not going to spend the time chasing it down.
+    UtilMod = cuttlefish_test_util,
+    Schema = UtilMod:test_file("sample_mustache.schema"),
+
+    Config = cuttlefish_unit:generate_templated_config(
+        Schema, [], Context, PrereqSchema),
+
     lager:error("~p", [Config]),
     assert_config(Config, "app_a.setting_b", "/c/mustache/a.b"),
     ok.

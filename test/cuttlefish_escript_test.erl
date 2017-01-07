@@ -1,4 +1,25 @@
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2014-2017 Basho Technologies, Inc.
+%%
+%% This file is provided to you under the Apache License,
+%% Version 2.0 (the "License"); you may not use this file
+%% except in compliance with the License.  You may obtain
+%% a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+%%
+%% -------------------------------------------------------------------
+
 -module(cuttlefish_escript_test).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
@@ -51,7 +72,10 @@ describe_test_() ->
      ].
 
 describe(Key) ->
-    ?assertThrow(stop_deactivate, cuttlefish_escript:main(["-i", "../test/riak.schema", "-c", "../test/riak.conf", "describe", Key])).
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main([
+        "-i", cuttlefish_test_util:test_file("riak.schema"),
+        "-c", cuttlefish_test_util:test_file("riak.conf"),
+        "describe", Key ])).
 
 describe_prints_docs() ->
     ?capturing(begin
@@ -93,8 +117,9 @@ describe_prints_no_default() ->
 
 describe_prints_not_configured() ->
     ?capturing(begin
-                   describe("ssl.keyfile"),
-                   ?assertPrinted("Value not set in \\.\\./test/riak.conf")
-               end).
+        describe("ssl.keyfile"),
+        ?assertPrinted("Value not set in "
+            ++ cuttlefish_test_util:test_file("riak.conf"))
+    end).
 
 -endif.

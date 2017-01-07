@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------
 #
-# Copyright (c) 2013-2016 Basho Technologies, Inc.
+# Copyright (c) 2013-2017 Basho Technologies, Inc.
 #
 # This file is provided to you under the Apache License,
 # Version 2.0 (the "License"); you may not use this file
@@ -34,7 +34,7 @@ CP	:= /bin/cp -p
 RM	:= /bin/rm
 
 .PHONY	: check clean clean-deps clean-docs clean-dist compile dialyzer \
-	  default docs prereqs test validate veryclean xref
+	  default docs escript prereqs test validate veryclean xref
 
 default : compile
 
@@ -42,7 +42,6 @@ prereqs ::
 
 compile :: prereqs
 	$(REBAR3) as prod compile
-	$(CP) _build/prod/bin/cuttlefish $(prj_dir)/cuttlefish
 
 check :: prereqs
 	$(REBAR3) as check do brt-deps --check, dialyzer, xref
@@ -64,6 +63,10 @@ docs :: prereqs
 
 dialyzer :: prereqs
 	$(REBAR3) as check dialyzer
+
+escript :: prereqs
+	$(REBAR3) as prod escriptize
+	$(CP) _build/prod/bin/cuttlefish $(prj_dir)/cuttlefish
 
 test :: prereqs
 	$(REBAR3) eunit
