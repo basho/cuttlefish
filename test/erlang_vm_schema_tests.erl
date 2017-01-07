@@ -33,7 +33,7 @@ basic_schema_test() ->
             cuttlefish_unit:assert_config(Config, "vm_args.+Q", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000);
         _ ->
-            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 65536),
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_ETS_TABLES", 256000)
     end,
     ok.
