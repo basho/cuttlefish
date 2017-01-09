@@ -36,7 +36,9 @@
     assert_valid_config/1,
     generate_config/2,
     generate_templated_config/3,
-    generate_templated_config/4
+    generate_templated_config/4,
+    lib_priv_dir/1,
+    lib_test_dir/1
 ]).
 
 %% Historically Exported by -compile(export_all).
@@ -67,6 +69,14 @@
 -type mustache_key()  :: atom() | binary() | string().
 -type mustache_val()  :: term().
 
+% This file uses eunit's assert macros so inclusion is unconditional.
+% However, eunit.hrl defines TEST by default, and we don't want that, so
+% override the default behavior if not actually running eunit (or ct).
+-ifndef(TEST).
+-ifndef(NOTEST).
+-define(NOTEST, true).
+-endif.
+-endif.
 -include_lib("eunit/include/eunit.hrl").
 
 %% ===================================================================
@@ -164,6 +174,54 @@ assert_error_message(Config, Message) ->
     ok = assert_error(Config),
     {errorlist, Errors} = element(3, Config),
     chase_message(Message, Errors, Errors).
+
+-spec lib_priv_dir(Module :: module()) -> string() | false.
+%%
+%% @doc Returns the path to an application's working "priv" directory.
+%%
+%% Module MUST be compiled from a file in one of the application's main source
+%% directories, generally the project's "src" directory.
+%% Module's code IS NOT explicitly loaded by this operation.
+%%
+%% The returned path is to the "priv" directory in the working instance of the
+%% application, which may be in a number of places in different Rebar versions.
+%%
+%% `false' is returned if the path cannot be determined, or does not exist,
+%% or is not a directory.
+%%
+%% Logically, this is analogous to
+%% ```
+%%  filename:join(
+%%      filename:dirname(filename:dirname(code:which(Module))),
+%%      "priv" )
+%% ```
+%%
+lib_priv_dir(Module) ->
+    lib_sub_dir(Module, "priv").
+
+-spec lib_test_dir(Module :: module()) -> string() | false.
+%%
+%% @doc Returns the path to an application's working "test" directory.
+%%
+%% Module MUST be compiled from a file in one of the application's main source
+%% directories, generally the project's "src" directory.
+%% Module's code IS NOT explicitly loaded by this operation.
+%%
+%% The returned path is to the "test" directory in the working instance of the
+%% application, which may be in a number of places in different Rebar versions.
+%%
+%% `false' is returned if the path cannot be determined, or does not exist,
+%% or is not a directory.
+%%
+%% Logically, this is analogous to
+%% ```
+%%  filename:join(
+%%      filename:dirname(filename:dirname(code:which(Module))),
+%%      "test" )
+%% ```
+%%
+lib_test_dir(Module) ->
+    lib_sub_dir(Module, "test").
 
 %% ===================================================================
 %% Historically Exported
@@ -352,6 +410,29 @@ mkey_string({Key, _} = Elem) when erlang:is_list(Key) ->
 mkey_string({Key, Val}) when erlang:is_binary(Key) ->
     {erlang:binary_to_list(Key), Val}.
 
+-spec lib_sub_dir(Module :: module(), SubDir :: string()) -> string() | false.
+%
+% Find the specified sub-directory of the application containing Module.
+% We use the definitive code:get_object_code/1 initially, because we're often
+% going to be running in a test scenario in which code:which/1 is going to
+% return `cover_compiled', after which we'd have to resort to
+% code:get_object_code/1 anyway.
+%
+lib_sub_dir(Module, SubDir) ->
+    case code:get_object_code(Module) of
+        {Module, _, Beam} ->
+            Lib = filename:dirname(filename:dirname(Beam)),
+            Dir = filename:join(Lib, SubDir),
+            case filelib:is_dir(Dir) of
+                true ->
+                    Dir;
+                _ ->
+                    false
+            end;
+        _ ->
+            false
+    end.
+
 %% ===================================================================
 %% Tests
 %% ===================================================================
@@ -371,19 +452,9 @@ multiple_schema_generate_templated_config_test() ->
         [cuttlefish_mapping:parse({mapping, "c", "app.c", [{default, "/c"}]})],
         [] },
 
-    % For some inexplicable reason xref flags this as an undefined function
-    % when it's specified directly with the module, but using a variable, which
-    % the compiler almost certainly optimizes away when this code is actually
-    % compiled, shuts it up.
-    % Several other modules call functions in the cuttlefish_test_util module
-    % in their TEST sections and none of them get flagged.
-    % In function mode, which is how Rebar uses it, xref uses the debug source
-    % stored in the beam for at least part of its analysis, and somehow it must
-    % be seeing into inactive code.
-    % I think it may be related to the unconditional inclusion of eunit.hrl,
-    % but I'm not going to spend the time chasing it down.
-    UtilMod = cuttlefish_test_util,
-    Schema = UtilMod:test_file("sample_mustache.schema"),
+    TestDir = lib_test_dir(?MODULE),
+    ?assertNotEqual(false, TestDir),
+    Schema = filename:join(TestDir, "sample_mustache.schema"),
 
     Config = cuttlefish_unit:generate_templated_config(
         Schema, [], Context, PrereqSchema),
