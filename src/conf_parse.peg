@@ -101,7 +101,7 @@ ws <- [ \t] `ws`;
 %% This is a generated file, changes should be made to conf_parse.peg.
 %%
 
-%% @doc This module implements the parser for a sysctl-style configuration format.
+%% This module implements the parser for a sysctl-style configuration format.
 %%
 %% Example:
 %% ```
@@ -120,7 +120,8 @@ ws <- [ \t] `ws`;
 %%
 %% Other modules in this application interpret and validate the
 %% result of a successful parse.
-%% @end
+%%
+
 -define(line, true).
 -define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 

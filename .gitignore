@@ -33,12 +33,13 @@ tmp/
 # Erlang artifacts
 *.app
 *.beam
+/doc/
 /ebin/
 
 # build/test artifacts
-cuttlefish
+/cuttlefish
 generated.conf
 generated.config
-src/conf_parse.erl
-src/cuttlefish_duration_parse.erl
-test_fixtures/escript_prune_test/generated.config/*
+/src/conf_parse.erl
+/src/cuttlefish_duration_parse.erl
+/test_fixtures/escript_prune_test/generated.config/*

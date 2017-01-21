@@ -1,8 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% cuttlefish_translation: models a cuttlefish translation
-%%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -19,6 +17,8 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
+
+%% models a cuttlefish translation
 -module(cuttlefish_translation).
 
 -ifdef(TEST).
@@ -27,9 +27,9 @@
 -endif.
 
 -record(translation, {
-    mapping::string(),
-    func::fun()
-    }).
+    mapping             :: string(),
+    func = undefined    :: translation_fun() | undefined
+}).
 -type translation() :: #translation{}.
 -type translation_fun() :: fun(([proplists:property()]) -> any()).
 -type raw_translation() :: {translation, string(), translation_fun()} | {translation, string()}.
@@ -41,7 +41,8 @@
     is_translation/1,
     mapping/1,
     func/1,
-    replace/2]).
+    replace/2
+]).
 
 -spec parse(raw_translation()) -> translation() | cuttlefish_error:error().
 parse({translation, Mapping}) ->

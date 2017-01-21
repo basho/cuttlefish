@@ -194,7 +194,7 @@ assert_error_message(Config, Message) ->
 %%  filename:join(
 %%      filename:dirname(filename:dirname(code:which(Module))),
 %%      "priv" )
-%% ```
+%% '''
 %%
 lib_priv_dir(Module) ->
     lib_sub_dir(Module, "priv").
@@ -218,7 +218,7 @@ lib_priv_dir(Module) ->
 %%  filename:join(
 %%      filename:dirname(filename:dirname(code:which(Module))),
 %%      "test" )
-%% ```
+%% '''
 %%
 lib_test_dir(Module) ->
     lib_sub_dir(Module, "test").
