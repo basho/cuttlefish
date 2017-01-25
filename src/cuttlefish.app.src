@@ -6,6 +6,6 @@
     {env,           []},
     {modules,       []},
     {maintainers,   ["Basho Technologies, Inc."]},
-    {licenses,      ["Apache"]},
+    {licenses,      ["Apache 2.0"]},
     {links,         [{"Github",  "https://github.com/basho/cuttlefish"}]}
 ]}.
