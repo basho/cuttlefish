@@ -311,6 +311,22 @@
   hidden
 ]}.
 
+%% @doc Set the interface/IP to listen for distributed Erlang connections.
+%%
+%% More information: http://erlang.org/doc/man/kernel_app.html
+{mapping, "erlang.distribution.interface", "kernel.inet_dist_use_interface", [
+  {commented, "true"},
+  {datatype, string},
+  hidden
+]}.
+
+{translation, "kernel.inet_dist_use_interface",
+ fun(Conf) ->
+  IPStr = cuttlefish:conf_get("erlang.distribution.interface", Conf),
+  list_to_tuple([ list_to_integer(Octet) || Octet <- string:tokens(IPStr,".")])
+ end
+}.
+
 %% @doc Set the net_kernel's net_ticktime.
 %%
 %% More information: http://www.erlang.org/doc/man/kernel_app.html#net_ticktime
