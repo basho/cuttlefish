@@ -317,15 +317,28 @@
 {mapping, "erlang.distribution.interface", "kernel.inet_dist_use_interface", [
   {commented, "true"},
   {datatype, string},
+  {validators, ["ip_strict"]},
   hidden
 ]}.
 
 {translation, "kernel.inet_dist_use_interface",
  fun(Conf) ->
   IPStr = cuttlefish:conf_get("erlang.distribution.interface", Conf),
-  list_to_tuple([ list_to_integer(Octet) || Octet <- string:tokens(IPStr,".")])
+  {ok, IP_address} = inet:parse_strict_address(IPStr),
+  IP_address
  end
 }.
+
+{validator, "ip_strict", "must be a valid IPv4 or IPv6 address",
+fun(String) ->
+  try inet:parse_strict_address(String) of
+    {ok,{_,_,_,_}} -> true;
+    {ok,{_,_,_,_,_,_,_,_}} -> true;
+    _ -> false
+  catch  _:_ ->
+    false
+  end
+end}.
 
 %% @doc Set the net_kernel's net_ticktime.
 %%
