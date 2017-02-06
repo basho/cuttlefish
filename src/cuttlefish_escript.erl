@@ -346,12 +346,10 @@ engage_cuttlefish(ParsedArgs) ->
                   Path -> Path
     end,
 
-    Date = calendar:local_time(),
-
-    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), Date, "config"),
+    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), "config"),
     Destination = filename:join(AbsPath, DestinationFilename),
 
-    DestinationVMArgsFilename = filename_maker("vm", Date, "args"),
+    DestinationVMArgsFilename = filename_maker("vm", "args"),
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
@@ -455,8 +453,15 @@ check_existence(EtcDir, Filename) ->
     lager:info("Checking ~s exists... ~p", [FullName, Exists]),
     {Exists, FullName}.
 
-filename_maker(Filename, Date, Extension) ->
-    {{Y, M, D}, {HH, MM, SS}} = Date,
+filename_maker(Filename, Extension) ->
+    case length(string:tokens(Filename, ".")) of
+        1 -> filename_maker(add_suffix, Filename, Extension);
+        _ -> filename_maker(no_suffix, Filename, Extension)
+    end.
+
+filename_maker(no_suffix, Filename, _Extension) -> Filename;
+filename_maker(add_suffix, Filename, Extension) ->
+    {{Y, M, D}, {HH, MM, SS}} = calendar:local_time(),
     _DestinationFilename =
         io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s",
             [Filename,
