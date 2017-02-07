@@ -24,8 +24,8 @@
 -export([
          generate/1,
          generate_file/2,
-         file/1,
-         files/1,
+         file/2,
+         files/2,
          is_variable_defined/2,
          pretty_datatype/1]).
 
@@ -38,11 +38,11 @@
 is_variable_defined(VariableDef, Conf) ->
     lists:any(fun({X, _}) -> cuttlefish_variable:is_fuzzy_match(X, VariableDef) end, Conf).
 
--spec files([file:name()]) -> conf() | cuttlefish_error:errorlist().
-files(ListOfConfFiles) ->
+-spec files([file:name()], atom()) -> conf() | cuttlefish_error:errorlist().
+files(ListOfConfFiles, ParserMod) ->
     {ValidConf, Errors} = lists:foldl(
       fun(ConfFile, {ConfAcc, ErrorAcc}) ->
-              case cuttlefish_conf:file(ConfFile) of
+              case cuttlefish_conf:file(ConfFile, ParserMod) of
                   {errorlist, ErrorList} ->
                       {ConfAcc, ErrorList ++ ErrorAcc};
                   Conf ->
@@ -61,9 +61,9 @@ files(ListOfConfFiles) ->
         _ -> {errorlist, Errors}
     end.
 
--spec file(file:name()) -> conf() | cuttlefish_error:errorlist().
-file(Filename) ->
-    case conf_parse:file(Filename) of
+-spec file(file:name(), atom()) -> conf() | cuttlefish_error:errorlist().
+file(Filename, ParserMod) ->
+    case ParserMod:file(Filename) of
         {error, Reason} ->
             %% Reason is an atom via file:open
             {errorlist, [{error, {file_open, {Filename, Reason}}}]};
