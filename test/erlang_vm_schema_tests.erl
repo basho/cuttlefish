@@ -1,3 +1,23 @@
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
+%%
+%% This file is provided to you under the Apache License,
+%% Version 2.0 (the "License"); you may not use this file
+%% except in compliance with the License.  You may obtain
+%% a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+%%
+%% -------------------------------------------------------------------
+
 -module(erlang_vm_schema_tests).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -184,3 +204,33 @@ context() ->
         {node, "node@host"},
         {crash_dump, "dump"}
     ].
+
+inet_dist_use_interface_test() ->
+    InputConfig = "erlang.distribution.interface",
+    GeneratedConfig = "kernel.inet_dist_use_interface",
+    InputConfigPoint = string:tokens(InputConfig, "."),
+    ErlVmSchema = cuttlefish_test_util:priv_file("erlang_vm.schema"),
+
+    Pass =[
+        {"127.0.0.1",{127,0,0,1}},
+        {"0.0.0.0",{0,0,0,0}},
+        {"fe80:1200::1",{65152,4608,0,0,0,0,0,1}}
+    ],
+    Fail = [
+        "127.0.0.1:8080",
+        "127.1",
+        "fe80:1200::g",
+        "Not an IP"
+    ],
+
+    lists:foreach(fun({Input, Expected}) ->
+                Config = cuttlefish_unit:generate_templated_config(
+                    [ErlVmSchema], [{InputConfigPoint, Input}], context()),
+                cuttlefish_unit:assert_config(Config, GeneratedConfig, Expected)
+        end, Pass),
+    lists:foreach(fun(Input) ->
+                Config = cuttlefish_unit:generate_templated_config(
+                    [ErlVmSchema], [{InputConfigPoint, Input}], context()),
+                cuttlefish_unit:assert_error_message(Config,
+                    InputConfig ++ " invalid, must be a valid IPv4 or IPv6 address")
+        end, Fail).
