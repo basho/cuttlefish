@@ -29,6 +29,7 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 -endif.
 
 -export([parse/1, parse/2, to_string/2]).

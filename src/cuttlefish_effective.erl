@@ -28,6 +28,7 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 -endif.
 
 -spec build(cuttlefish_conf:conf(), cuttlefish_schema:schema(), [proplists:property()]) -> [string()].
