@@ -2,6 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 
 %% This test generates a default .conf file from the riak.schema. view it at ../generated.conf
 generated_conf_file_test() ->

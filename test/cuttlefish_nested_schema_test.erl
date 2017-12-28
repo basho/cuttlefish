@@ -2,6 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 
 nested_schema_test() ->
     Conf = [

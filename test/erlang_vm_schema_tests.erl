@@ -2,6 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 
 %% basic schema test will check to make sure that all defaults from the schema
 %% make it into the generated app.config
