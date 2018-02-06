@@ -1,7 +1,7 @@
 defmodule Cuttlefish.Mixfile do
   use Mix.Project
 
-  #@version File.read!("VERSION") |> String.strip
+  @compile :nowarn_unused_vars
 
   def project do
     [app: :cuttlefish,
