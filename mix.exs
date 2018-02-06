@@ -34,12 +34,12 @@ defmodule Cuttlefish.Mixfile do
      ]
   end
 
-  %defp package do
-  %  [files: ~w(src lib mix.exs priv rebar.config README.textile LICENSE VERSION),
-  %   contributors: ["Foo"],
-  %   licenses: ["Foo license"],
-  %   links: %{"GitHub" => "https://github.com/fooo.... "}]
-  %end
+  #defp package do
+  #  [files: ~w(src lib mix.exs priv rebar.config README.textile LICENSE VERSION),
+  #   contributors: ["Foo"],
+  #   licenses: ["Foo license"],
+  #   links: %{"GitHub" => "https://github.com/fooo.... "}]
+  #end
 
   defp description do
     """
