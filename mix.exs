@@ -9,21 +9,25 @@ defmodule Cuttlefish.Mixfile do
      elixir: "~> 1.5.2",
      description: description(),
      escript: escript(),
-    deps: dependencies()]
+     deps: dependencies(),
+     language: :erlang 
+    ]
   end
 
   defp dependencies() do
     [
-      {:lager, "~> 3.6"}
+      {:lager, "~> 3.6"},
+      {:getopt, [ git:   "https://github.com/basho/getopt.git", branch: "rebar3" ] }
     ]
   end
 
   defp escript do
-    [main_module: :cuttlefish_escript]
+    [main_module: :cuttlefish_escript, app: nil]
   end
 
   def application do
-    [applications: []]
+    #[applications: [ :lager, :cuttlefish ]]
+    [applications: [ ]]
   end
 
   defp package do
