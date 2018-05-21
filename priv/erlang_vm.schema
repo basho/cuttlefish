@@ -311,6 +311,35 @@
   hidden
 ]}.
 
+%% @doc Set the interface/IP to listen for distributed Erlang connections.
+%%
+%% More information: http://erlang.org/doc/man/kernel_app.html
+{mapping, "erlang.distribution.interface", "kernel.inet_dist_use_interface", [
+  {commented, "true"},
+  {datatype, string},
+  {validators, ["ip_strict"]},
+  hidden
+]}.
+
+{translation, "kernel.inet_dist_use_interface",
+ fun(Conf) ->
+  IPStr = cuttlefish:conf_get("erlang.distribution.interface", Conf),
+  {ok, IP_address} = inet:parse_strict_address(IPStr),
+  IP_address
+ end
+}.
+
+{validator, "ip_strict", "must be a valid IPv4 or IPv6 address",
+fun(String) ->
+  try inet:parse_strict_address(String) of
+    {ok,{_,_,_,_}} -> true;
+    {ok,{_,_,_,_,_,_,_,_}} -> true;
+    _ -> false
+  catch  _:_ ->
+    false
+  end
+end}.
+
 %% @doc Set the net_kernel's net_ticktime.
 %%
 %% More information: http://www.erlang.org/doc/man/kernel_app.html#net_ticktime

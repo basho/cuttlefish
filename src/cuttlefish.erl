@@ -52,6 +52,10 @@ otp(DesiredMinimumOTPVersion, IfGreaterOrEqual, IfLessThan) ->
 otp([], []) ->
     %% They're the same length AND all previous chars were matches
     true;
+otp([$R|TMin], Ver) ->
+    otp(TMin, Ver);
+otp(Min, [$R|TVer]) ->
+    otp(Min, TVer);
 otp([H|TMin], [H|TVer]) ->
     %% The head chars are equal, test the tails
     otp(TMin, TVer);
@@ -135,6 +139,11 @@ otp_test() ->
     ?assert(otp("R16", "R16A")),
     ?assert(not(otp("R16B01", "R16A"))),
     ?assert(otp("R16A", "R16A")),
+    ?assert(otp("R16", "17")),
+    ?assert(otp("R16B03-1", "17")),
+    ?assert(not(otp("17", "R16"))),
+    ?assert(otp("R16A", "17")),
+    ?assert(not(otp("18", "17"))),
     ok.
 
 -endif.

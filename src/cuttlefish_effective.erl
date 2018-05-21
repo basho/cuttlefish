@@ -121,7 +121,7 @@ proplist_to_kvcpaths(Prefix, Proplist) ->
         _ -> Prefix ++ "."
     end,
     lists:foldl(fun(K, Acc) ->
-            KeyedPrefix = NewPrefix ++ atom_to_list(K),
+            KeyedPrefix = NewPrefix ++ canonicalize_key(K),
             R = proplist_to_kvcpaths(
                 KeyedPrefix,
                 proplists:get_value(K, Proplist)),
@@ -135,6 +135,19 @@ proplist_to_kvcpaths(Prefix, Proplist) ->
         [],
         keys_if_you_got_em(Proplist)
     ).
+
+%% So this is gross, but is the simplest scheme for determining the
+%% type of data coming into this function. It doesn't really
+%% matter how we handle non-atoms because cuttlefish only creates 
+%% proplists with atoms as the keynames.
+-spec canonicalize_key(atom() | list() | binary()) -> string().
+canonicalize_key(K) when is_atom(K) ->
+    atom_to_list(K);
+canonicalize_key(K) when is_list(K) ->
+    "\"" ++ K ++ "\"";
+canonicalize_key(K) when is_binary(K) ->
+    "<<\""++binary_to_list(K)++"\">>".
+
 
 -spec keys_if_you_got_em([proplists:property()]) -> [term()].
 keys_if_you_got_em(Proplist) when is_list(Proplist) ->
