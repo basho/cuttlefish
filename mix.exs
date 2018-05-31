@@ -6,6 +6,7 @@ defmodule Cuttlefish.Mixfile do
   def project do
     [app: :cuttlefish,
      version: "0.1.0",
+     elixir: "~> 1.5.2",
      description: description(),
      escript: escript(),
      deps: dependencies() ,
