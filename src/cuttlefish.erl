@@ -124,7 +124,7 @@ invalid(Reason) ->
 %% being logged.
 -spec warn(iodata()) -> ok.
 warn(Str) ->
-    lager:warning(Str, []).
+    lager:log(warning,self(),Str, []).
 
 -ifdef(TEST).
 
