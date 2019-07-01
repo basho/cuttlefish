@@ -1,7 +1,6 @@
 -module(cuttlefish_escript_integration_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 
 escript_utf8_test() ->
     cuttlefish_lager_test_backend:bounce(error),

@@ -30,7 +30,6 @@
 -define(QC_OUT(Prop), on_output(fun(F,A) -> io:format(user, F, A) end, Prop)).
 -endif.
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 -export([

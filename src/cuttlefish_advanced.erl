@@ -26,7 +26,6 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 %% @doc this function overlays the values in proplist 'AdvancedConfig'

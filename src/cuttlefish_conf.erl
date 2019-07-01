@@ -206,7 +206,6 @@ remove_duplicates(Conf) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 -ifdef(TEST).
