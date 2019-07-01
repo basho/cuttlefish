@@ -24,6 +24,8 @@
          tidy_up/1,
          get_output/0]).
 
+-compile(nowarn_deprecated_function).
+
 %% @doc spawns the new group leader
 new_group_leader(Runner) ->
     spawn_link(?MODULE, group_leader_loop, [Runner, queue:new()]).
