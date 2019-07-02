@@ -143,7 +143,7 @@ unescape_dots([C|Rest]) ->
 
 -ifdef(TEST).
 file_test() ->
-    Conf = conf_parse:file("../test/riak.conf"),
+    Conf = conf_parse:file("test/riak.conf"),
     ?assertEqual([
             {["ring_size"],"32"},
             {["anti_entropy"],"debug"},

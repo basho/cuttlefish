@@ -322,13 +322,13 @@ comment_parser_test() ->
 
 bad_file_test() ->
     cuttlefish_lager_test_backend:bounce(),
-    {errorlist, ErrorList} = file("../test/bad_erlang.schema"),
+    {errorlist, ErrorList} = file("test/bad_erlang.schema"),
 
     Logs = cuttlefish_lager_test_backend:get_logs(),
     [L1|Tail] = Logs,
     [L2|[]] = Tail,
     ?assertMatch({match, _}, re:run(L1, "Error scanning erlang near line 10")),
-    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: ../test/bad_erlang.schema")),
+    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: test/bad_erlang.schema")),
 
     ?assertEqual([
         {error, {erl_scan, 10}}
@@ -375,9 +375,9 @@ files_test() ->
     %% Loads them in reverse order, as things are overridden
     {Translations, Mappings, Validators} = files(
         [
-            "../test/multi1.schema",
-            "../test/multi2.schema",
-            "../test/multi3.schema"
+            "test/multi1.schema",
+            "test/multi2.schema",
+            "test/multi3.schema"
         ]),
 
     ?assertEqual(6, length(Mappings)),
