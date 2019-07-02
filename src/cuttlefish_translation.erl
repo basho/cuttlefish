@@ -27,7 +27,7 @@
 
 -record(translation, {
     mapping::string(),
-    func::fun()
+    func::fun() | undefined
     }).
 -type translation() :: #translation{}.
 -type translation_fun() :: fun(([proplists:property()]) -> any()).
