@@ -17,7 +17,7 @@ generate_templated_config(FileName, Conf, Context, PreexistingSchema) ->
     cuttlefish_generator:map(Schema, Conf).
 
 render_template(FileName, Context) ->
-    {ok, Bin} = file:read_file(FileName),
+    {ok, Bin, _} = erl_prim_loader:get_file(filename:absname(FileName)),
     %% Stolen from rebar_templater:render/2
     %% Be sure to escape any double-quotes before rendering...
     ReOpts = [global, {return, list}],

@@ -11,9 +11,27 @@ generated_conf_file_test() ->
     ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
     ok.
 
+%% Same as above, but with the files in an .ez archive.
+generated_conf_file_ez_test() ->
+    {_, Mappings, _} = cuttlefish_schema:file("test/riakconf.ez/riakconf/riak.schema"),
+    cuttlefish_conf:generate_file(Mappings, "generated.conf"),
+    %% Schema generated a conf file, let's parse it!
+    Conf = cuttlefish_conf:file("generated.conf"),
+    ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
+    ok.
+
 %% This test generates a .config file from the riak.schema. view it at generated.config
 generated_config_file_test() ->
     Schema = cuttlefish_schema:file("test/riak.schema"),
+    Conf = [], %% conf_parse:file("test/riak.conf"),
+    NewConfig = cuttlefish_generator:map(Schema, Conf),
+
+    file:write_file("generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
+    ok.
+
+%% Same as above, but with the files in an .ez archive.
+generated_config_file_ez_test() ->
+    Schema = cuttlefish_schema:file("test/riakconf.ez/riakconf/riak.schema"),
     Conf = [], %% conf_parse:file("test/riak.conf"),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
 

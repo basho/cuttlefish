@@ -118,7 +118,7 @@ count_mappings(Mappings) ->
 
 -spec file(string(), schema()) -> schema() | cuttlefish_error:errorlist().
 file(Filename, Schema) ->
-    {ok, B} = file:read_file(Filename),
+    {ok, B, _} = erl_prim_loader:get_file(filename:absname(Filename)),
     %% latin-1 is easier to support generically. We'll revisit utf-8
     %% support in the future.
     S = unicode:characters_to_list(B, latin1),
