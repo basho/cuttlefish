@@ -1,3 +1,6 @@
+* [![Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=develop)](https://travis-ci.org/Kyorai/cuttlefish)
+* [![Hex version](https://img.shields.io/hexpm/v/cuttlefish.svg "Hex version")](https://hex.pm/packages/cuttlefish)
+
 # Cuttlefish
 
 Cuttlefish is a library for Erlang applications that wish to walk the
