@@ -37,7 +37,6 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 %% We'll be calling this a lot from `xlate'

@@ -62,7 +62,6 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 %% @doc Only let through lines that are not comments or whitespace.
@@ -79,7 +78,7 @@ unescape_dots([C|Rest]) ->
 
 -ifdef(TEST).
 file_test() ->
-    Conf = conf_parse:file("../test/riak.conf"),
+    Conf = conf_parse:file("test/riak.conf"),
     ?assertEqual([
             {["ring_size"],"32"},
             {["anti_entropy"],"debug"},
@@ -103,7 +102,7 @@ utf8_test() ->
 file(Filename) -> case file:read_file(Filename) of {ok,Bin} -> parse(Bin); Err -> Err end.
 
 -spec parse(binary() | list()) -> any().
-parse(List) when is_list(List) -> parse(list_to_binary(List));
+parse(List) when is_list(List) -> parse(unicode:characters_to_binary(List));
 parse(Input) when is_binary(Input) ->
   _ = setup_memo(),
   Result = case 'config'(Input,{{line,1},{column,1}}) of

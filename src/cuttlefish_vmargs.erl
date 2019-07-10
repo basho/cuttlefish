@@ -4,7 +4,6 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 -endif.
 
 %% @doc turns a proplist into a list of strings suitable for vm.args files

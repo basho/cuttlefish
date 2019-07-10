@@ -25,11 +25,20 @@ render_template(FileName, Context) ->
     Str1 = re:replace(Str0, "\"", "\\\\\"", ReOpts),
 
     %% the mustache module is only available in the context of a rebar run.
-    case {code:ensure_loaded(mustache), code:ensure_loaded(rebar_mustache)} of
-        {{module, mustache}, _} ->
+    case {code:ensure_loaded(mustache), code:ensure_loaded(rebar_mustache), code:ensure_loaded(bbmustache)} of
+        {{module, mustache}, _, _} ->
             mustache:render(Str1, dict:from_list(Context));
-        {_, {module, rebar_mustache}} ->
+        {_, {module, rebar_mustache}, _} ->
             rebar_mustache:render(Str1, dict:from_list(Context));
+        {_, _, {module, bbmustache}} ->
+            Ret = bbmustache:render(
+                    Bin,
+                    maps:from_list(
+                      [case is_atom(K) of
+                           true  -> {atom_to_list(K), V};
+                           false -> I
+                       end || I = {K, V} <- Context])),
+            binary_to_list(Ret);
         _ ->
             io:format("mustache and/or rebar_mustache module not loaded. "
                       "This test can only be run in a rebar context.~n")
@@ -192,7 +201,7 @@ multiple_schema_generate_templated_config_test() ->
                                 ]})
                         ], []},
 
-    Config = cuttlefish_unit:generate_templated_config("../test/sample_mustache.schema", [], Context, PrereqSchema),
+    Config = cuttlefish_unit:generate_templated_config("test/sample_mustache.schema", [], Context, PrereqSchema),
     lager:error("~p", [Config]),
     assert_config(Config, "app_a.setting_b", "/c/mustache/a.b"),
     ok.

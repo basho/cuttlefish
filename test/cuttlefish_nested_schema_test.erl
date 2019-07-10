@@ -1,7 +1,6 @@
 -module(cuttlefish_nested_schema_test).
 
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 
 nested_schema_test() ->
     Conf = [

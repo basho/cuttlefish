@@ -1,7 +1,6 @@
 -module(cuttlefish_escript_test).
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--compile(export_all).
 
 -define(assertPrinted(___Text),
         begin
@@ -51,7 +50,7 @@ describe_test_() ->
      ].
 
 describe(Key) ->
-    ?assertThrow(stop_deactivate, cuttlefish_escript:main(["-i", "../test/riak.schema", "-c", "../test/riak.conf", "describe", Key])).
+    ?assertThrow(stop_deactivate, cuttlefish_escript:main(["-i", "test/riak.schema", "-c", "test/riak.conf", "describe", Key])).
 
 describe_prints_docs() ->
     ?capturing(begin
@@ -94,7 +93,7 @@ describe_prints_no_default() ->
 describe_prints_not_configured() ->
     ?capturing(begin
                    describe("ssl.keyfile"),
-                   ?assertPrinted("Value not set in \\.\\./test/riak.conf")
+                   ?assertPrinted("Value not set in test/riak.conf")
                end).
 
 -endif.
