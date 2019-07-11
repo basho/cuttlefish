@@ -1,3 +1,5 @@
+%% vim:ft=erlang:
+
 {application, cuttlefish,
  [
   {description, "cuttlefish configuration abstraction"},
@@ -9,7 +11,6 @@
                  ]},
   {env, []},
 
-  {maintainers,[]},
-  {licenses,["Apache"]},
-  {links,[{"Github","https://github.com/tsloughter/cuttlefish"}]}
+  {licenses, ["Apache"]},
+  {links, [{"GitHub", "https://github.com/Kyorai/cuttlefish"}]}
  ]}.
