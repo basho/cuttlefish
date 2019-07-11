@@ -1,10 +1,10 @@
 {"1.1.0",
 [{<<"getopt">>,{pkg,<<"getopt">>,<<"1.0.1">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.6.3">>},0}]}.
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.7.0">>},0}]}.
 [
 {pkg_hash,[
  {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
- {<<"lager">>, <<"FE78951D174616273F87F0DBC3374D1430B1952E5EFC4E1C995592D30A207294">>}]}
+ {<<"lager">>, <<"563AB17CD32134A3DD17EC3B3622E6D8F827506AA4F8C489158879BED87D980B">>}]}
 ].
