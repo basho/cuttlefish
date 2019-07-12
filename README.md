@@ -5,6 +5,12 @@ fine line between Erlang `app.config`s and a sysctl-like syntax.
 The name is a pun on the pronunciation of 'sysctl' and jokes are
 better explained.
 
+This repository retains full history of the original repository, [basho/cuttlefish/](https://github.com/basho/cuttlefish/),
+but intentionally cut ties with that repo to avoid confusion as to
+where is the most up-to-date, maintained version is.
+
+This is the repository used to produce [Hex.pm releases](https://hex.pm/packages/cuttlefish) of the project.
+
 ## Riak Disclaimer
 
 While this readme and test suite is Riak-heavy, the fact is that this
