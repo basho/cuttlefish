@@ -1,7 +1,8 @@
-* [![Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=develop)](https://travis-ci.org/Kyorai/cuttlefish)
-* [![Hex version](https://img.shields.io/hexpm/v/cuttlefish.svg "Hex version")](https://hex.pm/packages/cuttlefish)
-
 # Cuttlefish
+
+[![Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=develop)](https://travis-ci.org/Kyorai/cuttlefish)
+[![Coverage Status](https://coveralls.io/repos/github/Kyorai/cuttlefish/badge.svg?branch=master)](https://coveralls.io/github/Kyorai/cuttlefish)
+[![Hex version](https://img.shields.io/hexpm/v/cuttlefish.svg "Hex version")](https://hex.pm/packages/cuttlefish)
 
 Cuttlefish is a library for Erlang applications that wish to walk the
 fine line between Erlang `app.config`s and a sysctl-like syntax.
