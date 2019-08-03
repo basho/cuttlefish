@@ -66,6 +66,7 @@
 
 %% @doc Only let through lines that are not comments or whitespace.
 is_setting(ws) -> false;
+is_setting([ws]) -> false;
 is_setting(comment) -> false;
 is_setting(_) -> true.
 
@@ -97,8 +98,16 @@ utf8_test() ->
         }], Conf),
     ok.
 
-gh_1_only_whitespace_test() ->
+gh_1_two_tab_test() ->
     Conf = conf_parse:parse("setting0 = thing0\n\t\t\nsetting1 = thing1\n"),
+    ?assertEqual([
+            {["setting0"],"thing0"},
+            {["setting1"],"thing1"}
+        ], Conf),
+    ok.
+
+gh_1_three_tab_test() ->
+    Conf = conf_parse:parse("setting0 = thing0\n\t\t\t\nsetting1 = thing1\n"),
     ?assertEqual([
             {["setting0"],"thing0"},
             {["setting1"],"thing1"}
@@ -180,7 +189,7 @@ parse(Input) when is_binary(Input) ->
 
 -spec 'ws'(input(), index()) -> parse_result().
 'ws'(Input, Index) ->
-  p(Input, Index, 'ws', fun(I,D) -> (p_charclass(<<"[\s\t]">>))(I,D) end, fun(_Node, _Idx) ->ws end).
+  p(Input, Index, 'ws', fun(I,D) -> (p_one_or_more(p_charclass(<<"[\s\t]">>)))(I,D) end, fun(_Node, _Idx) ->ws end).
 
 
 
