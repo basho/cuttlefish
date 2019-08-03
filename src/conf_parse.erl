@@ -117,7 +117,12 @@ gh_1_three_tab_test() ->
 -endif.
 
 -spec file(file:name()) -> any().
-file(Filename) -> case file:read_file(Filename) of {ok,Bin} -> parse(Bin); Err -> Err end.
+file(Filename) ->
+    AbsFilename = filename:absname(Filename),
+    case erl_prim_loader:get_file(AbsFilename) of
+        {ok, Bin, _} -> parse(Bin);
+        error -> {error, undefined}
+    end.
 
 -spec parse(binary() | list()) -> any().
 parse(List) when is_list(List) -> parse(unicode:characters_to_binary(List));
