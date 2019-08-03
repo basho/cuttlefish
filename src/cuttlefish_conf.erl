@@ -312,7 +312,7 @@ duplicates_multi_test() ->
 
 files_one_nonent_test() ->
     Conf = files(["test/multi1.conf", "test/nonent.conf"]),
-    ?assertEqual({errorlist,[{error, {file_open, {"test/nonent.conf", enoent}}}]}, Conf),
+    ?assertMatch({errorlist,[{error, {file_open, {"test/nonent.conf", _}}}]}, Conf),
     ok.
 
 files_incomplete_parse_test() ->
