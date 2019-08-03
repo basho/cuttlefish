@@ -75,7 +75,7 @@ crlf <- "\r"? "\n" `ws`;
 eof <- !. `ws`;
 
 %% Whitespace is either spaces or tabs.
-ws <- [ \t] `ws`;
+ws <- [ \t]+ `ws`;
 
 % Erlang code
 %{
@@ -131,6 +131,7 @@ ws <- [ \t] `ws`;
 
 %% @doc Only let through lines that are not comments or whitespace.
 is_setting(ws) -> false;
+is_setting([ws]) -> false;
 is_setting(comment) -> false;
 is_setting(_) -> true.
 
@@ -161,5 +162,22 @@ utf8_test() ->
             {error, {conf_to_latin1, 1}}
         }], Conf),
     ok.
+
+gh_1_two_tab_test() ->
+    Conf = conf_parse:parse("setting0 = thing0\n\t\t\nsetting1 = thing1\n"),
+    ?assertEqual([
+            {["setting0"],"thing0"},
+            {["setting1"],"thing1"}
+        ], Conf),
+    ok.
+
+gh_1_three_tab_test() ->
+    Conf = conf_parse:parse("setting0 = thing0\n\t\t\t\nsetting1 = thing1\n"),
+    ?assertEqual([
+            {["setting0"],"thing0"},
+            {["setting1"],"thing1"}
+        ], Conf),
+    ok.
+
 -endif.
 %}
