@@ -161,5 +161,14 @@ utf8_test() ->
             {error, {conf_to_latin1, 1}}
         }], Conf),
     ok.
+
+gh_1_only_whitespace_test() ->
+    Conf = conf_parse:parse("setting0 = thing0\n\t\t\nsetting1 = thing1\n"),
+    ?assertEqual([
+            {["setting0"],"thing0"},
+            {["setting1"],"thing1"}
+        ], Conf),
+    ok.
+
 -endif.
 %}

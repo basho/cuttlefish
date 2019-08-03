@@ -91,20 +91,24 @@ file_test() ->
     ok.
 
 utf8_test() ->
-    Conf = conf_parse:parse("setting = thingŒ\n"),
+    Conf = conf_parse:parse("setting = thing" ++ [338] ++ "\n"),
     ?assertEqual([{["setting"],
             {error, {conf_to_latin1, 1}}
         }], Conf),
     ok.
+
+gh_1_only_whitespace_test() ->
+    Conf = conf_parse:parse("setting0 = thing0\n\t\t\nsetting1 = thing1\n"),
+    ?assertEqual([
+            {["setting0"],"thing0"},
+            {["setting1"],"thing1"}
+        ], Conf),
+    ok.
+
 -endif.
 
 -spec file(file:name()) -> any().
-file(Filename) ->
-    AbsFilename = filename:absname(Filename),
-    case erl_prim_loader:get_file(AbsFilename) of
-        {ok, Bin, _} -> parse(Bin);
-        error -> {error, undefined}
-    end.
+file(Filename) -> case file:read_file(Filename) of {ok,Bin} -> parse(Bin); Err -> Err end.
 
 -spec parse(binary() | list()) -> any().
 parse(List) when is_list(List) -> parse(unicode:characters_to_binary(List));
