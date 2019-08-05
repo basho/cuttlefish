@@ -3,6 +3,7 @@
 %% conf_parse: for all your .conf parsing needs.
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2019 Pivotal Software, Inc.  All rights reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -19,6 +20,24 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
+
+% -------------------------------------------------------------------
+% NOTE: IMPORTANT
+%
+% After using neotoma to re-generate conf_parse.erl, you MUST
+% edit that file to change the exported file/1 function to this code:
+%
+% -spec file(file:name()) -> any().
+% file(Filename) ->
+%     AbsFilename = filename:absname(Filename),
+%     case erl_prim_loader:get_file(AbsFilename) of
+%         {ok, Bin, _} -> parse(Bin);
+%         error -> {error, undefined}
+%     end.
+%
+% The reason is that the above code allows for reading cuttlefish
+% schemas from .ez archives
+% -------------------------------------------------------------------
 
 %% A configuration file may have zero-or-more lines.
 config <- line* %{

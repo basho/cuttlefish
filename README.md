@@ -98,7 +98,14 @@ https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-Application-Users
 * [node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-node_package-users)
 * [non node_package](https://github.com/basho/cuttlefish/wiki/Cuttlefish-for-non-node_package-users)
 
-
 ## Current Status
 
 Cuttlefish is ready for production deployments.
+
+## Re-generating parser
+
+```
+rebar3 as dev neotoma
+```
+
+Please see the *NOTE* in `src/conf_parse.peg` as well.
