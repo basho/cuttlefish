@@ -97,6 +97,7 @@ main(Args) ->
 
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
+    lager:debug("Parsed arguments: ~p", [ParsedArgs]),
     lager:debug("cuttlefish `effective`", []),
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
@@ -107,6 +108,7 @@ effective(ParsedArgs) ->
     case {AppConfigExists, VMArgsExists} of
         {false, false} ->
             AdvancedConfigFile = filename:join(EtcDir, "advanced.config"),
+            lager:debug("Will look for advanced.config at '~s'", [AdvancedConfigFile]),
             AdvConfig = case filelib:is_file(AdvancedConfigFile) of
                 true ->
                     lager:debug("~s/advanced.config detected, overlaying proplists", [EtcDir]),
