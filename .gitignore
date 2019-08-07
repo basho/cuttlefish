@@ -4,6 +4,7 @@ _build
 generated.config
 generated.conf
 ebin/*
+doc/*
 .eunit
 deps
 cuttlefish
