@@ -82,6 +82,8 @@ main(Args) ->
     lager:start(),
     lager:debug("Cuttlefish set to debug level logging"),
 
+    lager:debug("Parsed arguments: ~p", [ParsedArgs]),
+
     case Command of
         help ->
             print_help();
@@ -97,7 +99,6 @@ main(Args) ->
 
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
-    lager:debug("Parsed arguments: ~p", [ParsedArgs]),
     lager:debug("cuttlefish `effective`", []),
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
@@ -245,7 +246,7 @@ generate(ParsedArgs) ->
         {true, true} ->
             lager:info("~s and ~s exists, disabling cuttlefish.", [ExistingAppConfigName, ExistingVMArgsName]),
             lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
-            lager:info(" or see http://github.com/basho/cuttlefish", []),
+            lager:info(" or see http://github.com/Kyorai/cuttlefish", []),
             {ExistingAppConfigName, ExistingVMArgsName};
         {true, false} ->
             lager:info("~s exists, generating vm.args", [ExistingAppConfigName]),
@@ -358,7 +359,6 @@ engage_cuttlefish(ParsedArgs) ->
     lager:debug("Generating config in: ~p", [Destination]),
 
     Schema = load_schema(ParsedArgs),
-
     Conf = load_conf(ParsedArgs),
     NewConfig = case cuttlefish_generator:map(Schema, Conf) of
         {error, Phase, {errorlist, Errors}} ->
