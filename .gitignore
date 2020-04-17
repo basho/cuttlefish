@@ -14,3 +14,4 @@ log
 .local_dialyzer_plt
 erln8.config
 test_fixtures/escript_prune_test/generated.config/*
+rebar.lock
