@@ -1,28 +1,8 @@
-# vim:sw=2:et:
-
 language: erlang
-sudo: false
 otp_release:
+  - 20.3.8
   - 21.3
-  - 20.3
-  - 19.3
-
-install:
-  - curl -O -L https://s3.amazonaws.com/rebar3/rebar3
-  - chmod +x rebar3
-
+  - 22.1
 script:
-  - ./rebar3 do compile,eunit,dialyzer
-
-after_success:
-  - ./rebar3 coveralls send
-
-notifications:
-  email:
-    on_success: change
-    on_failure: always
-
-cache:
-  directories:
-    - $HOME/.cache/rebar3/hex/default
-    - $HOME/_build/default/rebar3_${TRAVIS_OTP_RELEASE}_plt
+  - chmod u+x rebar3
+  - ./rebar3 do upgrade, compile, dialyzer, eunit
