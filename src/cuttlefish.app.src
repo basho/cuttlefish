@@ -1,8 +1,11 @@
-{application,cuttlefish,
-             [{description,"cuttlefish configuration abstraction"},
-              {vsn,"2.3.0"},
-              {registered,[]},
-              {applications,[kernel,stdlib]},
-              {env,[]},
-              {licenses,["Apache"]},
-              {links,[{"GitHub","https://github.com/Kyorai/cuttlefish"}]}]}.
+{application, cuttlefish, [
+    {description,   "cuttlefish configuration abstraction"},
+    {vsn,           git},
+    {registered,    []},
+    {applications,  [kernel, sasl, stdlib, syntax_tools, getopt, lager]},
+    {env,           []},
+    {modules,       []},
+    {maintainers,   ["Basho Technologies, Inc."]},
+    {licenses,      ["Apache 2.0"]},
+    {links,         [{"Github",  "https://github.com/basho/cuttlefish"}]}
+]}.
