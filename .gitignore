@@ -1,14 +1,10 @@
 # rebar and tools
 *.crashdump
-/.cache/
-/.eqc*
-/.eunit/
-/.rebar/
-/.rebar3/
-/_build/
-/_checkouts
-/deps
-/rebar.lock
+.cache/
+.rebar3/
+_build/
+_checkouts
+rebar.lock
 log/
 
 # work environments
@@ -40,6 +36,6 @@ tmp/
 /cuttlefish
 generated.conf
 generated.config
-/src/conf_parse.erl
-/src/cuttlefish_duration_parse.erl
-/test_fixtures/escript_prune_test/generated.config/*
+src/conf_parse.erl
+src/cuttlefish_duration_parse.erl
+test_fixtures/escript_prune_test/generated.config/*
