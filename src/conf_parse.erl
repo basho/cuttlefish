@@ -17,10 +17,7 @@
 
 %% -------------------------------------------------------------------
 %%
-%% conf_parse: for all your .conf parsing needs.
-%%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
-%% Copyright (c) 2019 Pivotal Software, Inc.  All rights reserved.
+%% Copyright (c) 2013-2017 Basho Technologies, Inc.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -37,10 +34,13 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
-
-%% This module implements the parser for a sysctl-style
-%% configuration format. Example:
 %%
+%% This is a generated file, changes should be made to conf_parse.peg.
+%%
+
+%% This module implements the parser for a sysctl-style configuration format.
+%%
+%% Example:
 %% ```
 %% riak.local.node = riak@127.0.0.1
 %% riak.local.http = 127.0.0.1:8098
@@ -57,7 +57,8 @@
 %%
 %% Other modules in this application interpret and validate the
 %% result of a successful parse.
-%% @end
+%%
+
 -define(line, true).
 -define(FMT(F,A), lists:flatten(io_lib:format(F,A))).
 
@@ -80,7 +81,7 @@ unescape_dots([C|Rest]) ->
 
 -ifdef(TEST).
 file_test() ->
-    Conf = conf_parse:file("test/riak.conf"),
+    Conf = conf_parse:file(cuttlefish_test_util:test_file("riak.conf")),
     ?assertEqual([
             {["ring_size"],"32"},
             {["anti_entropy"],"debug"},
@@ -118,12 +119,7 @@ gh_1_three_tab_test() ->
 -endif.
 
 -spec file(file:name()) -> any().
-file(Filename) ->
-    AbsFilename = filename:absname(Filename),
-    case erl_prim_loader:get_file(AbsFilename) of
-        {ok, Bin, _} -> parse(Bin);
-        error -> {error, undefined}
-    end.
+file(Filename) -> case file:read_file(Filename) of {ok,Bin} -> parse(Bin); Err -> Err end.
 
 -spec parse(binary() | list()) -> any().
 parse(List) when is_list(List) -> parse(unicode:characters_to_binary(List));
