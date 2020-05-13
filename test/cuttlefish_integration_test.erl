@@ -26,9 +26,10 @@
 generated_conf_file_test() ->
     {_, Mappings, _} = cuttlefish_schema:file(
         cuttlefish_test_util:test_file("riak.schema")),
-    cuttlefish_conf:generate_file(Mappings, "generated.conf"),
+    GenConf = cuttlefish_test_util:test_file("generated.conf"),
+    cuttlefish_conf:generate_file(Mappings, GenConf),
     %% Schema generated a conf file, let's parse it!
-    Conf = cuttlefish_conf:file("generated.conf"),
+    Conf = cuttlefish_conf:file(GenConf),
     ?assertEqual("8099", proplists:get_value(["handoff","port"], Conf)),
     ok.
 
