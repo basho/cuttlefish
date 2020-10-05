@@ -45,7 +45,8 @@ cli_options() ->
  {advanced_conf_file, $a, "advanced_conf_file", string, "the advanced config file path"},
  {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
  {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
- {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"}
+ {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"},
+ {silent,       $t, "silent",      {boolean, false},   "silent operation, no output"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -264,7 +265,11 @@ generate(ParsedArgs) ->
             engage_cuttlefish(ParsedArgs)
     end,
 
-    case FilesToUse of
+    Silent = proplists:get_value(silent, ParsedArgs, false),
+    case Silent orelse FilesToUse of
+        true ->
+            %% user requested for silent operation, ie. not cli args
+            stop_ok();
         %% this is nice and all, but currently all error paths of engage_cuttlefish end with
         %% stop_deactivate() hopefully factor that to be cleaner.
         error ->
