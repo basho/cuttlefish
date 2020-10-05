@@ -396,7 +396,7 @@ engage_cuttlefish(ParsedArgs) ->
             error;
         _ ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
-            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
+            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig, [])),
 
             %% Prune excess files
             MaxHistory = proplists:get_value(max_history, ParsedArgs, 3) - 1,
@@ -404,8 +404,9 @@ engage_cuttlefish(ParsedArgs) ->
             prune(DestinationVMArgs, MaxHistory),
 
             case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
-                   file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
-                {ok, ok} ->
+                   FinalVMArgs =/= [] andalso file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
+                {ok, VMArgsWriteResult} when VMArgsWriteResult =:= ok orelse
+                                             VMArgsWriteResult =:= false ->
                     {Destination, DestinationVMArgs};
                 {Err1, Err2} ->
                     maybe_log_file_error(Destination, Err1),
