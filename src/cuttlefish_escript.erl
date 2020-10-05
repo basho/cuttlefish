@@ -46,7 +46,8 @@ cli_options() ->
  {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
  {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
  {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"},
- {silent,       $t, "silent",      {boolean, false},   "silent operation, no output"}
+ {silent,       $t, "silent",      {boolean, false},   "silent operation, no output"},
+ {allow_extra,  $x, "allow_extra", {boolean, false},   "don't fail if extra keys not belonging to a schema are found"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -366,7 +367,7 @@ engage_cuttlefish(ParsedArgs) ->
 
     Schema = load_schema(ParsedArgs),
     Conf = load_conf(ParsedArgs),
-    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+    NewConfig = case cuttlefish_generator:map(Schema, Conf, ParsedArgs) of
         {error, Phase, {errorlist, Errors}} ->
             lager:error("Error generating configuration in phase ~s", [Phase]),
             _ = [ cuttlefish_error:print(E) || E <- Errors],
