@@ -1,7 +1,8 @@
 # Cuttlefish
 
-[![Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=develop)](https://travis-ci.org/Kyorai/cuttlefish)
-[![Build status (windows)](https://ci.appveyor.com/api/projects/status/lo8ssrixiqmufc3j?svg=true)](https://ci.appveyor.com/project/Licenser/cuttlefish)
+[![GitHub Actions Status](https://github.com/Kyorai/cuttlefish/workflows/CI/badge.svg)](https://github.com/Kyorai/cuttlefish/actions)
+[![AppVeyor Status](https://ci.appveyor.com/api/projects/status/lo8ssrixiqmufc3j?svg=true)](https://ci.appveyor.com/project/Licenser/cuttlefish)
+[![Travis CI Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=master)](https://travis-ci.org/Kyorai/cuttlefish)
 [![Coverage Status](https://coveralls.io/repos/github/Kyorai/cuttlefish/badge.svg?branch=master)](https://coveralls.io/github/Kyorai/cuttlefish)
 [![Hex version](https://img.shields.io/hexpm/v/cuttlefish.svg "Hex version")](https://hex.pm/packages/cuttlefish)
 
