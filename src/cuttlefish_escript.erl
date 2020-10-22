@@ -45,7 +45,9 @@ cli_options() ->
  {advanced_conf_file, $a, "advanced_conf_file", string, "the advanced config file path"},
  {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
  {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
- {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"}
+ {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"},
+ {silent,       $t, "silent",      {boolean, false},   "silent operation, no output"},
+ {allow_extra,  $x, "allow_extra", {boolean, false},   "don't fail if extra keys not belonging to a schema are found"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -264,7 +266,11 @@ generate(ParsedArgs) ->
             engage_cuttlefish(ParsedArgs)
     end,
 
-    case FilesToUse of
+    Silent = proplists:get_value(silent, ParsedArgs, false),
+    case Silent orelse FilesToUse of
+        true ->
+            %% user requested for silent operation, ie. not cli args
+            stop_ok();
         %% this is nice and all, but currently all error paths of engage_cuttlefish end with
         %% stop_deactivate() hopefully factor that to be cleaner.
         error ->
@@ -351,19 +357,17 @@ engage_cuttlefish(ParsedArgs) ->
                   Path -> Path
     end,
 
-    Date = calendar:local_time(),
-
-    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), Date, "config"),
+    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), "config"),
     Destination = filename:join(AbsPath, DestinationFilename),
 
-    DestinationVMArgsFilename = filename_maker("vm", Date, "args"),
+    DestinationVMArgsFilename = filename_maker("vm", "args"),
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
 
     Schema = load_schema(ParsedArgs),
     Conf = load_conf(ParsedArgs),
-    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+    NewConfig = case cuttlefish_generator:map(Schema, Conf, ParsedArgs) of
         {error, Phase, {errorlist, Errors}} ->
             lager:error("Error generating configuration in phase ~s", [Phase]),
             _ = [ cuttlefish_error:print(E) || E <- Errors],
@@ -396,7 +400,7 @@ engage_cuttlefish(ParsedArgs) ->
             error;
         _ ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
-            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
+            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig, [])),
 
             %% Prune excess files
             MaxHistory = proplists:get_value(max_history, ParsedArgs, 3) - 1,
@@ -404,8 +408,9 @@ engage_cuttlefish(ParsedArgs) ->
             prune(DestinationVMArgs, MaxHistory),
 
             case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
-                   file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
-                {ok, ok} ->
+                   FinalVMArgs =/= [] andalso file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
+                {ok, VMArgsWriteResult} when VMArgsWriteResult =:= ok orelse
+                                             VMArgsWriteResult =:= false ->
                     {Destination, DestinationVMArgs};
                 {Err1, Err2} ->
                     maybe_log_file_error(Destination, Err1),
@@ -460,8 +465,15 @@ check_existence(EtcDir, Filename) ->
     lager:info("Checking ~s exists... ~p", [FullName, Exists]),
     {Exists, FullName}.
 
-filename_maker(Filename, Date, Extension) ->
-    {{Y, M, D}, {HH, MM, SS}} = Date,
+filename_maker(Filename, Extension) ->
+    case length(string:tokens(Filename, ".")) of
+        1 -> filename_maker(add_suffix, Filename, Extension);
+        _ -> filename_maker(no_suffix, Filename, Extension)
+    end.
+
+filename_maker(no_suffix, Filename, _Extension) -> Filename;
+filename_maker(add_suffix, Filename, Extension) ->
+    {{Y, M, D}, {HH, MM, SS}} = calendar:local_time(),
     _DestinationFilename =
         io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s",
             [Filename,

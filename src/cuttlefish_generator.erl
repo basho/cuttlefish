@@ -32,13 +32,19 @@
 -define(LSUBLEN, 2).
 -define(RSUBLEN, 1).
 
--export([map/2, find_mapping/2, add_defaults/2, minimal_map/2]).
+-export([map/2, map/3, find_mapping/2, add_defaults/2, minimal_map/2]).
 
 -spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                  [proplists:property()] |
                  {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
-    map_add_defaults(Schema, Config).
+    map(Schema, Config, []).
+
+-spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
+                 [proplists:property()] |
+                 {error, atom(), cuttlefish_error:errorlist()}.
+map(Schema, Config, ParsedArgs) ->
+    map_add_defaults(Schema, Config, ParsedArgs).
 
 %% @doc Generates an Erlang config that only includes the settings
 %% encompassed by the passed Config, excluding defaults from the
@@ -52,7 +58,7 @@ minimal_map({AllTranslations,AllMappings,V}, Config) ->
                                                     end, {[], sets:new()}, AllMappings),
     RestrictedTranslations = [ T || T <- AllTranslations,
                                     sets:is_element(cuttlefish_translation:mapping(T), MappingKeys)],
-    map({RestrictedTranslations,RestrictedMappings,V}, Config).
+    map({RestrictedTranslations,RestrictedMappings,V}, Config, []).
 
 restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
     case sets:is_element(cuttlefish_mapping:variable(M), ConfigKeys) of
@@ -62,10 +68,10 @@ restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
             {Mappings, Keys}
     end.
 
--spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                               [proplists:property()] |
                               {error, atom(), cuttlefish_error:errorlist()}.
-map_add_defaults({_, Mappings, _} = Schema, Config) ->
+map_add_defaults({_, Mappings, _} = Schema, Config, ParsedArgs) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     lager:debug("Adding Defaults"),
@@ -74,30 +80,30 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
         {errorlist, EList} ->
             {error, add_defaults, {errorlist, EList}};
         _ ->
-            map_value_sub(Schema, DConfig)
+            map_value_sub(Schema, DConfig, ParsedArgs)
     end.
 
--spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                            [proplists:property()] |
                            {error, atom(), cuttlefish_error:errorlist()}.
-map_value_sub(Schema, Config) ->
+map_value_sub(Schema, Config, ParsedArgs) ->
     lager:debug("Right Hand Side Substitutions"),
      case value_sub(Config) of
          {SubbedConfig, []} ->
-            map_transform_datatypes(Schema, SubbedConfig);
+            map_transform_datatypes(Schema, SubbedConfig, ParsedArgs);
          {_, EList} ->
             {error, rhs_subs, {errorlist, EList}}
     end.
 
--spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                                      [proplists:property()] |
                                      {error, atom(), cuttlefish_error:errorlist()}.
-map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
+map_transform_datatypes({_, Mappings, _} = Schema, DConfig, ParsedArgs) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
     lager:debug("Applying Datatypes"),
-    case transform_datatypes(DConfig, Mappings) of
+    case transform_datatypes(DConfig, Mappings, ParsedArgs) of
         {NewConf, []} ->
             map_validate(Schema, NewConf);
         {_, EList} ->
@@ -387,14 +393,21 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
 
 -spec transform_datatypes(
         cuttlefish_conf:conf(),
-        [cuttlefish_mapping:mapping()]
+        [cuttlefish_mapping:mapping()],
+        [proplists:property()]
       ) -> {cuttlefish_conf:conf(), [cuttlefish_error:error()]}.
-transform_datatypes(Conf, Mappings) ->
+transform_datatypes(Conf, Mappings, ParsedArgs) ->
     lists:foldl(
         fun({Variable, Value}, {Acc, ErrorAcc}) ->
+            AllowExtra = proplists:get_value(allow_extra, ParsedArgs, false),
             %% Look up mapping from schema
             case find_mapping(Variable, Mappings) of
-                {error, _} ->
+                {error, _} when AllowExtra ->
+                    %% user asked for us to tolerate variables
+                    %% that are not present in the mapping so
+                    %% do nothing here
+                    {Acc, ErrorAcc};
+                {error, _}  ->
                     %% So, this error message isn't so performant (s/o @argv0)
                     %% but it shouldn't happen too often, and I think it's important
                     %% to give users this feedback.
@@ -993,8 +1006,25 @@ transform_datatypes_not_found_test() ->
     Conf = [
         {["conf", "other"], "string"}
     ],
-    NewConf = transform_datatypes(Conf, Mappings),
+    NewConf = transform_datatypes(Conf, Mappings, []),
     ?assertEqual({[], [{error, {unknown_variable, "conf.other"}}]}, NewConf),
+    ok.
+
+transform_datatypes_allowed_not_found_test() ->
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "erlang.key",
+            []
+            })
+    ],
+
+    Conf = [
+        {["conf", "other"], "string"}
+    ],
+    NewConf = transform_datatypes(Conf, Mappings, [{allow_extra, true}]),
+    ?assertEqual({[], []}, NewConf),
     ok.
 
 validation_test() ->

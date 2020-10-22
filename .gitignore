@@ -3,8 +3,9 @@ _build
 .DS_Store
 generated.config
 generated.conf
-ebin/*
-doc/*
+ebin/
+etc/
+doc/
 .eunit
 deps
 cuttlefish
