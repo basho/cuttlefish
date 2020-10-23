@@ -407,10 +407,9 @@ engage_cuttlefish(ParsedArgs) ->
             prune(Destination, MaxHistory),
             prune(DestinationVMArgs, MaxHistory),
 
-            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
-                   FinalVMArgs =/= [] andalso file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
-                {ok, VMArgsWriteResult} when VMArgsWriteResult =:= ok orelse
-                                             VMArgsWriteResult =:= false ->
+            case {maybe_write_file(Destination, "~p.\n", FinalAppConfig),
+                  maybe_write_file(DestinationVMArgs, "~s", string:join(FinalVMArgs, "\n"))} of
+                {ok, ok}  ->
                     {Destination, DestinationVMArgs};
                 {Err1, Err2} ->
                     maybe_log_file_error(Destination, Err1),
@@ -419,6 +418,15 @@ engage_cuttlefish(ParsedArgs) ->
             end
 
     end.
+
+-spec maybe_write_file(Filename :: string(),
+                       Format :: string(),
+                       Data :: string()) -> ok | {error, file:posix() | badarg | terminated | system_limit}.
+maybe_write_file(_, _, []) ->
+    % nothing to write, write nothing
+    ok;
+maybe_write_file(Filename, Format, Data) ->
+    file:write_file(Filename, io_lib:fwrite(Format, [Data])).
 
 -spec prune(file:name_all(), integer()) -> ok.
 prune(Filename, MaxHistory) ->
