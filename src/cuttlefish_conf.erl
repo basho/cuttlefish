@@ -113,6 +113,12 @@ generate_file(Mappings, Filename) ->
     _ = [ begin
           io:format(S, "~s~n", [lists:flatten(Line)])
       end || Line <- ConfFileLines],
+    % add an include directive at the end that will allow 
+    % other conf files in `conf.d` and have them get picked up
+    % in order to override settings
+    % example use case is a k8s configMap that is mapped as a file
+    % to conf.d/erlang_vm.conf
+    io:format(S, "include conf.d/*.conf~n~n", []),
     _ = file:close(S),
     ok.
 
