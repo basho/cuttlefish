@@ -69,7 +69,10 @@ file(Filename) ->
             {errorlist, [{error, {file_open, {Filename, Reason}}}]};
         {_Conf, Remainder, {{line, L}, {column, C}}} when is_binary(Remainder) ->
             {errorlist, [{error, {conf_syntax, {Filename, {L, C}}}}]};
-        Conf ->
+        Conf0 ->
+            % go through the conf looking for include directives, fold all into
+            % a single proplist
+            Conf = fold_conf_files(Filename, Conf0),
             %% Conf is a proplist, check if any of the values are cuttlefish_errors
             {_, Values} = lists:unzip(Conf),
             case cuttlefish_error:filter(Values) of
@@ -80,6 +83,20 @@ file(Filename) ->
                     {errorlist, NewErrorList}
             end
     end.
+
+fold_conf_files(Filename, Conf0) ->
+    lists:foldl(fun({include, Included}, Acc) ->
+                        DirName = binary_to_list(filename:join(filename:dirname(Filename),
+                                                               filename:dirname(Included))),
+                        BaseName = binary_to_list(filename:basename(Included)),
+                        Acc ++ lists:flatten(
+                                  [file(filename:join(DirName, F)) || F <-
+                                                    filelib:wildcard(BaseName, DirName)]);
+                    (KeyValue, Acc) ->
+                        Acc ++ [KeyValue]
+                end,
+                [],
+                Conf0).
 
 -spec generate([cuttlefish_mapping:mapping()]) -> [string()].
 generate(Mappings) ->
@@ -339,6 +356,33 @@ generate_element_hidden_test() ->
     assert_no_output(hidden),
     assert_no_output({hidden, true}),
     ?assertEqual([], cuttlefish_lager_test_backend:get_logs()),
+    ok.
+
+included_file_test() ->
+    Conf = file("test/include_file.conf"),
+    ?assertEqual(lists:sort([
+            {["ring_size"],"32"},
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["log","syslog"],"on"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"}
+        ]), lists:sort(Conf)),
+    ok.
+
+included_dir_test() ->
+    Conf = file("test/include_dir.conf"),
+    ?assertEqual(lists:sort([
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["ring_size"],"5"},
+            {["rogue","option"],"42"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"},
+            {["log","syslog"],"off"}
+        ]), lists:sort(Conf)),
     ok.
 
 assert_no_output(Setting) ->

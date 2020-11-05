@@ -20,7 +20,6 @@
 %% conf_parse: for all your .conf parsing needs.
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
-%% Copyright (c) 2019 Pivotal Software, Inc.  All rights reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -92,6 +91,20 @@ file_test() ->
         ], Conf),
     ok.
 
+included_file_test() ->
+    Conf = conf_parse:file("test/include_file.conf"),
+    ?assertEqual([
+            {include,<<"riak.conf">>}
+        ], Conf),
+    ok.
+
+included_dir_test() ->
+    Conf = conf_parse:file("test/include_dir.conf"),
+    ?assertEqual([
+            {include,<<"conf.d/*.conf">>}
+        ], Conf),
+    ok.
+
 utf8_test() ->
     Conf = conf_parse:parse("setting = thing" ++ [338] ++ "\n"),
     ?assertEqual([{["setting"],
@@ -143,7 +156,7 @@ parse(Input) when is_binary(Input) ->
 
 -spec 'line'(input(), index()) -> parse_result().
 'line'(Input, Index) ->
-  p(Input, Index, 'line', fun(I,D) -> (p_choose([p_seq([p_choose([fun 'setting'/2, fun 'comment'/2, p_one_or_more(fun 'ws'/2)]), p_choose([fun 'crlf'/2, fun 'eof'/2])]), fun 'crlf'/2]))(I,D) end, fun(Node, _Idx) ->
+  p(Input, Index, 'line', fun(I,D) -> (p_choose([p_seq([p_choose([fun 'setting'/2, fun 'include'/2, fun 'comment'/2, p_one_or_more(fun 'ws'/2)]), p_choose([fun 'crlf'/2, fun 'eof'/2])]), fun 'crlf'/2]))(I,D) end, fun(Node, _Idx) ->
     case Node of
         [ Line, _EOL ] -> Line;
         Line -> Line
@@ -178,6 +191,19 @@ parse(Input) when is_binary(Input) ->
 -spec 'comment'(input(), index()) -> parse_result().
 'comment'(Input, Index) ->
   p(Input, Index, 'comment', fun(I,D) -> (p_seq([p_zero_or_more(fun 'ws'/2), p_string(<<"#">>), p_zero_or_more(p_seq([p_not(fun 'crlf'/2), p_anything()]))]))(I,D) end, fun(_Node, _Idx) ->comment end).
+
+-spec 'include'(input(), index()) -> parse_result().
+'include'(Input, Index) ->
+  p(Input, Index, 'include', fun(I,D) -> (p_seq([p_zero_or_more(fun 'ws'/2), p_string(<<"include">>), p_zero_or_more(fun 'ws'/2), fun 'included_file_or_dir'/2, p_optional(fun 'comment'/2)]))(I,D) end, fun(Node, _Idx) ->
+    [_, _Include, _, Included, _] = Node,
+    {include, Included}
+ end).
+
+-spec 'included_file_or_dir'(input(), index()) -> parse_result().
+'included_file_or_dir'(Input, Index) ->
+  p(Input, Index, 'included_file_or_dir', fun(I,D) -> (p_one_or_more(p_charclass(<<"[A-Za-z0-9-\_\.\*\\/]">>)))(I,D) end, fun(Node, _Idx) ->
+    unicode:characters_to_binary(Node, utf8, latin1)
+ end).
 
 -spec 'word'(input(), index()) -> parse_result().
 'word'(Input, Index) ->

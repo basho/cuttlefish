@@ -44,9 +44,9 @@ config <- line* %{
     [ L || L <- Node, is_setting(L) ]
 %};
 
-%% Lines are actual settings, comments, or horizontal whitespace,
+%% Lines are actual settings, includes, comments, or horizontal whitespace,
 %% terminated by an end-of-line or end-of-file.
-line <- ((setting / comment / ws+) (crlf / eof)) / crlf %{
+line <- ((setting / include / comment / ws+) (crlf / eof)) / crlf %{
     case Node of
         [ Line, _EOL ] -> Line;
         Line -> Line
@@ -79,6 +79,16 @@ value <- (!((ws* crlf) / comment) .)+ %{
 %% A comment is any line that begins with a # sign, leading whitespace
 %% allowed.
 comment <- ws* "#" (!crlf .)* `comment`;
+
+%% An include is a line that begins with 'include' and something.
+include <- ws* "include" ws* included_file_or_dir comment? %{
+    [_, _Include, _, Included, _] = Node,
+    {include, Included}
+%};
+
+included_file_or_dir <- [A-Za-z0-9-\_\.\*\/]+ %{
+    unicode:characters_to_binary(Node, utf8, latin1)
+%};
 
 %% A word is one or more of letters, numbers and dashes or
 %% underscores.
@@ -172,6 +182,20 @@ file_test() ->
             {["log","syslog"],"on"},
             {["listener","http","internal"],"127.0.0.1:8098"},
             {["listener","http","external"],"10.0.0.1:80"}
+        ], Conf),
+    ok.
+
+included_file_test() ->
+    Conf = conf_parse:file("test/include_file.conf"),
+    ?assertEqual([
+            {include,<<"riak.conf">>}
+        ], Conf),
+    ok.
+
+included_dir_test() ->
+    Conf = conf_parse:file("test/include_dir.conf"),
+    ?assertEqual([
+            {include,<<"conf.d/*.conf">>}
         ], Conf),
     ok.
 
