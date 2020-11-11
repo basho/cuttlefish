@@ -188,4 +188,10 @@ ceiling_test() ->
     ?assertEqual(-2, ceiling(-2.9999999)),
     ok.
 
+numerify_test() ->
+    ?assertEqual(42, numerify("42")),
+    ?assertEqual(42.0, numerify("42.0")),
+    ?assertEqual(0.5, numerify(".5")),
+    ok.
+
 -endif.
