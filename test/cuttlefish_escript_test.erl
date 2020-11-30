@@ -114,4 +114,10 @@ silent_test() ->
                 ?assertPrinted("", [exact])
                end).
 
+vm_args_test() ->
+    ?capturing(begin
+                cuttlefish_escript:main(["--schema_file", "priv/erlang_vm.schema", "--conf_file", "test/riak.conf", "--etc_dir", "etc", "--dest_file", "vm.generated.args", "--allow_extra", "--silent"]),
+                ?assertPrinted("", [exact])
+               end).
+
 -endif.

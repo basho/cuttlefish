@@ -35,7 +35,7 @@ cli_options() ->
  {help,         $h, "help",        undefined,          "Print this usage page"},
  {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
  {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
+ {dest_file,    $f, "dest_file",   string,             "the file name to write"},
  {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
  %%  one or more schema file paths
  {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
@@ -357,13 +357,14 @@ engage_cuttlefish(ParsedArgs) ->
                   Path -> Path
     end,
 
-    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), "config"),
+    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs, "app"), "config"),
     Destination = filename:join(AbsPath, DestinationFilename),
 
-    DestinationVMArgsFilename = filename_maker("vm", "args"),
+    DestinationVMArgsFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs, "vm"), "args"),
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
     lager:debug("Generating config in: ~p", [Destination]),
+    lager:debug("Generating vm.args in: ~p", [DestinationVMArgs]),
 
     Schema = load_schema(ParsedArgs),
     Conf = load_conf(ParsedArgs),
@@ -407,10 +408,9 @@ engage_cuttlefish(ParsedArgs) ->
             prune(Destination, MaxHistory),
             prune(DestinationVMArgs, MaxHistory),
 
-            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
-                   FinalVMArgs =/= [] andalso file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
-                {ok, VMArgsWriteResult} when VMArgsWriteResult =:= ok orelse
-                                             VMArgsWriteResult =:= false ->
+            case {maybe_write_file(Destination, "~p.\n", FinalAppConfig),
+                  maybe_write_file(DestinationVMArgs, "~s", string:join(FinalVMArgs, "\n"))} of
+                {ok, ok}  ->
                     {Destination, DestinationVMArgs};
                 {Err1, Err2} ->
                     maybe_log_file_error(Destination, Err1),
@@ -419,6 +419,15 @@ engage_cuttlefish(ParsedArgs) ->
             end
 
     end.
+
+-spec maybe_write_file(Filename :: string(),
+                       Format :: string(),
+                       Data :: string()) -> ok | {error, file:posix() | badarg | terminated | system_limit}.
+maybe_write_file(_, _, []) ->
+    % nothing to write, write nothing
+    ok;
+maybe_write_file(Filename, Format, Data) ->
+    file:write_file(Filename, io_lib:fwrite(Format, [Data])).
 
 -spec prune(file:name_all(), integer()) -> ok.
 prune(Filename, MaxHistory) ->
