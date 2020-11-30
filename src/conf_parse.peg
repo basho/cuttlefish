@@ -4,6 +4,7 @@
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %% Copyright (c) 2019 Pivotal Software, Inc.  All rights reserved.
+%% Copyright (c) 2020 VMware, Inc. or its affiliates.  All rights reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -44,9 +45,9 @@ config <- line* %{
     [ L || L <- Node, is_setting(L) ]
 %};
 
-%% Lines are actual settings, comments, or horizontal whitespace,
+%% Lines are actual settings, includes, comments, or horizontal whitespace,
 %% terminated by an end-of-line or end-of-file.
-line <- ((setting / comment / ws+) (crlf / eof)) / crlf %{
+line <- ((setting / include / comment / ws+) (crlf / eof)) / crlf %{
     case Node of
         [ Line, _EOL ] -> Line;
         Line -> Line
@@ -80,6 +81,16 @@ value <- (!((ws* crlf) / comment) .)+ %{
 %% allowed.
 comment <- ws* "#" (!crlf .)* `comment`;
 
+%% An include is a line that begins with 'include' and something.
+include <- ws* "include" ws* included_file_or_dir comment? %{
+    [_, _Include, _, Included, _] = Node,
+    {include, Included}
+%};
+
+included_file_or_dir <- [A-Za-z0-9-\_\.\*\/]+ %{
+    unicode:characters_to_binary(Node, utf8, latin1)
+%};
+
 %% A word is one or more of letters, numbers and dashes or
 %% underscores.
 word <- ("\\." / [A-Za-z0-9_-])+ %{
@@ -104,6 +115,8 @@ ws <- [ \t]+ `ws`;
 %% conf_parse: for all your .conf parsing needs.
 %%
 %% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2019 Pivotal Software, Inc.  All rights reserved.
+%% Copyright (c) 2020 VMware, Inc. or its affiliates.  All rights reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -172,6 +185,20 @@ file_test() ->
             {["log","syslog"],"on"},
             {["listener","http","internal"],"127.0.0.1:8098"},
             {["listener","http","external"],"10.0.0.1:80"}
+        ], Conf),
+    ok.
+
+included_file_test() ->
+    Conf = conf_parse:file("test/include_file.conf"),
+    ?assertEqual([
+            {include,<<"riak.conf">>}
+        ], Conf),
+    ok.
+
+included_dir_test() ->
+    Conf = conf_parse:file("test/include_dir.conf"),
+    ?assertEqual([
+            {include,<<"conf.d/*.conf">>}
         ], Conf),
     ok.
 
