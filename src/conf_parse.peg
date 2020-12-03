@@ -202,6 +202,13 @@ included_dir_test() ->
         ], Conf),
     ok.
 
+escaped_dots_are_removed_test() ->
+    Conf = conf_parse:parse("#comment\nsetting\\.0 = thing0\n"),
+    ?assertEqual([
+            {["setting.0"],"thing0"}
+        ], Conf),
+    ok.
+
 utf8_test() ->
     Conf = conf_parse:parse("setting = thing" ++ [338] ++ "\n"),
     ?assertEqual([{["setting"],

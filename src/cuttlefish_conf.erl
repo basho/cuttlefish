@@ -77,7 +77,8 @@ file(Filename) ->
             {_, Values} = lists:unzip(Conf),
             case cuttlefish_error:filter(Values) of
                 {errorlist, []} ->
-                    remove_duplicates(Conf);
+                    % expand any non-literal values (ie. included values)
+                    expand_values(Filename, remove_duplicates(Conf));
                 {errorlist, ErrorList} ->
                     NewErrorList = [ {error, {in_file, {Filename, E}}} || {error, E} <- ErrorList ],
                     {errorlist, NewErrorList}
@@ -97,6 +98,31 @@ fold_conf_files(Filename, Conf0) ->
                 end,
                 [],
                 Conf0).
+
+expand_values(Filename, Conf) ->
+    lists:map(fun({K, Value0}) ->
+                case re:split(Value0, "[$(<)]") of
+                    [_, _, _, IncludeFilename0, _] ->
+                        % this is a value of the format "$(<IncludeFilename), let's read the contents
+                        % of `IncludeFilename` and use that as the new value
+                        %
+                        % strip all space chars from beginning/end and join the relative filename with the
+                        % location of the sourcing .conf file
+                        IncludeFilename = filename:join([filename:dirname(Filename),
+                                                         re:replace(IncludeFilename0, "(^\\s+)|(\\s+$)", "", [{return, list}])]),
+                        % read the entire file contents and strip newline
+                        case file:read_file(IncludeFilename) of
+                          {ok, Value} ->
+                            {K, re:replace(Value, "[\n\r]$", "", [{return, list}])};
+                          {error, Reason} ->
+                            throw({unable_to_open, IncludeFilename, Reason})
+                        end;
+                    _ ->
+                        % normal value, nothing to do
+                        {K, Value0}
+                end
+              end,
+              Conf).
 
 -spec generate([cuttlefish_mapping:mapping()]) -> [string()].
 generate(Mappings) ->
@@ -388,6 +414,17 @@ included_dir_test() ->
             {["listener","http","internal"],"127.0.0.1:8098"},
             {["listener","http","external"],"10.0.0.1:80"},
             {["log","syslog"],"off"}
+        ]), lists:sort(Conf)),
+    ok.
+
+included_value_test() ->
+    Conf = file("test/included_value.conf"),
+    ?assertEqual(lists:sort([
+             {["value1"], "42"},
+             {["value2"], "43"},
+             {["value3"], "42"},
+             {["value4"], "multi\nline\nvalue"},
+             {["value5"], "12.34"}
         ]), lists:sort(Conf)),
     ok.
 
