@@ -420,8 +420,9 @@ included_dir_test() ->
 included_value_test() ->
     Conf = file("test/included_value.conf"),
     ?assertEqual(lists:sort([
-             {["value1"],"42"},
-             {["value2"], "43"}
+             {["value1"], "42"},
+             {["value2"], "43"},
+             {["value3"], "42"}
         ]), lists:sort(Conf)),
     ok.
 
