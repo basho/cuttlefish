@@ -109,11 +109,11 @@ expand_values(Filename, Conf) ->
                         % strip all space chars from beginning/end and join the relative filename with the
                         % location of the sourcing .conf file
                         IncludeFilename = filename:join([filename:dirname(Filename),
-                                                         re:replace(IncludeFilename0, "[ ]", "", [global, {return, list}])]),
+                                                         re:replace(IncludeFilename0, "(^\\s+)|(\\s+$)", "", [{return, list}])]),
                         % read the entire file contents and strip newline
                         case file:read_file(IncludeFilename) of
                           {ok, Value} ->
-                            {K, re:replace(Value, "[\n\r]", "", [global, {return, list}])};
+                            {K, re:replace(Value, "[\n\r]$", "", [{return, list}])};
                           {error, Reason} ->
                             throw({unable_to_open, IncludeFilename, Reason})
                         end;
@@ -423,7 +423,8 @@ included_value_test() ->
              {["value1"], "42"},
              {["value2"], "43"},
              {["value3"], "42"},
-             {["value4"], "multi\nline\nvalue"}
+             {["value4"], "multi\nline\nvalue"},
+             {["value5"], "12.34"}
         ]), lists:sort(Conf)),
     ok.
 
