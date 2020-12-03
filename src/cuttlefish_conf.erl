@@ -422,7 +422,8 @@ included_value_test() ->
     ?assertEqual(lists:sort([
              {["value1"], "42"},
              {["value2"], "43"},
-             {["value3"], "42"}
+             {["value3"], "42"},
+             {["value4"], "multi\nline\nvalue"}
         ]), lists:sort(Conf)),
     ok.
 
