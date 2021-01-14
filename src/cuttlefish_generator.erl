@@ -476,7 +476,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
              case head_sub(Value) of
                  none -> {Value, Conf};
                  {sub, NextVar, {SubFront, SubBack}} ->
-                    case proplists:get_value(NextVar, Conf) of
+                    case subbed_value(NextVar, Conf) of
                         undefined ->
                             {error, {substitution_missing_config,
                                      {cuttlefish_variable:format(Var),
@@ -498,6 +498,23 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      end;
 value_sub(_Var, Value, Conf, _History) ->
     {Value, Conf}.
+
+-spec subbed_value(Var :: cuttlefish_variable:variable(),
+                   Conf :: cuttlefish_conf:conf()) -> undefined | string().
+subbed_value(Var, Conf) ->
+    case proplists:get_value(Var, Conf) of
+        undefined ->
+            % we couldn't find the var in the conf file, let's
+            % look at the environment and check for it
+            case os:getenv(cuttlefish_variable:format(Var)) of
+                false ->
+                    undefined;
+                Value ->
+                    Value
+            end;
+        Value ->
+            Value
+    end.
 
 -spec head_sub(string()) -> none | {sub, cuttlefish_variable:variable(), {string(), string()}}.
 head_sub(Value) ->
@@ -1139,6 +1156,19 @@ invalid_test() ->
                    [{error, {translation_invalid_configuration,
                              {"b.c", "review all files"}}}]}},
                  AppConf).
+
+value_env_sub_test() ->
+    os:putenv("ENV_TEST_VAL", "/a/b"),
+    Conf = [
+            {["a","b","c"], "$(ENV_TEST_VAL)/c"},
+            {["a","b"], "/b/a"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    os:unsetenv("ENV_TEST_VAL"),
+    ?assertEqual([], Errors),
+    ABC = proplists:get_value(["a","b","c"], NewConf),
+    ?assertEqual("/a/b/c", ABC),
+    ok.
 
 value_sub_test() ->
     Conf = [
