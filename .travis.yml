@@ -5,7 +5,6 @@ sudo: false
 otp_release:
   - "23.0.2"
   - "22.3.4"
-  - "21.3"
 
 install:
   - curl -O -L https://s3.amazonaws.com/rebar3/rebar3
