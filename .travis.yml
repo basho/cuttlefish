@@ -1,11 +1,11 @@
 # vim:sw=2:et:
-
 language: erlang
+dist: bionic
 sudo: false
 otp_release:
-  - 21.3
-  - 20.3
-  - 19.3
+  - "23.0.2"
+  - "22.3.4"
+  - "21.3"
 
 install:
   - curl -O -L https://s3.amazonaws.com/rebar3/rebar3
