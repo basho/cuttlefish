@@ -139,7 +139,7 @@ generate_file(Mappings, Filename) ->
     _ = [ begin
           io:format(S, "~s~n", [lists:flatten(Line)])
       end || Line <- ConfFileLines],
-    % add an include directive at the end that will allow 
+    % add an include directive at the end that will allow
     % other conf files in `conf.d` and have them get picked up
     % in order to override settings
     % example use case is a k8s configMap that is mapped as a file
@@ -168,7 +168,7 @@ generate_element(MappingRecord) ->
     case Level of
         basic -> ok;
         Level ->
-            lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+            _ = lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
     case generate_element(Hidden, Level, Default, Commented) of

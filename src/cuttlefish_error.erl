@@ -177,7 +177,7 @@ print(FormatString, Args) ->
 print({error, ErrorTerm}) ->
     print(lists:flatten(xlate(ErrorTerm)));
 print(String) ->
-    case lager:error("~s", [String]) of
+    case _ = lager:error("~s", [String]) of
         {error, lager_not_running} ->
             io:format("~s~n", [String]),
             ok;

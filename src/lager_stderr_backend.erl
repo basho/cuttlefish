@@ -206,7 +206,7 @@ console_log_test_() ->
                         erlang:group_leader(Pid, whereis(lager_event)),
                         gen_event:add_handler(lager_event, lager_stderr_backend, [info, true]),
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
-                        lager:info("Test message"),
+                        _ = lager:info("Test message"),
                         PidStr = pid_to_list(self()),
                         receive
                             {io_request, _, _, {put_chars, unicode, Msg}} ->
@@ -228,7 +228,7 @@ console_log_test_() ->
                           [info, {lager_default_formatter, [date,"#",time,"#",severity,"#",node,"#",pid,"#",
                                                             module,"#",function,"#",file,"#",line,"#",message,"\r\n"]}]),
                         lager_config:set(loglevel, {?INFO, []}),
-                        lager:info("Test message"),
+                        _ = lager:info("Test message"),
                         PidStr = pid_to_list(self()),
                         NodeStr = atom_to_list(node()),
                         ModuleStr = atom_to_list(?MODULE),
@@ -252,7 +252,7 @@ console_log_test_() ->
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
                         lager:set_loglevel(lager_stderr_backend, '!=info'),
                         erlang:group_leader(Pid, whereis(lager_event)),
-                        lager:debug("Test message"),
+                        _ = lager:debug("Test message"),
                         receive
                             {io_request, From1, ReplyAs1, {put_chars, unicode, Msg1}} ->
                                 From1 ! {io_reply, ReplyAs1, ok},
@@ -263,7 +263,7 @@ console_log_test_() ->
                                 ?assert(false)
                         end,
                         %% info is blacklisted
-                        lager:info("Test message"),
+                        _ = lager:info("Test message"),
                         receive
                             {io_request, From2, ReplyAs2, {put_chars, unicode, _Msg2}} ->
                                 From2 ! {io_reply, ReplyAs2, ok},
@@ -284,7 +284,7 @@ console_log_test_() ->
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
                         lager:set_loglevel(lager_stderr_backend, '=debug'),
                         erlang:group_leader(Pid, whereis(lager_event)),
-                        lager:debug("Test message"),
+                        _ = lager:debug("Test message"),
                         receive
                             {io_request, From1, ReplyAs1, {put_chars, unicode, Msg1}} ->
                                 From1 ! {io_reply, ReplyAs1, ok},
@@ -295,7 +295,7 @@ console_log_test_() ->
                                 ?assert(false)
                         end,
                         %% info is blacklisted
-                        lager:error("Test message"),
+                        _ = lager:error("Test message"),
                         receive
                             {io_request, From2, ReplyAs2, {put_chars, unicode, _Msg2}} ->
                                 From2 ! {io_reply, ReplyAs2, ok},
