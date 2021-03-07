@@ -85,7 +85,7 @@ io_request({put_chars, M, F, As}, Output) ->
         Chars ->
             {ok, queue:in(Chars, Output)}
     catch
-        C:T -> {{error, {C,T,erlang:get_stacktrace()}}, Output}
+        C:T:Trace -> {{error, {C, T, Trace}}, Output}
     end;
 io_request({put_chars, _Enc, Chars}, Output) ->
     io_request({put_chars, Chars}, Output);
