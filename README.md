@@ -17,6 +17,11 @@ where is the most up-to-date, maintained version is.
 
 This is the repository used to produce [Hex.pm releases](https://hex.pm/packages/cuttlefish) of the project.
 
+## Supported Erlang/OTP Versions
+
+ * Cuttlefish 2.7.0 and later versions support Erlang 22 through 24
+ * Cuttlefish releases up to and including 2.6.0 support Erlang/OTP 17 through 23
+
 ## Riak Disclaimer
 
 While this readme and test suite is Riak-heavy, the fact is that this
