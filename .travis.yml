@@ -3,7 +3,7 @@ language: erlang
 dist: bionic
 sudo: false
 otp_release:
-  - "23.0.2"
+  - "23.1.2"
   - "22.3.4"
 
 install:
