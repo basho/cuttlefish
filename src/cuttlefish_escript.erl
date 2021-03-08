@@ -80,7 +80,9 @@ main(Args) ->
         _ -> notice
     end,
 
-    logger:set_application_level(cuttlefish, LogLevel),
+    logger:set_primary_config(#{
+        level => LogLevel
+    }),
 
     _ = logger:debug("Cuttlefish log level is set to ~s", [LogLevel]),
     _ = logger:debug("Parsed arguments: ~p", [ParsedArgs]),
