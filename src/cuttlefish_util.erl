@@ -21,6 +21,8 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_util).
 
+-include_lib("kernel/include/logger.hrl").
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -43,27 +45,27 @@
 
 %% @deprecated
 conf_get_value(Key, Conf) ->
-    _ = lager:warning("cuttlefish_util:conf_get_value/2 has been deprecated. use cuttlefish:conf_get/2"),
+    _ = ?LOG_WARNING("cuttlefish_util:conf_get_value/2 has been deprecated. use cuttlefish:conf_get/2"),
     cuttlefish:conf_get(Key, Conf).
 
 %% @deprecated
 conf_get_value(Key, Conf, Default) ->
-    _ = lager:warning("cuttlefish_util:conf_get_value/3 has been deprecated. use cuttlefish:conf_get/3"),
+    _ = ?LOG_WARNING("cuttlefish_util:conf_get_value/3 has been deprecated. use cuttlefish:conf_get/3"),
     cuttlefish:conf_get(Key, Conf, Default).
 
 %% @deprecated
 filter_by_variable_starts_with(Prefix, Conf) ->
-    _ = lager:warning("cuttlefish_util:filter_by_variable_starts_with/2 has been deprecated. use cuttlefish_variable:filter_by_prefix/2"),
+    _ = ?LOG_WARNING("cuttlefish_util:filter_by_variable_starts_with/2 has been deprecated. use cuttlefish_variable:filter_by_prefix/2"),
     cuttlefish_variable:filter_by_prefix(Prefix, Conf).
 
 %% @deprecated
 matches_for_variable_def(VarDef, Conf) ->
-    _ = lager:warning("cuttlefish_util:matches_for_variable_def/2 has been deprecated. use cuttlefish_variable:fuzzy_matches/2"),
+    _ = ?LOG_WARNING("cuttlefish_util:matches_for_variable_def/2 has been deprecated. use cuttlefish_variable:fuzzy_matches/2"),
     cuttlefish_variable:fuzzy_matches(VarDef, Conf).
 
 %% @deprecated
 fuzzy_variable_match(Var, VarDef) ->
-    _ = lager:warning("cuttlefish_util:fuzzy_variable_match/2 has been deprecated. use cuttlefish_variable:is_fuzzy_match/2"),
+    _ = ?LOG_WARNING("cuttlefish_util:fuzzy_variable_match/2 has been deprecated. use cuttlefish_variable:is_fuzzy_match/2"),
     cuttlefish_variable:is_fuzzy_match(Var, VarDef).
 
 %% @doc replace the element in a proplist
@@ -168,16 +170,6 @@ levenshtein_test() ->
     ?assertEqual(1, levenshtein("anti_entropy", "anti-entropy")),
     ?assertEqual(4, levenshtein("", "four")),
     ?assertEqual(4, levenshtein("four", "")),
-    ok.
-
-print_error_test() ->
-    application:stop(lager),
-    case _ = lager:error("Error") of
-        {error, lager_not_running} ->
-            ?assertEqual(ok, (cuttlefish_error:print("Error")));
-        Other ->
-            ?assertEqual({error, lager_not_running}, Other)
-    end,
     ok.
 
 ceiling_test() ->

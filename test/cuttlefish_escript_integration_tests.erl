@@ -1,9 +1,11 @@
 -module(cuttlefish_escript_integration_tests).
 
+-include_lib("kernel/include/logger.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 escript_utf8_test() ->
-    cuttlefish_lager_test_backend:bounce(error),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(error),
 
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
               "-d test_fixtures/escript_utf8_test/generated.config "
@@ -11,20 +13,21 @@ escript_utf8_test() ->
               "-e test_fixtures/escript_utf8_test/etc "
               "-c test_fixtures/escript_utf8_test/etc/utf8.conf generate"
             )),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "utf8.conf: Error converting value on line #1 to latin1")),
     ok.
 
 
 advanced_config_format_test() ->
-    cuttlefish_lager_test_backend:bounce(error),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(error),
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
                                     "-d test_fixtures/acformat/generated.config "
                                     "-s test_fixtures/acformat/lib "
                                     "-e test_fixtures/acformat/etc "
                                     "-c test_fixtures/acformat/etc/acformat.conf generate"
                                    )),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "Error parsing test_fixtures/acformat/etc/advanced.config, incorrect format: \\[\\[a\\],\\[b\\]\\]")),
     ok.
 

@@ -1,5 +1,8 @@
 build: off
 
+# Erlang 22.3 is only available in this image
+image: "Visual Studio 2019"
+
 install:
   - curl -OL https://s3.amazonaws.com/rebar3/rebar3
 
