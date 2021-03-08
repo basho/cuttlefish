@@ -165,16 +165,13 @@ console_log_test_() ->
     {foreach,
         fun() ->
                 error_logger:tty(false),
-                application:load(lager),
-                application:set_env(lager, handlers, []),
-                application:set_env(lager, error_logger_redirect, false),
-                lager:start(),
+                % application:set_env(lager, handlers, []),
+                % application:set_env(lager, error_logger_redirect, false),
                 whereis(standard_error)
         end,
         fun(User) ->
                 unregister(standard_error),
                 register(standard_error, User),
-                application:stop(lager),
                 error_logger:tty(true)
         end,
         [
@@ -186,7 +183,7 @@ console_log_test_() ->
                         erlang:group_leader(Pid, whereis(lager_event)),
                         gen_event:add_handler(lager_event, lager_stderr_backend, info),
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
-                        lager:log(info, self(), "Test message"),
+                        logger:log(info, self(), "Test message"),
                         receive
                             {io_request, From, ReplyAs, {put_chars, unicode, Msg}} ->
                                 From ! {io_reply, ReplyAs, ok},
@@ -206,7 +203,7 @@ console_log_test_() ->
                         erlang:group_leader(Pid, whereis(lager_event)),
                         gen_event:add_handler(lager_event, lager_stderr_backend, [info, true]),
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
-                        _ = lager:info("Test message"),
+                        _ = logger:info("Test message"),
                         PidStr = pid_to_list(self()),
                         receive
                             {io_request, _, _, {put_chars, unicode, Msg}} ->
@@ -228,7 +225,7 @@ console_log_test_() ->
                           [info, {lager_default_formatter, [date,"#",time,"#",severity,"#",node,"#",pid,"#",
                                                             module,"#",function,"#",file,"#",line,"#",message,"\r\n"]}]),
                         lager_config:set(loglevel, {?INFO, []}),
-                        _ = lager:info("Test message"),
+                        _ = logger:info("Test message"),
                         PidStr = pid_to_list(self()),
                         NodeStr = atom_to_list(node()),
                         ModuleStr = atom_to_list(?MODULE),
@@ -250,9 +247,9 @@ console_log_test_() ->
                         register(standard_error, Pid),
                         gen_event:add_handler(lager_event, lager_stderr_backend, info),
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
-                        lager:set_loglevel(lager_stderr_backend, '!=info'),
+                        logger:set_loglevel(lager_stderr_backend, '!=info'),
                         erlang:group_leader(Pid, whereis(lager_event)),
-                        _ = lager:debug("Test message"),
+                        _ = logger:debug("Test message"),
                         receive
                             {io_request, From1, ReplyAs1, {put_chars, unicode, Msg1}} ->
                                 From1 ! {io_reply, ReplyAs1, ok},
@@ -263,7 +260,7 @@ console_log_test_() ->
                                 ?assert(false)
                         end,
                         %% info is blacklisted
-                        _ = lager:info("Test message"),
+                        _ = logger:info("Test message"),
                         receive
                             {io_request, From2, ReplyAs2, {put_chars, unicode, _Msg2}} ->
                                 From2 ! {io_reply, ReplyAs2, ok},
@@ -282,9 +279,9 @@ console_log_test_() ->
                         register(standard_error, Pid),
                         gen_event:add_handler(lager_event, lager_stderr_backend, info),
                         lager_config:set(loglevel, {element(2, lager_util:config_to_mask(info)), []}),
-                        lager:set_loglevel(lager_stderr_backend, '=debug'),
+                        logger:set_loglevel(lager_stderr_backend, '=debug'),
                         erlang:group_leader(Pid, whereis(lager_event)),
-                        _ = lager:debug("Test message"),
+                        _ = logger:debug("Test message"),
                         receive
                             {io_request, From1, ReplyAs1, {put_chars, unicode, Msg1}} ->
                                 From1 ! {io_reply, ReplyAs1, ok},
@@ -295,7 +292,7 @@ console_log_test_() ->
                                 ?assert(false)
                         end,
                         %% info is blacklisted
-                        _ = lager:error("Test message"),
+                        _ = logger:error("Test message"),
                         receive
                             {io_request, From2, ReplyAs2, {put_chars, unicode, _Msg2}} ->
                                 From2 ! {io_reply, ReplyAs2, ok},
@@ -326,22 +323,22 @@ set_loglevel_test_() ->
         [
             {"Get/set loglevel test",
                 fun() ->
-                        ?assertEqual(info, lager:get_loglevel(lager_stderr_backend)),
-                        lager:set_loglevel(lager_stderr_backend, debug),
-                        ?assertEqual(debug, lager:get_loglevel(lager_stderr_backend)),
-                        lager:set_loglevel(lager_stderr_backend, '!=debug'),
-                        ?assertEqual(info, lager:get_loglevel(lager_stderr_backend)),
-                        lager:set_loglevel(lager_stderr_backend, '!=info'),
-                        ?assertEqual(debug, lager:get_loglevel(lager_stderr_backend)),
+                        ?assertEqual(info, logger:get_loglevel(lager_stderr_backend)),
+                        logger:set_loglevel(lager_stderr_backend, debug),
+                        ?assertEqual(debug, logger:get_loglevel(lager_stderr_backend)),
+                        logger:set_loglevel(lager_stderr_backend, '!=debug'),
+                        ?assertEqual(info, logger:get_loglevel(lager_stderr_backend)),
+                        logger:set_loglevel(lager_stderr_backend, '!=info'),
+                        ?assertEqual(debug, logger:get_loglevel(lager_stderr_backend)),
                         ok
                 end
             },
             {"Get/set invalid loglevel test",
                 fun() ->
-                        ?assertEqual(info, lager:get_loglevel(lager_stderr_backend)),
+                        ?assertEqual(info, logger:get_loglevel(lager_stderr_backend)),
                         ?assertEqual({error, bad_log_level},
-                            lager:set_loglevel(lager_stderr_backend, fatfinger)),
-                        ?assertEqual(info, lager:get_loglevel(lager_stderr_backend))
+                            logger:set_loglevel(lager_stderr_backend, fatfinger)),
+                        ?assertEqual(info, logger:get_loglevel(lager_stderr_backend))
                 end
             }
 

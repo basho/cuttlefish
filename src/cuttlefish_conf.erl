@@ -168,7 +168,7 @@ generate_element(MappingRecord) ->
     case Level of
         basic -> ok;
         Level ->
-            _ = lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+            _ = logger:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
     case generate_element(Hidden, Level, Default, Commented) of
@@ -370,24 +370,24 @@ files_incomplete_parse_test() ->
     ok.
 
 generate_element_level_advanced_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logging:bounce(warning),
     assert_no_output({level, advanced}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, advanced} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_level_intermediate_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logging:bounce(warning),
     assert_no_output({level, intermediate}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, intermediate} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_hidden_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logging:bounce(warning),
     assert_no_output(hidden),
     assert_no_output({hidden, true}),
-    ?assertEqual([], cuttlefish_lager_test_backend:get_logs()),
+    ?assertEqual([], cuttlefish_test_logging:get_logs()),
     ok.
 
 included_file_test() ->
