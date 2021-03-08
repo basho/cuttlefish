@@ -177,11 +177,11 @@ print(FormatString, Args) ->
 print({error, ErrorTerm}) ->
     print(lists:flatten(xlate(ErrorTerm)));
 print(String) ->
-    case _ = logger:error("~s", [String]) of
-        {error, lager_not_running} ->
-            io:format("~s~n", [String]),
-            ok;
-        ok -> ok
+    try
+        logger:error("~s", [String])
+    catch _:_:_ ->
+        io:format("~s~n", [String]),
+        ok
     end.
 
 -ifdef(TEST).

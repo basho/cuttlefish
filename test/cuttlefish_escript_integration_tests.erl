@@ -3,7 +3,8 @@
 -include_lib("eunit/include/eunit.hrl").
 
 escript_utf8_test() ->
-    cuttlefish_test_logging:bounce(error),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(error),
 
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
               "-d test_fixtures/escript_utf8_test/generated.config "
@@ -17,7 +18,8 @@ escript_utf8_test() ->
 
 
 advanced_config_format_test() ->
-    cuttlefish_test_logging:bounce(error),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(error),
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
                                     "-d test_fixtures/acformat/generated.config "
                                     "-s test_fixtures/acformat/lib "

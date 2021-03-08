@@ -72,8 +72,6 @@ parse_and_command(Args) ->
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
-    %% TODO: configure logger
-
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
@@ -82,12 +80,9 @@ main(Args) ->
         _ -> notice
     end,
 
-    % application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
-    % application:set_env(lager, crash_log, false),
-    % lager:start(),
+    logger:set_application_level(cuttlefish, LogLevel),
 
     _ = logger:debug("Cuttlefish log level is set to ~s", [LogLevel]),
-
     _ = logger:debug("Parsed arguments: ~p", [ParsedArgs]),
 
     case Command of

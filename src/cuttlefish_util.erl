@@ -170,16 +170,6 @@ levenshtein_test() ->
     ?assertEqual(4, levenshtein("four", "")),
     ok.
 
-print_error_test() ->
-    application:stop(lager),
-    case _ = logger:error("Error") of
-        {error, lager_not_running} ->
-            ?assertEqual(ok, (cuttlefish_error:print("Error")));
-        Other ->
-            ?assertEqual({error, lager_not_running}, Other)
-    end,
-    ok.
-
 ceiling_test() ->
     ?assertEqual(9, ceiling(8.99999)),
     ?assertEqual(9, ceiling(8.00001)),

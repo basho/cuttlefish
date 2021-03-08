@@ -60,7 +60,6 @@ merger(ListOfFunInputPairs) ->
                 {errorlist, Errors} ->
                     %% These have already been logged. We're not moving forward with this
                     %% but, return them anyway so the rebar plugin can display them
-                    %% with io:format, since it doesn't have lager.
                     {errorlist, Errors};
                 {Translations, Mappings, Validators} ->
                     NewMappings = lists:foldr(
@@ -321,7 +320,8 @@ comment_parser_test() ->
     ok.
 
 bad_file_test() ->
-    cuttlefish_test_logging:bounce(),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(),
     {errorlist, ErrorList} = file("test/bad_erlang.schema"),
 
     Logs = cuttlefish_test_logging:get_logs(),
@@ -336,7 +336,8 @@ bad_file_test() ->
     ok.
 
 parse_invalid_erlang_test() ->
-    cuttlefish_test_logging:bounce(),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(),
     SchemaString = lists:flatten([
             "%% @doc some doc\n",
             "%% the doc continues!\n",
@@ -356,7 +357,8 @@ parse_invalid_erlang_test() ->
 
 
 parse_bad_datatype_test() ->
-    cuttlefish_test_logging:bounce(),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(),
 
     SchemaString = lists:flatten([
             "%% @doc some doc\n",
