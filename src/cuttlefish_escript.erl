@@ -21,6 +21,7 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_escript).
 
+-define(LOGGER_HANDLER, default).
 -define(STDOUT(Str, Args), io:format(Str ++ "~n", Args)).
 -define(FORMAT(Str, Args), io_lib:format(Str, Args)).
 -export([main/1]).
@@ -83,6 +84,16 @@ main(Args) ->
     logger:set_primary_config(#{
         level => LogLevel
     }),
+    {ok, LC0} = logger:get_handler_config(?LOGGER_HANDLER),
+    %% override logger formatter to match what 2.7.0 and earlier versions
+    %% used with Lager
+    LC1 = maps:update(formatter,
+        {logger_formatter, #{
+            legacy_header => false,
+            single_line   => true,
+            template      => [time," [", level ,"] ", msg, "\n"]
+        }}, LC0),
+    logger:update_handler_config(?LOGGER_HANDLER, LC1),
 
     _ = logger:debug("Cuttlefish log level is set to ~s", [LogLevel]),
     _ = logger:debug("Parsed arguments: ~p", [ParsedArgs]),
