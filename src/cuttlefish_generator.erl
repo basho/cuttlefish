@@ -21,6 +21,8 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_generator).
 
+-include_lib("kernel/include/logger.hrl").
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -74,7 +76,7 @@ restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
 map_add_defaults({_, Mappings, _} = Schema, Config, ParsedArgs) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
-    _ = logger:debug("Adding Defaults"),
+    _ = ?LOG_DEBUG("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
     case cuttlefish_error:errorlist_maybe(DConfig) of
         {errorlist, EList} ->
@@ -87,7 +89,7 @@ map_add_defaults({_, Mappings, _} = Schema, Config, ParsedArgs) ->
                            [proplists:property()] |
                            {error, atom(), cuttlefish_error:errorlist()}.
 map_value_sub(Schema, Config, ParsedArgs) ->
-    _ = logger:debug("Right Hand Side Substitutions"),
+    _ = ?LOG_DEBUG("Right Hand Side Substitutions"),
      case value_sub(Config) of
          {SubbedConfig, []} ->
             map_transform_datatypes(Schema, SubbedConfig, ParsedArgs);
@@ -102,7 +104,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig, ParsedArgs) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    _ = logger:debug("Applying Datatypes"),
+    _ = ?LOG_DEBUG("Applying Datatypes"),
     case transform_datatypes(DConfig, Mappings, ParsedArgs) of
         {NewConf, []} ->
             map_validate(Schema, NewConf);
@@ -115,7 +117,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig, ParsedArgs) ->
                           {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
-    _ = logger:debug("Validation"),
+    _ = ?LOG_DEBUG("Validation"),
     case cuttlefish_error:errorlist_maybe(run_validations(Schema, Conf)) of
         {errorlist, EList} ->
             {error, validation, {errorlist, EList}};
@@ -160,7 +162,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
         end,
         {[], {ordsets:new(),ordsets:new()}},
         Mappings),
-    _ = logger:debug("Applied 1:1 Mappings"),
+    _ = ?LOG_DEBUG("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
@@ -176,7 +178,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                         {DirectMappings, []}, Translations),
     case Errorlist of
         [] ->
-            _ = logger:debug("Applied Translations"),
+            _ = ?LOG_DEBUG("Applied Translations"),
             Proplist;
         Es ->
             {error, apply_translations, {errorlist, Es}}
@@ -191,7 +193,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                 false ->
                     {XlatFun, XlatArgs} = prepare_translation_fun(Conf, Schema,
                                                                   Mapping, Xlat),
-                    _ = logger:debug("Running translation for ~s", [Mapping]),
+                    _ = ?LOG_DEBUG("Running translation for ~s", [Mapping]),
                     case try_apply_translation(Mapping, XlatFun, XlatArgs) of
                         unset ->
                             {Acc, Errors};
@@ -201,7 +203,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                             {Acc, [{error, Term}|Errors]}
                     end;
                 _ ->
-                    _ = logger:debug("~p in Translations to drop...", [Mapping]),
+                    _ = ?LOG_DEBUG("~p in Translations to drop...", [Mapping]),
                     {Acc, Errors}
             end
         end.
@@ -300,7 +302,7 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
         %% If Match =:= true, do nothing, the value is set in the .conf file
         _ ->
             %% TODO: Handle with more style and grace
-            _ = logger:error("Both fuzzy and strict match! should not happen"),
+            _ = ?LOG_ERROR("Both fuzzy and strict match! should not happen"),
             [{error, {map_multiple_match, VariableDef}}|Acc]
     end.
 
@@ -415,15 +417,15 @@ transform_datatypes(Conf, Mappings, ParsedArgs) ->
                     %% It will prevent anything from starting, and will let you know
                     %% that you're trying to set something that has no effect
                     VarName = cuttlefish_variable:format(Variable),
-                    _ = logger:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
-                    _ = logger:error("  Did you mean one of these?"),
+                    _ = ?LOG_ERROR("You've tried to set ~s, but there is no setting with that name.", [VarName]),
+                    _ = ?LOG_ERROR("  Did you mean one of these?"),
 
                     Possibilities = [ begin
                         MapVarName = cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
-                    _ = [ _ = logger:error("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
+                    _ = [ _ = ?LOG_ERROR("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
                     {Acc, [ {error, {unknown_variable, VarName}} | ErrorAcc ]};
                 MappingRecord ->
                     DTs = cuttlefish_mapping:datatype(MappingRecord),
@@ -622,7 +624,7 @@ run_validations({_, Mappings, Validators}, Conf) ->
                                              cuttlefish_mapping:variable(M)),
                                            cuttlefish_validator:description(V)
                                          }},
-                    _ = logger:error(cuttlefish_error:xlate(Error)),
+                    _ = ?LOG_ERROR(cuttlefish_error:xlate(Error)),
                     {error, Error}
             end
         end || V <- Vs]

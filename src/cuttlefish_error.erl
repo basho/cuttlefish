@@ -21,6 +21,8 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_error).
 
+-include_lib("kernel/include/logger.hrl").
+
 -type error() :: {'error', {atom(), term()}}.
 -type errorlist() :: {'errorlist', [error()]}.
 -export_type([error/0, errorlist/0]).
@@ -178,7 +180,7 @@ print({error, ErrorTerm}) ->
     print(lists:flatten(xlate(ErrorTerm)));
 print(String) ->
     try
-        logger:error("~s", [String])
+        ?LOG_ERROR("~s", [String])
     catch _:_:_ ->
         io:format("~s~n", [String]),
         ok

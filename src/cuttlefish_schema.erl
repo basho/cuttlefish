@@ -22,15 +22,18 @@
 
 -module(cuttlefish_schema).
 
--export([files/1, strings/1]).
-
-%% Exported for unit testing in other projects
--export([merger/1, string_fun_factory/0]).
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -export([file/1]).
 -endif.
+
+-export([files/1, strings/1]).
+
+%% Exported for unit testing in other projects
+-export([merger/1, string_fun_factory/0]).
+
 
 -type schema() :: {
               [cuttlefish_translation:translation()],
@@ -155,7 +158,7 @@ string(S, {T, M, V}) ->
         {error, {Line, erl_scan, _}, _} ->
             Error = {erl_scan, Line},
             ErrStr = cuttlefish_error:xlate(Error),
-            _ = logger:error(lists:flatten(ErrStr)),
+            _ = ?LOG_ERROR(lists:flatten(ErrStr)),
             {errorlist, [{error, Error}]}
     end.
 
