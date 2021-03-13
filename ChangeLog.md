@@ -1,6 +1,6 @@
 # Cuttlefish Change Log
 
-## 3.0.0 (under development)
+## 3.0.0 (Mar 13, 2021)
 
 ### OTP Logger Instead of Lager
 
