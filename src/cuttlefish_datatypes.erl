@@ -35,6 +35,7 @@
                     {flag, {atom(), term()}, {atom(), term()}} |
                     {enum, [atom()]} |
                     ip |
+                    fqdn |
                     {duration, cuttlefish_duration:time_unit() } |
                     bytesize |
                     {percent, integer} |
@@ -76,6 +77,7 @@ is_supported({flag, {On, _}, {Off, _}}) when is_atom(On), is_atom(Off) -> true;
 is_supported(atom) -> true;
 is_supported({enum, E}) when is_list(E) -> true;
 is_supported(ip) -> true;
+is_supported(fqdn) -> true;
 is_supported({duration, f}) -> true;
 is_supported({duration, w}) -> true;
 is_supported({duration, d}) -> true;
@@ -102,6 +104,8 @@ is_extended({file, F}) when is_list(F) -> true;
 is_extended({directory, D}) when is_list(D) -> true;
 is_extended({ip, {IP, Port}}) when is_list(IP) andalso is_integer(Port) -> true;
 is_extended({ip, StringIP}) when is_list(StringIP) -> true;
+is_extended({fqdn, {FQDN, Port}}) when is_list(FQDN) andalso is_integer(Port) -> true;
+is_extended({fqdn, StringFQDN}) when is_list(StringFQDN) -> true;
 is_extended({{duration, f}, D}) when is_list(D) -> true;
 is_extended({{duration, w}, D}) when is_list(D) -> true;
 is_extended({{duration, d}, D}) when is_list(D) -> true;
@@ -122,6 +126,7 @@ extended_from({atom, _}) -> atom;
 extended_from({file, _}) -> file;
 extended_from({directory, _}) -> directory;
 extended_from({ip, _}) -> ip;
+extended_from({fqdn, _}) -> fqdn;
 extended_from({{duration, Unit}, _}) -> {duration, Unit};
 extended_from({bytesize, _}) -> bytesize;
 extended_from({{percent, integer}, _}) -> {percent, integer};
@@ -154,6 +159,9 @@ to_string(Integer, integer) when is_list(Integer) -> Integer;
 
 to_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> IP ++ ":" ++ integer_to_list(Port);
 to_string(IPString, ip) when is_list(IPString) -> IPString;
+
+to_string({FQDN, Port}, fqdn) when is_list(FQDN), is_integer(Port) -> FQDN ++ ":" ++ integer_to_list(Port);
+to_string(FQDNString, fqdn) when is_list(FQDNString) -> FQDNString;
 
 to_string(Enum, {enum, _}) when is_list(Enum) -> Enum;
 to_string(Enum, {enum, _}) when is_atom(Enum) -> atom_to_list(Enum);
@@ -216,6 +224,10 @@ from_string(String, integer) when is_list(String) ->
 from_string({IP, Port}, ip) when is_list(IP), is_integer(Port) -> {IP, Port};
 from_string(String, ip) when is_list(String) ->
     from_string_to_ip(String, lists:split(string:rchr(String, $:), String));
+
+from_string({FQDN, Port}, fqdn) when is_list(FQDN), is_integer(Port) -> {FQDN, Port};
+from_string(String, fqdn) when is_list(String) ->
+    from_string_to_fqdn(String, lists:split(string:rchr(String, $:), String));
 
 from_string(Duration, {duration, _}) when is_integer(Duration) -> Duration;
 from_string(Duration, {duration, Unit}) when is_list(Duration) -> cuttlefish_duration:parse(Duration, Unit);
@@ -294,6 +306,17 @@ ip_conversions(String, _IPStr, _IP, undefined) ->
 ip_conversions(_String, IPStr, {ok, _}, Port) ->
     {IPStr, Port}.
 
+fqdn_conversions(String, _FQDNStr, nomatch, _Port) ->
+    {error, {conversion, {String, 'FQDN'}}};
+fqdn_conversions(String, _FQDNStr, _, undefined) ->
+    {error, {conversion, {String, 'FQDN'}}};
+fqdn_conversions(_String, FQDNStr, {match, _}, Port) ->
+    {FQDNStr, Port}.
+
+validate_fqdn(Str) ->
+    %% inspired by https://regexr.com/3g5j0, amended to disallow [:space:]
+    re:run(Str, "^(?!:\/\/)(?=[^[:space:]]{1,255}$)((.{1,63}\.){1,127}(?![0-9]*$)[a-z0-9-]+\.?)$").
+
 droplast(List) ->
     lists:sublist(List, length(List)-1).
 
@@ -305,6 +328,12 @@ from_string_to_ip(String, {IpPlusColon, PortString}) ->
     %% addition
     IP = droplast(IpPlusColon),
     ip_conversions(String, IP, inet:parse_address(IP), port_to_integer(PortString)).
+
+from_string_to_fqdn(String, {[], String}) ->
+    {error, {conversion, {String, 'FQDN'}}};
+from_string_to_fqdn(String, {FQDNPlusColon, PortString}) ->
+    FQDN = droplast(FQDNPlusColon),
+    fqdn_conversions(String, FQDN, validate_fqdn(FQDN), port_to_integer(PortString)).
 
 
 -ifdef(TEST).
@@ -360,6 +389,8 @@ to_string_extended_type_test() ->
     ?assertEqual("32", to_string("32", {integer, 32})),
     ?assertEqual("127.0.0.1:8098", to_string("127.0.0.1:8098", {ip, "127.0.0.1:8098"})),
     ?assertEqual("127.0.0.1:8098", to_string({"127.0.0.1", 8098}, {ip, {"127.0.0.1", 8098}})),
+    ?assertEqual("example.com:8098", to_string("example.com:8098", {fqdn, "example.com:8098"})),
+    ?assertEqual("example.com:8098", to_string({"example.com", 8098}, {fqdn, {"example.com", 8098}})),
     ?assertEqual("string", to_string("string", {string, "string"})),
     ?assertEqual("1w", to_string("1w", {{duration, s}, "1w"})),
     ?assertEqual("1w", to_string(604800000, {{duration, ms}, "1w"})),
@@ -415,6 +446,38 @@ from_string_ip_test() ->
                                        from_string(Bad, ip))
                   end,
                   BadIPs),
+    ok.
+
+from_string_fqdn_test() ->
+    ?assertEqual({"fqdn.com", 8098}, from_string("fqdn.com:8098", fqdn)),
+    ?assertEqual(
+        {"f.q.d.n.com", 8098},
+        from_string("f.q.d.n.com:8098", fqdn)),
+    ?assertEqual(
+        {"fqdn.com.", 8098},
+        from_string("fqdn.com.:8098", fqdn)),
+    ?assertEqual(
+        {"FqDn.com", 8098},
+        from_string("FqDn.com:8098", fqdn)),
+    ?assertEqual(
+        {"ec2-35-160-210-253.us-west-2-.compute.amazonaws.com", 1},
+        from_string("ec2-35-160-210-253.us-west-2-.compute.amazonaws.com:1", fqdn)),
+
+    BadFQDNs = [
+                "This is not an fqdn:80",
+                "This.is not.an.fqdn:80",
+                "",
+                "127.0.0.1:80",
+                "fqdn.com", %% No port
+                "fqdn.com:-5",
+                "fqdn.com:80:81"
+               ],
+
+    lists:foreach(fun(Bad) ->
+                          ?assertEqual({error, {conversion, {Bad, 'FQDN'}}},
+                                       from_string(Bad, fqdn))
+                  end,
+                  BadFQDNs),
     ok.
 
 from_string_enum_test() ->
