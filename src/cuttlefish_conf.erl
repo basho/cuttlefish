@@ -103,7 +103,7 @@ fold_conf_files(Filename, Conf0) ->
 
 expand_values(Filename, Conf) ->
     lists:map(fun({K, Value0}) ->
-                case re:run(Value0, "^\\$\\(\\<(.*)\\)$", [{capture, all_but_first, list}]) of
+                case re:run(Value0, "^\\$\\(\\<(.+)\\)$", [{capture, all_but_first, list}]) of
                     {match, [IncludeFilename0]} ->
                         % This is a value of the format "$(<IncludeFilename)", let's read the contents
                         % of `IncludeFilename` and use that as the new value
