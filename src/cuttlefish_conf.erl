@@ -103,9 +103,9 @@ fold_conf_files(Filename, Conf0) ->
 
 expand_values(Filename, Conf) ->
     lists:map(fun({K, Value0}) ->
-                case re:split(Value0, "[$(<)]") of
-                    [_, _, _, IncludeFilename0, _] ->
-                        % this is a value of the format "$(<IncludeFilename), let's read the contents
+                case re:run(Value0, "^\\$\\(\\<(.+)\\)$", [{capture, all_but_first, list}]) of
+                    {match, [IncludeFilename0]} ->
+                        % This is a value of the format "$(<IncludeFilename)", let's read the contents
                         % of `IncludeFilename` and use that as the new value
                         %
                         % strip all space chars from beginning/end and join the relative filename with the
@@ -429,7 +429,8 @@ included_value_test() ->
              {["value2"], "43"},
              {["value3"], "42"},
              {["value4"], "multi\nline\nvalue"},
-             {["value5"], "12.34"}
+             {["value5"], "12.34"},
+             {["value6"], "$v1 [$v2] $v3 $v4"}
         ]), lists:sort(Conf)),
     ok.
 
