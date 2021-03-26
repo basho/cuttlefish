@@ -1,8 +1,12 @@
 # Cuttlefish Change Log
 
-## 3.1.0 (in development)
+## Next version (in development)
 
 No changes yet.
+
+## 3.0.1 (Mar 26, 2021)
+
+* Fix `$(< filename)` include directive parsing (#25).
 
 ## 3.0.0 (Mar 13, 2021)
 
