@@ -13,6 +13,15 @@ Fixed `$(< filename)` include directive parsing.
 
 GitHub issue: [#25](https://github.com/Kyorai/cuttlefish/pull/25)
 
+### New Data Type: `fqdn`
+
+Contributed by Andrei @hmmr Zavada.
+
+For example, a value of `fqdn.com:8098` of type `fqdn` would be parsed
+to a tuple of `{"fqdn.com", 8098}`.
+
+GitHub issue: [$24](https://github.com/Kyorai/cuttlefish/pull/24)
+
 
 ## 3.0.0 (Mar 13, 2021)
 
