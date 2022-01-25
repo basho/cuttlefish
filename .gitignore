@@ -12,6 +12,15 @@ log/
 *.dump
 *.iml
 *.plt
+.DS_Store
+generated.config
+generated.conf
+ebin/
+etc/
+doc/
+.eunit
+deps
+cuttlefish
 *.sublime-project
 *.sublime-workspace
 *.tmp

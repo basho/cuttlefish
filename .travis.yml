@@ -1,8 +1,15 @@
+# vim:sw=2:et:
 language: erlang
+dist: bionic
+sudo: false
 otp_release:
-  - 20.3.8
-  - 21.3
-  - 22.3
+  - "23.1.2"
+  - "22.3.4"
+
+install:
+  - curl -O -L https://s3.amazonaws.com/rebar3/rebar3
+  - chmod +x rebar3
+
 script:
   - chmod u+x rebar3
   - ./rebar3 do upgrade, compile, xref, dialyzer, eunit

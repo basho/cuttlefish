@@ -1,10 +1,8 @@
-{application, cuttlefish, [
-    {description,   "cuttlefish configuration abstraction"},
-    {vsn,           git},
-    {registered,    []},
-    {applications,  [kernel, sasl, stdlib, syntax_tools, getopt, lager]},
-    {env,           []},
-    {modules,       []},
-    {licenses,      ["Apache 2.0"]},
-    {links,         [{"Github",  "https://github.com/basho/cuttlefish"}]}
-]}.
+{application,cuttlefish,
+             [{description,"cuttlefish configuration abstraction"},
+              {vsn,"3.0.1"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {env,[]},
+              {licenses,["Apache"]},
+              {links,[{"GitHub","https://github.com/basho/cuttlefish"}]}]}.

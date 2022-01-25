@@ -23,6 +23,8 @@
 %%
 -module(cuttlefish_conf).
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([
          generate/1,
          generate_file/2,
@@ -71,17 +73,60 @@ file(Filename) ->
             {errorlist, [{error, {file_open, {Filename, Reason}}}]};
         {_Conf, Remainder, {{line, L}, {column, C}}} when is_binary(Remainder) ->
             {errorlist, [{error, {conf_syntax, {Filename, {L, C}}}}]};
-        Conf ->
+        Conf0 ->
+            % go through the conf looking for include directives, fold all into
+            % a single proplist
+            Conf = fold_conf_files(Filename, Conf0),
             %% Conf is a proplist, check if any of the values are cuttlefish_errors
             {_, Values} = lists:unzip(Conf),
             case cuttlefish_error:filter(Values) of
                 {errorlist, []} ->
-                    remove_duplicates(Conf);
+                    % expand any non-literal values (ie. included values)
+                    expand_values(Filename, remove_duplicates(Conf));
                 {errorlist, ErrorList} ->
                     NewErrorList = [ {error, {in_file, {Filename, E}}} || {error, E} <- ErrorList ],
                     {errorlist, NewErrorList}
             end
     end.
+
+fold_conf_files(Filename, Conf0) ->
+    lists:foldl(fun({include, Included}, Acc) ->
+                        DirName = binary_to_list(filename:join(filename:dirname(Filename),
+                                                               filename:dirname(Included))),
+                        BaseName = binary_to_list(filename:basename(Included)),
+                        Acc ++ lists:flatten(
+                                  [file(filename:join(DirName, F)) || F <-
+                                                    filelib:wildcard(BaseName, DirName)]);
+                    (KeyValue, Acc) ->
+                        Acc ++ [KeyValue]
+                end,
+                [],
+                Conf0).
+
+expand_values(Filename, Conf) ->
+    lists:map(fun({K, Value0}) ->
+                case re:run(Value0, "^\\$\\(\\<(.+)\\)$", [{capture, all_but_first, list}]) of
+                    {match, [IncludeFilename0]} ->
+                        % This is a value of the format "$(<IncludeFilename)", let's read the contents
+                        % of `IncludeFilename` and use that as the new value
+                        %
+                        % strip all space chars from beginning/end and join the relative filename with the
+                        % location of the sourcing .conf file
+                        IncludeFilename = filename:join([filename:dirname(Filename),
+                                                         re:replace(IncludeFilename0, "(^\\s+)|(\\s+$)", "", [{return, list}])]),
+                        % read the entire file contents and strip newline
+                        case file:read_file(IncludeFilename) of
+                          {ok, Value} ->
+                            {K, re:replace(Value, "[\n\r]$", "", [{return, list}])};
+                          {error, Reason} ->
+                            throw({unable_to_open, IncludeFilename, Reason})
+                        end;
+                    _ ->
+                        % normal value, nothing to do
+                        {K, Value0}
+                end
+              end,
+              Conf).
 
 -spec generate([cuttlefish_mapping:mapping()]) -> [string()].
 generate(Mappings) ->
@@ -98,6 +143,12 @@ generate_file(Mappings, Filename) ->
     _ = [ begin
           io:format(S, "~s~n", [lists:flatten(Line)])
       end || Line <- ConfFileLines],
+    % add an include directive at the end that will allow
+    % other conf files in `conf.d` and have them get picked up
+    % in order to override settings
+    % example use case is a k8s configMap that is mapped as a file
+    % to conf.d/erlang_vm.conf
+    io:format(S, "include conf.d/*.conf~n~n", []),
     _ = file:close(S),
     ok.
 
@@ -121,7 +172,7 @@ generate_element(MappingRecord) ->
     case Level of
         basic -> ok;
         Level ->
-            lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+            _ = ?LOG_WARNING("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
     case generate_element(Hidden, Level, Default, Commented) of
@@ -327,24 +378,66 @@ files_incomplete_parse_test() ->
     ok.
 
 generate_element_level_advanced_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(warning),
     assert_no_output({level, advanced}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, advanced} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_level_intermediate_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(warning),
     assert_no_output({level, intermediate}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logging:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, intermediate} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_hidden_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    _ = cuttlefish_test_logging:set_up(),
+    _ = cuttlefish_test_logging:bounce(warning),
     assert_no_output(hidden),
     assert_no_output({hidden, true}),
-    ?assertEqual([], cuttlefish_lager_test_backend:get_logs()),
+    ?assertEqual([], cuttlefish_test_logging:get_logs()),
+    ok.
+
+included_file_test() ->
+    Conf = file("test/include_file.conf"),
+    ?assertEqual(lists:sort([
+            {["ring_size"],"32"},
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["log","syslog"],"on"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"}
+        ]), lists:sort(Conf)),
+    ok.
+
+included_dir_test() ->
+    Conf = file("test/include_dir.conf"),
+    ?assertEqual(lists:sort([
+            {["anti_entropy"],"debug"},
+            {["log","error","file"],"/var/log/error.log"},
+            {["log","console","file"],"/var/log/console.log"},
+            {["ring_size"],"5"},
+            {["rogue","option"],"42"},
+            {["listener","http","internal"],"127.0.0.1:8098"},
+            {["listener","http","external"],"10.0.0.1:80"},
+            {["log","syslog"],"off"}
+        ]), lists:sort(Conf)),
+    ok.
+
+included_value_test() ->
+    Conf = file("test/included_value.conf"),
+    ?assertEqual(lists:sort([
+             {["value1"], "42"},
+             {["value2"], "43"},
+             {["value3"], "42"},
+             {["value4"], "multi\nline\nvalue"},
+             {["value5"], "12.34"},
+             {["value6"], "$v1 [$v2] $v3 $v4"}
+        ]), lists:sort(Conf)),
     ok.
 
 assert_no_output(Setting) ->

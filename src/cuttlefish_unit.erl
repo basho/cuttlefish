@@ -27,11 +27,7 @@
 -export([
     assert_config/3,
     assert_error/1,
-    assert_error/3,
-    assert_error_in_phase/2,
     assert_error_message/2,
-    assert_errors/2,
-    assert_errors/3,
     assert_not_configured/2,
     assert_valid_config/1,
     generate_config/2,
@@ -77,6 +73,9 @@
 -define(NOTEST, true).
 -endif.
 -endif.
+
+-include_lib("kernel/include/logger.hrl").
+
 -include_lib("eunit/include/eunit.hrl").
 
 %% ===================================================================
@@ -145,28 +144,6 @@ assert_not_configured(Config, Path) ->
 assert_error(Config) ->
     ?assertMatch({error, _, {errorlist, _}}, Config).
 
-%% @doc Asserts that the generated configuration is in error, with the
-%% error occurring in a specific phase.
-assert_error_in_phase(Config, Phase) when is_atom(Phase) ->
-    ?assertMatch({error, Phase, {errorlist, _}}, Config).
-
-%% @doc Asserts that the generated configuration is in error, and the
-%% given error message was emitted by the given phase.
-assert_error(Config, Phase, Message) ->
-    assert_error_in_phase(Config, Phase),
-    assert_error_message(Config, Message).
-
-%% @doc Asserts that the generated configuration is in error and has
-%% the given error messages.
-assert_errors(Config, [H|_]=Messages) when is_list(H) ->
-    [ assert_error_message(Config, Message) || Message <- Messages ].
-
-%% @doc Asserts that the generated configuration is in error, with
-%% errors occuring in the given phase and containing the given
-%% messages.
-assert_errors(Config, Phase, [H|_]=Messages) when is_list(H) ->
-    assert_error_in_phase(Config, Phase),
-    [ assert_error_message(Config, Message) || Message <- Messages ].
 
 %% @doc Asserts that the generated configuration is in error and
 %% contains an error tuple that translates to the given error message
@@ -445,21 +422,18 @@ path_test() ->
         path(["vm_args", "-smp"], [{vm_args, [{'-smp', "disable"}]}])).
 
 multiple_schema_generate_templated_config_test() ->
-    lager:start(),
-    Context = [{mustache, "mustache"}],
-    PrereqSchema = {
-        [],
-        [cuttlefish_mapping:parse({mapping, "c", "app.c", [{default, "/c"}]})],
-        [] },
+    Context = [
+        {mustache, "mustache"}
+              ],
+    PrereqSchema = {[], [
+        cuttlefish_mapping:parse(
+        {mapping, "c", "app.c", [
+            {default, "/c"}
+                                ]})
+                        ], []},
 
-    TestDir = lib_test_dir(?MODULE),
-    ?assertNotEqual(false, TestDir),
-    Schema = filename:join(TestDir, "sample_mustache.schema"),
-
-    Config = cuttlefish_unit:generate_templated_config(
-        Schema, [], Context, PrereqSchema),
-
-    lager:error("~p", [Config]),
+    Config = cuttlefish_unit:generate_templated_config("test/sample_mustache.schema", [], Context, PrereqSchema),
+    _ = ?LOG_ERROR("~p", [Config]),
     assert_config(Config, "app_a.setting_b", "/c/mustache/a.b"),
     ok.
 

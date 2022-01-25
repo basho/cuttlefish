@@ -22,6 +22,8 @@
 
 -module(cuttlefish).
 
+-include_lib("kernel/include/logger.hrl").
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -123,7 +125,7 @@ invalid(Reason) ->
 %% being logged.
 -spec warn(iodata()) -> ok.
 warn(Str) ->
-    lager:warning(Str, []).
+    _ = ?LOG_WARNING(Str, []).
 
 -ifdef(TEST).
 

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+        branches: [ master ]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    container:
+      image: erlang:23.2
+    steps:
+    - uses: actions/checkout@v2.0.0
+    - name: Compile
+      run: rebar3 compile
+    - name: Run tests, dialyzer
+      run: rebar3 do eunit,dialyzer
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2.0.0
+      - name: Install Erlang/OTP
+        uses: gleam-lang/setup-erlang@v1.1.2
+        with:
+          otp-version: 23.2
+        id: install_erlang
+      - name: Install rebar3
+        run: |
+          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
+          & git clone https://github.com/rebar/rebar3.git
+          & cd rebar3
+          .\bootstrap.ps1
+          Copy-Item -Verbose -Force 'rebar3' -Destination $env:windir 
+          Copy-Item -Verbose -Force 'rebar3.cmd' -Destination $env:windir 
+      - name: Compile
+        run: |
+          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
+          & rebar3.cmd compile
+      - name: Run tests, dialyzer
+        run: |
+          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
+          & rebar3.cmd do eunit,dialyzer

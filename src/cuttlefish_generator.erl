@@ -23,6 +23,8 @@
 %%
 -module(cuttlefish_generator).
 
+-include_lib("kernel/include/logger.hrl").
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -34,13 +36,19 @@
 -define(LSUBLEN, 2).
 -define(RSUBLEN, 1).
 
--export([map/2, find_mapping/2, add_defaults/2, minimal_map/2]).
+-export([map/2, map/3, find_mapping/2, add_defaults/2, minimal_map/2]).
 
 -spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                  [proplists:property()] |
                  {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
-    map_add_defaults(Schema, Config).
+    map(Schema, Config, []).
+
+-spec map(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
+                 [proplists:property()] |
+                 {error, atom(), cuttlefish_error:errorlist()}.
+map(Schema, Config, ParsedArgs) ->
+    map_add_defaults(Schema, Config, ParsedArgs).
 
 %% @doc Generates an Erlang config that only includes the settings
 %% encompassed by the passed Config, excluding defaults from the
@@ -54,7 +62,7 @@ minimal_map({AllTranslations,AllMappings,V}, Config) ->
                                                     end, {[], sets:new()}, AllMappings),
     RestrictedTranslations = [ T || T <- AllTranslations,
                                     sets:is_element(cuttlefish_translation:mapping(T), MappingKeys)],
-    map({RestrictedTranslations,RestrictedMappings,V}, Config).
+    map({RestrictedTranslations,RestrictedMappings,V}, Config, []).
 
 restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
     case sets:is_element(cuttlefish_mapping:variable(M), ConfigKeys) of
@@ -64,42 +72,42 @@ restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
             {Mappings, Keys}
     end.
 
--spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_add_defaults(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                               [proplists:property()] |
                               {error, atom(), cuttlefish_error:errorlist()}.
-map_add_defaults({_, Mappings, _} = Schema, Config) ->
+map_add_defaults({_, Mappings, _} = Schema, Config, ParsedArgs) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
-    lager:debug("Adding Defaults"),
+    _ = ?LOG_DEBUG("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
     case cuttlefish_error:errorlist_maybe(DConfig) of
         {errorlist, EList} ->
             {error, add_defaults, {errorlist, EList}};
         _ ->
-            map_value_sub(Schema, DConfig)
+            map_value_sub(Schema, DConfig, ParsedArgs)
     end.
 
--spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_value_sub(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                            [proplists:property()] |
                            {error, atom(), cuttlefish_error:errorlist()}.
-map_value_sub(Schema, Config) ->
-    lager:debug("Right Hand Side Substitutions"),
+map_value_sub(Schema, Config, ParsedArgs) ->
+    _ = ?LOG_DEBUG("Right Hand Side Substitutions"),
      case value_sub(Config) of
          {SubbedConfig, []} ->
-            map_transform_datatypes(Schema, SubbedConfig);
+            map_transform_datatypes(Schema, SubbedConfig, ParsedArgs);
          {_, EList} ->
             {error, rhs_subs, {errorlist, EList}}
     end.
 
--spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
+-spec map_transform_datatypes(cuttlefish_schema:schema(), cuttlefish_conf:conf(), [proplists:property()]) ->
                                      [proplists:property()] |
                                      {error, atom(), cuttlefish_error:errorlist()}.
-map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
+map_transform_datatypes({_, Mappings, _} = Schema, DConfig, ParsedArgs) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    lager:debug("Applying Datatypes"),
-    case transform_datatypes(DConfig, Mappings) of
+    _ = ?LOG_DEBUG("Applying Datatypes"),
+    case transform_datatypes(DConfig, Mappings, ParsedArgs) of
         {NewConf, []} ->
             map_validate(Schema, NewConf);
         {_, EList} ->
@@ -111,7 +119,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
                           {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
-    lager:debug("Validation"),
+    _ = ?LOG_DEBUG("Validation"),
     case cuttlefish_error:errorlist_maybe(run_validations(Schema, Conf)) of
         {errorlist, EList} ->
             {error, validation, {errorlist, EList}};
@@ -156,7 +164,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
         end,
         {[], {ordsets:new(),ordsets:new()}},
         Mappings),
-    lager:debug("Applied 1:1 Mappings"),
+    _ = ?LOG_DEBUG("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
@@ -172,7 +180,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                         {DirectMappings, []}, Translations),
     case Errorlist of
         [] ->
-            lager:debug("Applied Translations"),
+            _ = ?LOG_DEBUG("Applied Translations"),
             Proplist;
         Es ->
             {error, apply_translations, {errorlist, Es}}
@@ -187,7 +195,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                 false ->
                     {XlatFun, XlatArgs} = prepare_translation_fun(Conf, Schema,
                                                                   Mapping, Xlat),
-                    lager:debug("Running translation for ~s", [Mapping]),
+                    _ = ?LOG_DEBUG("Running translation for ~s", [Mapping]),
                     case try_apply_translation(Mapping, XlatFun, XlatArgs) of
                         unset ->
                             {Acc, Errors};
@@ -197,7 +205,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                             {Acc, [{error, Term}|Errors]}
                     end;
                 _ ->
-                    lager:debug("~p in Translations to drop...", [Mapping]),
+                    _ = ?LOG_DEBUG("~p in Translations to drop...", [Mapping]),
                     {Acc, Errors}
             end
         end.
@@ -296,7 +304,7 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
         %% If Match =:= true, do nothing, the value is set in the .conf file
         _ ->
             %% TODO: Handle with more style and grace
-            lager:error("Both fuzzy and strict match! should not happen"),
+            _ = ?LOG_ERROR("Both fuzzy and strict match! should not happen"),
             [{error, {map_multiple_match, VariableDef}}|Acc]
     end.
 
@@ -389,14 +397,21 @@ get_possible_values_for_fuzzy_matches(Conf, Mappings) ->
 
 -spec transform_datatypes(
         cuttlefish_conf:conf(),
-        [cuttlefish_mapping:mapping()]
+        [cuttlefish_mapping:mapping()],
+        [proplists:property()]
       ) -> {cuttlefish_conf:conf(), [cuttlefish_error:error()]}.
-transform_datatypes(Conf, Mappings) ->
+transform_datatypes(Conf, Mappings, ParsedArgs) ->
     lists:foldl(
         fun({Variable, Value}, {Acc, ErrorAcc}) ->
+            AllowExtra = proplists:get_value(allow_extra, ParsedArgs, false),
             %% Look up mapping from schema
             case find_mapping(Variable, Mappings) of
-                {error, _} ->
+                {error, _} when AllowExtra ->
+                    %% user asked for us to tolerate variables
+                    %% that are not present in the mapping so
+                    %% do nothing here
+                    {Acc, ErrorAcc};
+                {error, _}  ->
                     %% So, this error message isn't so performant (s/o @argv0)
                     %% but it shouldn't happen too often, and I think it's important
                     %% to give users this feedback.
@@ -404,15 +419,15 @@ transform_datatypes(Conf, Mappings) ->
                     %% It will prevent anything from starting, and will let you know
                     %% that you're trying to set something that has no effect
                     VarName = cuttlefish_variable:format(Variable),
-                    lager:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
-                    lager:error("  Did you mean one of these?"),
+                    _ = ?LOG_ERROR("You've tried to set ~s, but there is no setting with that name.", [VarName]),
+                    _ = ?LOG_ERROR("  Did you mean one of these?"),
 
                     Possibilities = [ begin
                         MapVarName = cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
-                    _ = [ lager:error("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
+                    _ = [ _ = ?LOG_ERROR("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
                     {Acc, [ {error, {unknown_variable, VarName}} | ErrorAcc ]};
                 MappingRecord ->
                     DTs = cuttlefish_mapping:datatype(MappingRecord),
@@ -465,7 +480,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
              case head_sub(Value) of
                  none -> {Value, Conf};
                  {sub, NextVar, {SubFront, SubBack}} ->
-                    case proplists:get_value(NextVar, Conf) of
+                    case subbed_value(NextVar, Conf) of
                         undefined ->
                             {error, {substitution_missing_config,
                                      {cuttlefish_variable:format(Var),
@@ -487,6 +502,23 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      end;
 value_sub(_Var, Value, Conf, _History) ->
     {Value, Conf}.
+
+-spec subbed_value(Var :: cuttlefish_variable:variable(),
+                   Conf :: cuttlefish_conf:conf()) -> undefined | string().
+subbed_value(Var, Conf) ->
+    case proplists:get_value(Var, Conf) of
+        undefined ->
+            % we couldn't find the var in the conf file, let's
+            % look at the environment and check for it
+            case os:getenv(cuttlefish_variable:format(Var)) of
+                false ->
+                    undefined;
+                Value ->
+                    Value
+            end;
+        Value ->
+            Value
+    end.
 
 -spec head_sub(string()) -> none | {sub, cuttlefish_variable:variable(), {string(), string()}}.
 head_sub(Value) ->
@@ -594,7 +626,7 @@ run_validations({_, Mappings, Validators}, Conf) ->
                                              cuttlefish_mapping:variable(M)),
                                            cuttlefish_validator:description(V)
                                          }},
-                    lager:error(cuttlefish_error:xlate(Error)),
+                    _ = ?LOG_ERROR(cuttlefish_error:xlate(Error)),
                     {error, Error}
             end
         end || V <- Vs]
@@ -668,7 +700,6 @@ bad_conf_test() ->
     ok.
 
 add_defaults_test() ->
-    %%lager:start(),
     Conf = [
         %%{["a","b","c"], "override"}, %% Specifically left out. Uncomment line to break test,
         {["a","c","d"], "override"},
@@ -722,8 +753,7 @@ add_defaults_test() ->
     ok.
 
 map_test() ->
-    lager:start(),
-    Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
+    Schema = cuttlefish_schema:file("test/riak.schema"),
 
     Conf = conf_parse:file(cuttlefish_test_util:test_file("riak.conf")),
 
@@ -749,8 +779,7 @@ map_test() ->
     ok.
 
 minimal_map_test() ->
-    lager:start(),
-    Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
+    Schema = cuttlefish_schema:file("test/riak.schema"),
     Conf = [{["ring_size"], "32"},
             {["anti_entropy"], "debug"}],
     NewConfig = minimal_map(Schema, Conf),
@@ -797,7 +826,6 @@ apply_mappings_test() ->
     ok.
 
 find_mapping_test() ->
-    lager:start(),
     Mappings = [
         cuttlefish_mapping:parse({mapping, "variable.with.fixed.name", "", [{ default, 0}]}),
         cuttlefish_mapping:parse({mapping, "variable.with.$matched.name", "",  [{ default, 1}]})
@@ -995,8 +1023,25 @@ transform_datatypes_not_found_test() ->
     Conf = [
         {["conf", "other"], "string"}
     ],
-    NewConf = transform_datatypes(Conf, Mappings),
+    NewConf = transform_datatypes(Conf, Mappings, []),
     ?assertEqual({[], [{error, {unknown_variable, "conf.other"}}]}, NewConf),
+    ok.
+
+transform_datatypes_allowed_not_found_test() ->
+    Mappings = [
+        cuttlefish_mapping:parse({
+            mapping,
+            "conf.key",
+            "erlang.key",
+            []
+            })
+    ],
+
+    Conf = [
+        {["conf", "other"], "string"}
+    ],
+    NewConf = transform_datatypes(Conf, Mappings, [{allow_extra, true}]),
+    ?assertEqual({[], []}, NewConf),
     ok.
 
 validation_test() ->
@@ -1111,6 +1156,19 @@ invalid_test() ->
                    [{error, {translation_invalid_configuration,
                              {"b.c", "review all files"}}}]}},
                  AppConf).
+
+value_env_sub_test() ->
+    os:putenv("ENV_TEST_VAL", "/a/b"),
+    Conf = [
+            {["a","b","c"], "$(ENV_TEST_VAL)/c"},
+            {["a","b"], "/b/a"}
+           ],
+    {NewConf, Errors} = value_sub(Conf),
+    os:unsetenv("ENV_TEST_VAL"),
+    ?assertEqual([], Errors),
+    ABC = proplists:get_value(["a","b","c"], NewConf),
+    ?assertEqual("/a/b/c", ABC),
+    ok.
 
 value_sub_test() ->
     Conf = [

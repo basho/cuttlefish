@@ -21,9 +21,12 @@
 %% -------------------------------------------------------------------
 -module(cuttlefish_escript).
 
+-define(LOGGER_HANDLER, default).
 -define(STDOUT(Str, Args), io:format(Str ++ "~n", Args)).
 -define(FORMAT(Str, Args), io_lib:format(Str, Args)).
 -export([main/1]).
+
+-include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -35,7 +38,7 @@ cli_options() ->
  {help,         $h, "help",        undefined,          "Print this usage page"},
  {etc_dir,      $e, "etc_dir",     {string, "/etc"},   "etc dir"},
  {dest_dir,     $d, "dest_dir",    string,             "specifies the directory to write the config file to"},
- {dest_file,    $f, "dest_file",   {string, "app"},    "the file name to write"},
+ {dest_file,    $f, "dest_file",   string,             "the file name to write"},
  {schema_dir,   $s, "schema_dir",  string,             "a directory containing .schema files"},
  %%  one or more schema file paths
  {schema_file,  $i, "schema_file", string,             "individual schema file, will be processed in command line order, after -s"},
@@ -45,7 +48,9 @@ cli_options() ->
  {advanced_conf_file, $a, "advanced_conf_file", string, "the advanced config file path"},
  {log_level,    $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
  {print_schema, $p, "print",       undefined,          "prints schema mappings on stderr"},
- {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"}
+ {max_history,  $m, "max_history", {integer, 3},       "the maximum number of generated config files to keep"},
+ {silent,       $t, "silent",      {boolean, false},   "silent operation, no output"},
+ {allow_extra,  $x, "allow_extra", {boolean, false},   "don't fail if extra keys not belonging to a schema are found"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -70,8 +75,6 @@ parse_and_command(Args) ->
 
 %% @doc main method for generating erlang term config files
 main(Args) ->
-    _ = application:load(lager),
-
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
 
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
@@ -80,12 +83,22 @@ main(Args) ->
         _ -> notice
     end,
 
-    application:set_env(lager, handlers, [{lager_stderr_backend, LogLevel}]),
-    application:set_env(lager, crash_log, false),
-    lager:start(),
-    lager:debug("Cuttlefish set to debug level logging"),
+    logger:set_primary_config(#{
+        level => LogLevel
+    }),
+    {ok, LC0} = logger:get_handler_config(?LOGGER_HANDLER),
+    %% override logger formatter to match what 2.7.0 and earlier versions
+    %% used with Lager
+    LC1 = maps:update(formatter,
+        {logger_formatter, #{
+            legacy_header => false,
+            single_line   => true,
+            template      => [time," [", level ,"] ", msg, "\n"]
+        }}, LC0),
+    logger:update_handler_config(?LOGGER_HANDLER, LC1),
 
-    lager:debug("Parsed arguments: ~p", [ParsedArgs]),
+    _ = ?LOG_DEBUG("Cuttlefish log level is set to ~s", [LogLevel]),
+    _ = ?LOG_DEBUG("Parsed arguments: ~p", [ParsedArgs]),
 
     case Command of
         help ->
@@ -102,7 +115,7 @@ main(Args) ->
 
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
-    lager:debug("cuttlefish `effective`", []),
+    _ = ?LOG_DEBUG("cuttlefish `effective`", []),
     EtcDir = proplists:get_value(etc_dir, ParsedArgs),
 
     %% Should we even show this?
@@ -112,15 +125,15 @@ effective(ParsedArgs) ->
     case {AppConfigExists, VMArgsExists} of
         {false, false} ->
             AdvancedConfigFile = proplists:get_value(advanced_conf_file, ParsedArgs, filename:join(EtcDir, "advanced.config")),
-            lager:debug("Will look for advanced.config at '~s'", [AdvancedConfigFile]),
+            _ = ?LOG_DEBUG("Will look for advanced.config at '~s'", [AdvancedConfigFile]),
             AdvConfig = case filelib:is_file(AdvancedConfigFile) of
                 true ->
-                    lager:debug("~s detected, overlaying proplists", [AdvancedConfigFile]),
+                    _ = ?LOG_DEBUG("~s detected, overlaying proplists", [AdvancedConfigFile]),
                     case file:consult(AdvancedConfigFile) of
                         {ok, [AdvancedConfig]} ->
                             AdvancedConfig;
                         {error, Error} ->
-                            lager:error("Error parsing advanced.config: ~s", [file:format_error(Error)]),
+                            _ = ?LOG_ERROR("Error parsing advanced.config: ~s", [file:format_error(Error)]),
                             stop_deactivate()
                     end;
                 _ ->
@@ -160,7 +173,7 @@ describe(_ParsedArgs, []) ->
 describe(ParsedArgs, [Query|_]) when is_list(Query) ->
     QDef = cuttlefish_variable:tokenize(Query),
 
-    lager:debug("cuttlefish describe '~s'", [Query]),
+    _ = ?LOG_DEBUG("cuttlefish describe '~s'", [Query]),
     {_, Mappings, _} = load_schema(ParsedArgs),
 
     FindResults = fun(QueryVar) ->
@@ -247,24 +260,28 @@ generate(ParsedArgs) ->
     %% even though cuttlefish is awesome
     FilesToUse = case {AppConfigExists, VMArgsExists} of
         {true, true} ->
-            lager:info("~s and ~s exists, disabling cuttlefish.", [ExistingAppConfigName, ExistingVMArgsName]),
-            lager:info("If you'd like to know more about cuttlefish, check your local library!", []),
-            lager:info(" or see http://github.com/Kyorai/cuttlefish", []),
+            _ = ?LOG_INFO("~s and ~s exists, disabling cuttlefish.", [ExistingAppConfigName, ExistingVMArgsName]),
+            _ = ?LOG_INFO("If you'd like to know more about cuttlefish, check your local library!", []),
+            _ = ?LOG_INFO(" or see http://github.com/Kyorai/cuttlefish", []),
             {ExistingAppConfigName, ExistingVMArgsName};
         {true, false} ->
-            lager:info("~s exists, generating vm.args", [ExistingAppConfigName]),
+            _ = ?LOG_INFO("~s exists, generating vm.args", [ExistingAppConfigName]),
             {_, NewVMArgs} = engage_cuttlefish(ParsedArgs),
             {ExistingAppConfigName, NewVMArgs};
         {false, true} ->
-            lager:info("~s exists, generating app.config", [ExistingVMArgsName]),
+            _ = ?LOG_INFO("~s exists, generating app.config", [ExistingVMArgsName]),
             {NewAppConfig, _} = engage_cuttlefish(ParsedArgs),
             {NewAppConfig, ExistingVMArgsName};
         _ ->
-            lager:info("No app.config or vm.args detected in ~s, activating cuttlefish", [EtcDir]),
+            _ = ?LOG_INFO("No app.config or vm.args detected in ~s, activating cuttlefish", [EtcDir]),
             engage_cuttlefish(ParsedArgs)
     end,
 
-    case FilesToUse of
+    Silent = proplists:get_value(silent, ParsedArgs, false),
+    case Silent orelse FilesToUse of
+        true ->
+            %% user requested for silent operation, ie. not cli args
+            stop_ok();
         %% this is nice and all, but currently all error paths of engage_cuttlefish end with
         %% stop_deactivate() hopefully factor that to be cleaner.
         error ->
@@ -291,10 +308,10 @@ load_schema(ParsedArgs) ->
     SortedSchemaFiles = lists:sort(fun(A,B) -> A < B end, SchemaFiles),
     case length(SortedSchemaFiles) of
         0 ->
-            lager:debug("No Schema files found in specified", []),
+            _ = ?LOG_DEBUG("No Schema files found in specified", []),
             stop_deactivate();
         _ ->
-            lager:debug("SchemaFiles: ~p", [SortedSchemaFiles])
+            _ = ?LOG_DEBUG("SchemaFiles: ~p", [SortedSchemaFiles])
     end,
 
     Schema = cuttlefish_schema:files(SortedSchemaFiles),
@@ -308,10 +325,10 @@ load_schema(ParsedArgs) ->
 
 load_conf(ParsedArgs) ->
     ConfFiles = proplists:get_all_values(conf_file, ParsedArgs),
-    lager:debug("ConfFiles: ~p", [ConfFiles]),
+    _ = ?LOG_DEBUG("ConfFiles: ~p", [ConfFiles]),
     case cuttlefish_conf:files(ConfFiles) of
         {errorlist, Errors} ->
-            _ = [ lager:error(cuttlefish_error:xlate(E)) ||
+            _ = [ _ = ?LOG_ERROR(cuttlefish_error:xlate(E)) ||
                     {error, E} <- Errors],
             stop_deactivate(),
             {errorlist, Errors};
@@ -334,7 +351,7 @@ writable_destination_path(ParsedArgs) ->
         ok ->
             AbsoluteDestPath;
         {error, E} ->
-            lager:error(
+            _ = ?LOG_ERROR(
                 "Error creating ~s: ~s",
                 [AbsoluteDestPath, file:format_error(E)]),
             error
@@ -351,39 +368,38 @@ engage_cuttlefish(ParsedArgs) ->
                   Path -> Path
     end,
 
-    Date = calendar:local_time(),
-
-    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs), Date, "config"),
+    DestinationFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs, "app"), "config"),
     Destination = filename:join(AbsPath, DestinationFilename),
 
-    DestinationVMArgsFilename = filename_maker("vm", Date, "args"),
+    DestinationVMArgsFilename = filename_maker(proplists:get_value(dest_file, ParsedArgs, "vm"), "args"),
     DestinationVMArgs = filename:join(AbsPath, DestinationVMArgsFilename),
 
-    lager:debug("Generating config in: ~p", [Destination]),
+    _ = ?LOG_DEBUG("Generating config in: ~p", [Destination]),
+    _ = ?LOG_DEBUG("Generating vm.args in: ~p", [DestinationVMArgs]),
 
     Schema = load_schema(ParsedArgs),
     Conf = load_conf(ParsedArgs),
-    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+    NewConfig = case cuttlefish_generator:map(Schema, Conf, ParsedArgs) of
         {error, Phase, {errorlist, Errors}} ->
-            lager:error("Error generating configuration in phase ~s", [Phase]),
+            _ = ?LOG_ERROR("Error generating configuration in phase ~s", [Phase]),
             _ = [ cuttlefish_error:print(E) || E <- Errors],
             stop_deactivate();
         ValidConfig -> ValidConfig
     end,
 
     AdvancedConfigFile = proplists:get_value(advanced_conf_file, ParsedArgs, filename:join(EtcDir, "advanced.config")),
-    lager:debug("AdvancedConfigFile: ~p", [AdvancedConfigFile]),
+    _ = ?LOG_DEBUG("AdvancedConfigFile: ~p", [AdvancedConfigFile]),
     FinalConfig = case filelib:is_file(AdvancedConfigFile) of
         true ->
-            lager:info("advanced config file is detected at ~s, overlaying proplists", [AdvancedConfigFile]),
+            _ = ?LOG_INFO("advanced config file is detected at ~s, overlaying proplists", [AdvancedConfigFile]),
             case file:consult(AdvancedConfigFile) of
                 {ok, [AdvancedConfig]} ->
                     cuttlefish_advanced:overlay(NewConfig, AdvancedConfig);
                 {ok, OtherTerms} ->
-                    lager:error("Error parsing ~s, incorrect format: ~p", [AdvancedConfigFile, OtherTerms]),
+                    _ = ?LOG_ERROR("Error parsing ~s, incorrect format: ~p", [AdvancedConfigFile, OtherTerms]),
                     stop_deactivate();
                 {error, Error} ->
-                    lager:error("Error parsing ~s: ~s", [AdvancedConfigFile, file:format_error(Error)]),
+                    _ = ?LOG_ERROR("Error parsing ~s: ~s", [AdvancedConfigFile, file:format_error(Error)]),
                     stop_deactivate()
             end;
         _ ->
@@ -396,16 +412,16 @@ engage_cuttlefish(ParsedArgs) ->
             error;
         _ ->
             FinalAppConfig = proplists:delete(vm_args, FinalConfig),
-            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig)),
+            FinalVMArgs = cuttlefish_vmargs:stringify(proplists:get_value(vm_args, FinalConfig, [])),
 
             %% Prune excess files
             MaxHistory = proplists:get_value(max_history, ParsedArgs, 3) - 1,
             prune(Destination, MaxHistory),
             prune(DestinationVMArgs, MaxHistory),
 
-            case { file:write_file(Destination, io_lib:fwrite("~p.\n",[FinalAppConfig])),
-                   file:write_file(DestinationVMArgs, string:join(FinalVMArgs, "\n"))} of
-                {ok, ok} ->
+            case {maybe_write_file(Destination, "~p.\n", FinalAppConfig),
+                  maybe_write_file(DestinationVMArgs, "~s", string:join(FinalVMArgs, "\n"))} of
+                {ok, ok}  ->
                     {Destination, DestinationVMArgs};
                 {Err1, Err2} ->
                     maybe_log_file_error(Destination, Err1),
@@ -414,6 +430,15 @@ engage_cuttlefish(ParsedArgs) ->
             end
 
     end.
+
+-spec maybe_write_file(Filename :: string(),
+                       Format :: string(),
+                       Data :: string()) -> ok | {error, file:posix() | badarg | terminated | system_limit}.
+maybe_write_file(_, _, []) ->
+    % nothing to write, write nothing
+    ok;
+maybe_write_file(Filename, Format, Data) ->
+    file:write_file(Filename, io_lib:fwrite(Format, [Data])).
 
 -spec prune(file:name_all(), integer()) -> ok.
 prune(Filename, MaxHistory) ->
@@ -436,7 +461,7 @@ delete([File|Files], MaxHistory) ->
     case file:delete(File) of
         ok -> ok;
         {error, Reason} ->
-            lager:error("Could not delete ~s, ~p", [File, Reason])
+            _ = ?LOG_ERROR("Could not delete ~s, ~p", [File, Reason])
     end,
     delete(Files, MaxHistory).
 
@@ -450,18 +475,25 @@ delete([File|Files], MaxHistory) ->
 maybe_log_file_error(_, ok) ->
     ok;
 maybe_log_file_error(Filename, {error, Reason}) ->
-    lager:error("Error writing ~s: ~s", [Filename, file:format_error(Reason)]),
+    _ = ?LOG_ERROR("Error writing ~s: ~s", [Filename, file:format_error(Reason)]),
     ok.
 
 -spec check_existence(string(), string()) -> {boolean(), string()}.
 check_existence(EtcDir, Filename) ->
     FullName = filename:join(EtcDir, Filename), %% Barfolomew
     Exists = filelib:is_file(FullName),
-    lager:info("Checking ~s exists... ~p", [FullName, Exists]),
+    _ = ?LOG_INFO("Checking ~s exists... ~p", [FullName, Exists]),
     {Exists, FullName}.
 
-filename_maker(Filename, Date, Extension) ->
-    {{Y, M, D}, {HH, MM, SS}} = Date,
+filename_maker(Filename, Extension) ->
+    case length(string:tokens(Filename, ".")) of
+        1 -> filename_maker(add_suffix, Filename, Extension);
+        _ -> filename_maker(no_suffix, Filename, Extension)
+    end.
+
+filename_maker(no_suffix, Filename, _Extension) -> Filename;
+filename_maker(add_suffix, Filename, Extension) ->
+    {{Y, M, D}, {HH, MM, SS}} = calendar:local_time(),
     _DestinationFilename =
         io_lib:format("~s.~p.~s.~s.~s.~s.~s.~s",
             [Filename,
@@ -482,7 +514,7 @@ zero_pad(Integer) ->
     end.
 
 print_schema(Schema) ->
-    lager:info("Printing Schema Mappings"),
+    _ = ?LOG_INFO("Printing Schema Mappings"),
     {_, Mappings, _} = Schema,
 
     {Max, ListOfMappings} = lists:foldr(

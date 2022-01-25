@@ -40,7 +40,8 @@
                     bytesize |
                     {percent, integer} |
                     {percent, float} |
-                    float.
+                    float |
+                    {list, datatype()}.
 -type extended() :: { integer, integer() } |
                     { string, string() } |
                     { file, file:filename() } |
@@ -88,6 +89,11 @@ is_supported(bytesize) -> true;
 is_supported({percent, integer}) -> true;
 is_supported({percent, float}) -> true;
 is_supported(float) -> true;
+is_supported({list, {list, _}}) ->
+    % lists of lists are not supported
+    false;
+is_supported({list, ListDatatype}) ->
+    is_supported(ListDatatype);
 is_supported(_) -> false.
 
 -spec is_extended(any()) -> boolean().
@@ -266,6 +272,12 @@ from_string(String, float) when is_list(String) ->
     catch
         _:_ -> {error, {conversion, {String, float}}}
     end;
+
+from_string(List, {list, DataType}) when is_list(List) ->
+    lists:map(fun(El) ->
+                  from_string(string:trim(El), DataType)
+              end,
+              string:split(List, ",", all));
 
 from_string(Thing, InvalidDatatype) ->
    {error, {type, {Thing, InvalidDatatype}}}.
@@ -514,6 +526,27 @@ from_string_float_test() ->
 from_string_string_test() ->
     ?assertEqual("string", from_string("string", string)).
 
+from_string_string_list_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    ?assertEqual(["v1", "v2", "v3"], from_string("v1, v2,v3", {list, string})),
+    ok.
+
+from_string_integer_list_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    ?assertEqual([1, 2, 3], from_string("1, 2,3", {list, integer})),
+    ok.
+
+from_string_atom_list_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    ?assertEqual([a, b, c], from_string("a, b,c", {list, atom})),
+    ok.
+
+from_string_string_in_integer_list_test() ->
+    %% more examples in the the cuttlefish_duration tests
+    ?assertEqual([{error, {conversion, {"a", integer}}}, 1, 2],
+                 from_string("a, 1,2", {list, integer})),
+    ok.
+
 from_string_unsupported_datatype_test() ->
     ?assertEqual("Tried to convert \"string\" but invalid datatype: unsupported_datatype", ?XLATE(from_string("string", unsupported_datatype))).
 
@@ -534,6 +567,8 @@ is_supported_test() ->
     ?assert(is_supported({duration, s})),
     ?assert(is_supported({duration, ms})),
     ?assert(is_supported(bytesize)),
+    ?assert(is_supported({list, string})),
+    ?assert(not(is_supported({list, {list, string}}))),
     ?assert(not(is_supported(some_unsupported_type))),
     ok.
 

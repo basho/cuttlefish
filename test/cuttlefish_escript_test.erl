@@ -24,14 +24,26 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(assertPrinted(___Text),
+            ?assertPrinted(___Text, [])).
+
+-define(assertPrinted(___Text, ___Opts),
         begin
             ((fun() ->
                      case cuttlefish_test_group_leader:get_output() of
                          {ok, ___Output} ->
-                             case re:run(___Output, ___Text) of
-                                 {match, _} ->
+                             case {lists:member(exact, ___Opts),
+                                   re:run(___Output, ___Text)} of
+                                 {true, _} when ___Output =:= ___Text ->
                                      ok;
-                                 nomatch ->
+                                 {true, _} when ___Output =/= ___Text ->
+                                     erlang:error({assertPrinted_failed,
+                                           [{module, ?MODULE},
+                                            {line, ?LINE},
+                                            {expected, ___Text},
+                                            {actual, unicode:characters_to_list(___Output)}]});
+                                 {_, {match, _}} ->
+                                     ok;
+                                 {_, nomatch} ->
                                      erlang:error({assertPrinted_failed,
                                            [{module, ?MODULE},
                                             {line, ?LINE},
@@ -117,8 +129,19 @@ describe_prints_no_default() ->
 describe_prints_not_configured() ->
     ?capturing(begin
         describe("ssl.keyfile"),
-        ?assertPrinted("Value not set in "
-            ++ cuttlefish_test_util:test_file("riak.conf"))
+        ?assertPrinted("Value not set in test/riak.conf")
     end).
+
+silent_test() ->
+    ?capturing(begin
+                cuttlefish_escript:main(["-i", "test/riak.schema", "-c", "test/riak.conf", "--etc_dir", "etc", "--silent"]),
+                ?assertPrinted("", [exact])
+               end).
+
+vm_args_test() ->
+    ?capturing(begin
+                cuttlefish_escript:main(["--schema_file", "priv/erlang_vm.schema", "--conf_file", "test/riak.conf", "--etc_dir", "etc", "--dest_file", "vm.generated.args", "--allow_extra", "--silent"]),
+                ?assertPrinted("", [exact])
+               end).
 
 -endif.

@@ -1,7 +1,7 @@
 # Cuttlefish
 
-[![Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=develop)](https://travis-ci.org/Kyorai/cuttlefish)
-[![Build status (windows)](https://ci.appveyor.com/api/projects/status/lo8ssrixiqmufc3j?svg=true)](https://ci.appveyor.com/project/Licenser/cuttlefish)
+[![GitHub Actions Status](https://github.com/Kyorai/cuttlefish/workflows/CI/badge.svg)](https://github.com/Kyorai/cuttlefish/actions)
+[![Travis CI Build Status](https://travis-ci.org/Kyorai/cuttlefish.svg?branch=master)](https://travis-ci.org/Kyorai/cuttlefish)
 [![Coverage Status](https://coveralls.io/repos/github/Kyorai/cuttlefish/badge.svg?branch=master)](https://coveralls.io/github/Kyorai/cuttlefish)
 [![Hex version](https://img.shields.io/hexpm/v/cuttlefish.svg "Hex version")](https://hex.pm/packages/cuttlefish)
 
@@ -15,6 +15,11 @@ but intentionally cut ties with that repo to avoid confusion as to
 where is the most up-to-date, maintained version is.
 
 This is the repository used to produce [Hex.pm releases](https://hex.pm/packages/cuttlefish) of the project.
+
+## Supported Erlang/OTP Versions
+
+ * Cuttlefish 2.7.0 and later versions support Erlang 22 through 24
+ * Cuttlefish releases up to and including 2.6.0 support Erlang/OTP 17 through 23
 
 ## Riak Disclaimer
 

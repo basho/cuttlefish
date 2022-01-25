@@ -12,7 +12,7 @@
 %% And validators!
 {validator, "a.validator2", "so much validator", fun(_AlwaysFalse) -> false end}.
 
-%% But we can have our own mappings too! And they will come cuttlefish_lager_test_backend
+%% But we can have our own mappings too! And they will come cuttlefish_test_logging
 {mapping, "top_level.var1", "app_a.big_var", []}.
 {translation, "app_a.big_var", fun(X) -> "tippedy top" end}.
 {validator, "top.val", "you only validate once.", fun(_AlwaysFalse) -> false end}.
