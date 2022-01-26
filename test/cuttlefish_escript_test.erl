@@ -84,8 +84,8 @@ describe_test_() ->
 
 describe(Key) ->
     ?assertThrow(stop_deactivate, cuttlefish_escript:main([
-        "-i", cuttlefish_test_util:test_file("riak.schema"),
-        "-c", cuttlefish_test_util:test_file("riak.conf"),
+        "-i", "test/riak.schema",
+        "-c", "test/riak.conf",
         "describe", Key ])).
 
 describe_prints_docs() ->
