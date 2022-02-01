@@ -157,7 +157,7 @@ string(S, {T, M, V}) ->
         {error, {Line, erl_scan, _}, _} ->
             Error = {erl_scan, Line},
             ErrStr = cuttlefish_error:xlate(Error),
-            lager:error(lists:flatten(ErrStr)),
+            _ = lager:error(lists:flatten(ErrStr)),
             {errorlist, [{error, Error}]}
     end.
 

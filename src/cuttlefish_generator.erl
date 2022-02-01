@@ -70,7 +70,7 @@ restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
 map_add_defaults({_, Mappings, _} = Schema, Config) ->
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
-    lager:debug("Adding Defaults"),
+    _ = lager:debug("Adding Defaults"),
     DConfig = add_defaults(Config, Mappings),
     case cuttlefish_error:errorlist_maybe(DConfig) of
         {errorlist, EList} ->
@@ -83,7 +83,7 @@ map_add_defaults({_, Mappings, _} = Schema, Config) ->
                            [proplists:property()] |
                            {error, atom(), cuttlefish_error:errorlist()}.
 map_value_sub(Schema, Config) ->
-    lager:debug("Right Hand Side Substitutions"),
+    _ = lager:debug("Right Hand Side Substitutions"),
      case value_sub(Config) of
          {SubbedConfig, []} ->
             map_transform_datatypes(Schema, SubbedConfig);
@@ -98,7 +98,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
     %% Everything in DConfig is of datatype "string",
     %% transform_datatypes turns them into other erlang terms
     %% based on the schema
-    lager:debug("Applying Datatypes"),
+    _ = lager:debug("Applying Datatypes"),
     case transform_datatypes(DConfig, Mappings) of
         {NewConf, []} ->
             map_validate(Schema, NewConf);
@@ -111,7 +111,7 @@ map_transform_datatypes({_, Mappings, _} = Schema, DConfig) ->
                           {error, atom(), cuttlefish_error:errorlist()}.
 map_validate(Schema, Conf) ->
     %% Any more advanced validators
-    lager:debug("Validation"),
+    _ = lager:debug("Validation"),
     case cuttlefish_error:errorlist_maybe(run_validations(Schema, Conf)) of
         {errorlist, EList} ->
             {error, validation, {errorlist, EList}};
@@ -156,7 +156,7 @@ apply_mappings({Translations, Mappings, _Validators}, Conf) ->
         end,
         {[], {ordsets:new(),ordsets:new()}},
         Mappings),
-    lager:debug("Applied 1:1 Mappings"),
+    _ = lager:debug("Applied 1:1 Mappings"),
 
     TranslationsToDrop = TranslationsToMaybeDrop -- TranslationsToKeep,
     {DirectMappings, TranslationsToDrop}.
@@ -172,7 +172,7 @@ apply_translations({Translations, _, _} = Schema, Conf, DirectMappings, Translat
                                         {DirectMappings, []}, Translations),
     case Errorlist of
         [] ->
-            lager:debug("Applied Translations"),
+            _ = lager:debug("Applied Translations"),
             Proplist;
         Es ->
             {error, apply_translations, {errorlist, Es}}
@@ -187,7 +187,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                 false ->
                     {XlatFun, XlatArgs} = prepare_translation_fun(Conf, Schema,
                                                                   Mapping, Xlat),
-                    lager:debug("Running translation for ~s", [Mapping]),
+                    _ = lager:debug("Running translation for ~s", [Mapping]),
                     case try_apply_translation(Mapping, XlatFun, XlatArgs) of
                         unset ->
                             {Acc, Errors};
@@ -197,7 +197,7 @@ fold_apply_translation(Conf, Schema, TranslationsToDrop) ->
                             {Acc, [{error, Term}|Errors]}
                     end;
                 _ ->
-                    lager:debug("~p in Translations to drop...", [Mapping]),
+                    _ = lager:debug("~p in Translations to drop...", [Mapping]),
                     {Acc, Errors}
             end
         end.
@@ -296,7 +296,7 @@ add_default(Conf, Prefixes, MappingRecord, Acc) ->
         %% If Match =:= true, do nothing, the value is set in the .conf file
         _ ->
             %% TODO: Handle with more style and grace
-            lager:error("Both fuzzy and strict match! should not happen"),
+            _ = lager:error("Both fuzzy and strict match! should not happen"),
             [{error, {map_multiple_match, VariableDef}}|Acc]
     end.
 
@@ -404,15 +404,15 @@ transform_datatypes(Conf, Mappings) ->
                     %% It will prevent anything from starting, and will let you know
                     %% that you're trying to set something that has no effect
                     VarName = cuttlefish_variable:format(Variable),
-                    lager:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
-                    lager:error("  Did you mean one of these?"),
+                    _ = lager:error("You've tried to set ~s, but there is no setting with that name.", [VarName]),
+                    _ = lager:error("  Did you mean one of these?"),
 
                     Possibilities = [ begin
                         MapVarName = cuttlefish_variable:format(cuttlefish_mapping:variable(M)),
                         {cuttlefish_util:levenshtein(VarName, MapVarName), MapVarName}
                     end || M <- Mappings],
                     Sorted = lists:sort(Possibilities),
-                    _ = [ lager:error("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
+                    _ = [lager:error("    ~s", [T]) || {_, T} <- lists:sublist(Sorted, 3) ],
                     {Acc, [ {error, {unknown_variable, VarName}} | ErrorAcc ]};
                 MappingRecord ->
                     DTs = cuttlefish_mapping:datatype(MappingRecord),
@@ -594,7 +594,7 @@ run_validations({_, Mappings, Validators}, Conf) ->
                                              cuttlefish_mapping:variable(M)),
                                            cuttlefish_validator:description(V)
                                          }},
-                    lager:error(cuttlefish_error:xlate(Error)),
+                    _ = lager:error(cuttlefish_error:xlate(Error)),
                     {error, Error}
             end
         end || V <- Vs]
@@ -668,7 +668,6 @@ bad_conf_test() ->
     ok.
 
 add_defaults_test() ->
-    %%lager:start(),
     Conf = [
         %%{["a","b","c"], "override"}, %% Specifically left out. Uncomment line to break test,
         {["a","c","d"], "override"},

@@ -121,7 +121,7 @@ generate_element(MappingRecord) ->
     case Level of
         basic -> ok;
         Level ->
-            lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+            _ = lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
     case generate_element(Hidden, Level, Default, Commented) of

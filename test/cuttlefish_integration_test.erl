@@ -134,7 +134,7 @@ multibackend_test() ->
     Multi = proplists:get_value(multi_backend, KV),
 
     {<<"bitcask_mult">>, riak_kv_bitcask_backend, BitcaskProps} = lists:keyfind(<<"bitcask_mult">>, 1, Multi),
-    lager:info("BitcaskProps: ~p", [BitcaskProps]),
+    _ = lager:info("BitcaskProps: ~p", [BitcaskProps]),
     ?assertEqual("/path/to/dat/cask", proplists:get_value(data_root, BitcaskProps)),
     ?assertEqual(4,                   proplists:get_value(open_timeout, BitcaskProps)),
     ?assertEqual(2147483648,          proplists:get_value(max_file_size, BitcaskProps)),
@@ -193,7 +193,7 @@ unset_translation_test() ->
     ],
     NewConfig = cuttlefish_generator:map(Schema, Conf),
     Props = proplists:get_value(erlang, NewConfig),
-    lager:info("~p", [NewConfig]),
+    _ = lager:info("~p", [NewConfig]),
     ?assertEqual(8, proplists:get_value(key, Props)).
 
 not_found_error_test() ->
