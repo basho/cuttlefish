@@ -114,7 +114,7 @@ parse(X) ->
 %% That something is usually a simple replace, unless the proplist in
 %% the raw mapping contains the atom 'merge'.
 %%
-%% This fuction assumes it's run as part of a foldl over new schema elements
+%% This function assumes it's run as part of a foldl over new schema elements
 %% in which case, there's only ever one instance of a key in the list
 %% so keyreplace works fine.
 -spec parse_and_merge(
@@ -280,7 +280,7 @@ mapping_test() ->
     ?assertEqual(["valid.the.impailer"], Record#mapping.validators),
     ?assertEqual(true, Record#mapping.hidden),
 
-    %% funciton tests
+    %% function tests
     ?assertEqual(["conf","key"], variable(Record)),
     ?assertEqual("default value", default(Record)),
     ?assertEqual("erlang.key", mapping(Record)),
