@@ -160,7 +160,7 @@ generate_element(MappingRecord) ->
     IncDef = cuttlefish_mapping:include_default(MappingRecord),
     [Datatype|_] = cuttlefish_mapping:datatype(MappingRecord),
     %% level != basic OR hidden == true: leave out of generated .conf file
-    %% commeneted $val: insert into .conf file, but commented out with $val
+    %% commented $val: insert into .conf file, but commented out with $val
     %% include_default $val:  substitute '$name' or whatever in the key for $val
     %%    e.g. {include_default, "internal"}
     %%         listener.http.$name -> listener.http.internal

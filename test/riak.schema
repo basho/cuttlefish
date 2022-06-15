@@ -215,7 +215,7 @@
   {commented, "/tmp/erlserver.pem"}
 ]}.
 
-%% @doc if you need a seperate keyfile for handoff
+%% @doc if you need a separate keyfile for handoff
 {mapping, "handoff.ssl.keyfile", "riak_core.handoff_ssl_options.keyfile", []}.
 
 %% @doc DTrace support
