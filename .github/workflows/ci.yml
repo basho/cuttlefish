@@ -1,43 +1,38 @@
 name: CI
-
 on:
-    push:
-    pull_request:
-        branches: [ master ]
-
+  pull_request:
+    branches:
+      - 'master'
+  push:
+    branches:
+      - 'master'
 jobs:
-  build_linux:
-    runs-on: ubuntu-latest
-    container:
-      image: erlang:23.2
+  build-test:
+    name: Build and test on Erlang/OTP ${{ matrix.otp_version }} and ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        otp_version: [23, 24]
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LATEST_OTP_RELEASE: 24
     steps:
-    - uses: actions/checkout@v2.0.0
-    - name: Compile
-      run: rebar3 compile
-    - name: Run tests, dialyzer
-      run: rebar3 do eunit,dialyzer
-  build_windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2.0.0
-      - name: Install Erlang/OTP
-        uses: gleam-lang/setup-erlang@v1.1.2
+      - uses: actions/checkout@v3
+      - uses: erlef/setup-beam@v1
+        id: install-erlang
         with:
-          otp-version: 23.2
-        id: install_erlang
-      - name: Install rebar3
-        run: |
-          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
-          & git clone https://github.com/rebar/rebar3.git
-          & cd rebar3
-          .\bootstrap.ps1
-          Copy-Item -Verbose -Force 'rebar3' -Destination $env:windir 
-          Copy-Item -Verbose -Force 'rebar3.cmd' -Destination $env:windir 
+          otp-version: ${{matrix.otp_version}}
+          rebar3-version: '3.18.0'
+      - name: Restore Dialyzer PLT files from cache
+        uses: actions/cache@v2
+        if: ${{ matrix.otp_version == env.LATEST_OTP_RELEASE && matrix.os == 'ubuntu-latest' }}
+        with:
+          path: _build/*/rebar3_*_plt
+          key: dialyzer-plt-cache-${{ steps.install-erlang.outputs.otp-version }}-${{ runner.os }}-${{ hashFiles('rebar.config*') }}-v0
       - name: Compile
-        run: |
-          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
-          & rebar3.cmd compile
-      - name: Run tests, dialyzer
-        run: |
-          $env:PATH = "${{ steps.install_erlang.outputs.erlpath }}\bin;$env:PATH"
-          & rebar3.cmd do eunit,dialyzer
+        run: rebar3 compile
+      - name: Test
+        run: rebar3 eunit --verbose
+      - name: Dialyzer
+        if: ${{ matrix.otp_version == env.LATEST_OTP_RELEASE && matrix.os == 'ubuntu-latest' }}
+        run: rebar3 dialyzer

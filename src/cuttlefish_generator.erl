@@ -131,8 +131,8 @@ map_validate(Schema, Conf) ->
 -spec apply_mappings(cuttlefish_schema:schema(), cuttlefish_conf:conf()) ->
                             {[proplists:property()], [string()]}.
 apply_mappings({Translations, Mappings, _Validators}, Conf) ->
-    %% This fold handles 1:1 mappings, that have no cooresponding translations
-    %% The accumlator is the app.config proplist that we start building from
+    %% This fold handles 1:1 mappings, that have no corresponding translations
+    %% The accumulator is the app.config proplist that we start building from
     %% these 1:1 mappings, hence the return "DirectMappings".
     %% It also builds a list of "TranslationsToDrop". It's basically saying that
     %% if a user didn't actually configure this setting in the .conf file and
@@ -488,8 +488,8 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                         SubVal ->
                             %% Do a sub-subsitution, in case the substituted
                             %% value contains substitutions itself. Do this as
-                            %% its own seperate recursion so that circular
-                            %% subtitutions can be detected.
+                            %% its own separate recursion so that circular
+                            %% substitutions can be detected.
                             case value_sub(NextVar, SubVal, Conf, [Var|History]) of
                                 {error, _} = Error ->
                                     Error;
