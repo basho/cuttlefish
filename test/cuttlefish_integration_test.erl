@@ -56,8 +56,8 @@ generated_config_file_test() ->
 generated_config_file_ez_test() ->
     Schema = cuttlefish_schema:file("test/riakconf.ez/riakconf/riak.schema"),
     Conf = [], %% conf_parse:file("test/riak.conf"),
-    Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
-    Conf = [], %% conf_parse:file(cuttlefish_test_util:test_file("riak.conf")),
+    % Schema = cuttlefish_schema:file(cuttlefish_test_util:test_file("riak.schema")),
+    % Conf = [], %% conf_parse:file(cuttlefish_test_util:test_file("riak.conf")),
     NewConfig = cuttlefish_generator:map(Schema, Conf),
 
     file:write_file("generated.config",io_lib:fwrite("~p.\n",[NewConfig])),
