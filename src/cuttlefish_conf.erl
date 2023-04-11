@@ -163,7 +163,7 @@ generate_comments(M) ->
     Default = case cuttlefish_mapping:default(M) of
                   undefined -> [];
                   Other ->
-                      [ "", ?FMT("Default: ~s", [cuttlefish_datatypes:to_string(Other, DefaultDT)]) ]
+                      [ "", ?FMT("Default: ~p", [cuttlefish_datatypes:to_string(Other, DefaultDT)]) ]
               end,
 
     Datatypes = ["", "Acceptable values:" |

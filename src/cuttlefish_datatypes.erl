@@ -167,6 +167,7 @@ to_string(Bytesize, bytesize) when is_list(Bytesize) -> Bytesize;
 to_string(Bytesize, bytesize) when is_integer(Bytesize) -> cuttlefish_bytesize:to_string(Bytesize);
 
 to_string(String, string) when is_list(String) -> String;
+to_string(Atom,   string) when is_atom(Atom) -> atom_to_list(Atom);
 
 to_string(File, file) when is_list(File) -> File;
 
